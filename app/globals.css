@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: 0 0% 100%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 47%;
+  --primary: 262 83% 58%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 222 47% 11%;
+  --accent: 199 89% 48%;
+  --accent-foreground: 0 0% 100%;
+  --success: 142 71% 45%;
+  --warning: 38 92% 50%;
+  --destructive: 0 84% 60%;
+  --border: 214 32% 91%;
+  --input: 214 32% 91%;
+  --ring: 262 83% 58%;
+  --radius: 0.75rem;
+}
+
+.dark {
+  --background: 224 71% 4%;
+  --foreground: 210 40% 98%;
+  --card: 224 47% 7%;
+  --card-foreground: 210 40% 98%;
+  --popover: 224 47% 7%;
+  --popover-foreground: 210 40% 98%;
+  --muted: 215 28% 14%;
+  --muted-foreground: 217 11% 65%;
+  --primary: 263 70% 66%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 215 28% 14%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 199 89% 55%;
+  --accent-foreground: 224 71% 4%;
+  --success: 142 64% 48%;
+  --warning: 38 92% 55%;
+  --destructive: 0 72% 58%;
+  --border: 215 28% 16%;
+  --input: 215 28% 16%;
+  --ring: 263 70% 66%;
+}
+
+@theme inline {
+  --color-background: hsl(var(--background));
+  --color-foreground: hsl(var(--foreground));
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-foreground));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-muted: hsl(var(--muted));
+  --color-muted-foreground: hsl(var(--muted-foreground));
+  --color-primary: hsl(var(--primary));
+  --color-primary-foreground: hsl(var(--primary-foreground));
+  --color-secondary: hsl(var(--secondary));
+  --color-secondary-foreground: hsl(var(--secondary-foreground));
+  --color-accent: hsl(var(--accent));
+  --color-accent-foreground: hsl(var(--accent-foreground));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+  --color-destructive: hsl(var(--destructive));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+  --color-ring: hsl(var(--ring));
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 0.25rem);
+  --radius-sm: calc(var(--radius) - 0.5rem);
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection {
+    background-color: hsl(var(--primary) / 0.25);
+  }
+}
+
+/* 细微的网格背景，营造 AI 科技感 */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, hsl(var(--border) / 0.4) 1px, transparent 1px),
+    linear-gradient(to bottom, hsl(var(--border) / 0.4) 1px, transparent 1px);
+  background-size: 40px 40px;
+}

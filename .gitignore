@@ -1,0 +1,29 @@
+/node_modules
+/.next
+/out
+/build
+.DS_Store
+*.pem
+npm-debug.log*
+.env*.local
+# 防误提交裸 .env（仅保留 .env.example 跟踪）
+.env
+.env.*
+!.env.example
+.vercel
+next-env.d.ts
+
+# 运行时生成的爬虫历史 / 详情 / 缓存（非源码）
+/data/hotspots-*.json
+/data/hotspot-details.json
+
+# 独立实验子项目（非上线 app，各自带 node_modules，主应用零引用）
+/smart-editor
+/remotion
+
+# 工具/工作区内部目录（含记忆文件，不入库）
+.workbuddy
+
+# 会话产物（Artifacts 报告，非源码）
+overview.md
+*-overview.md

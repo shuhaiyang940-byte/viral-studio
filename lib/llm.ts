@@ -1,0 +1,126 @@
+// 统一的 LLM 适配层（仅服务端使用 —— 含 API Key，禁止在客户端 import）。
+//
+// 分层约定（2026-08 拍板，与「千问 + DeepSeek」一致）：
+//   - 感知 / 内容理解层（看视频、画面、长文本理解）：阿里 Qwen（千问），视觉用 qwen-vl。
+//   - 推理 / 生成层（文案、分类、润色、报告推理）：DeepSeek（deepseek-chat）。
+//
+// 所有函数都「有 key才真调，无 key 由调用方降级」，不会因缺 key 崩应用。
+// 注意：本文件只被服务端代码引用（/api/copy、lib/hotspots-server、lib/ai/providers），
+// 切勿在 'use client' 组件中 import，否则会泄露 Key。
+
+export type LlmProvider = "deepseek" | "qwen";
+
+interface ProviderCfg {
+  label: string;
+  role: "reasoning" | "perception";
+  baseURL: string;
+  /** 文本/推理模型 */
+  model: string;
+  /** 视觉模型（仅 perception 层需用） */
+  visionModel?: string;
+  apiKey: () => string;
+}
+
+export const LLM: Record<LlmProvider, ProviderCfg> = {
+  deepseek: {
+    label: "DeepSeek",
+    role: "reasoning",
+    baseURL: "https://api.deepseek.com/v1",
+    model: process.env.DEEPSEEK_MODEL || "deepseek-chat",
+    apiKey: () => process.env.DEEPSEEK_API_KEY || process.env.LLM_API_KEY || "",
+  },
+  qwen: {
+    label: "Qwen（千问）",
+    role: "perception",
+    baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    model: process.env.QWEN_MODEL || "qwen-plus",
+    visionModel: process.env.QWEN_VL_MODEL || "qwen-vl-max-latest",
+    apiKey: () => process.env.QWEN_API_KEY || process.env.LLM_API_KEY || "",
+  },
+};
+
+export function isConfigured(p: LlmProvider): boolean {
+  return LLM[p].apiKey().length > 0;
+}
+
+export type ChatRole = "system" | "user" | "assistant";
+
+// 文本消息：content 为字符串。
+// 视觉消息：content 为数组，元素 {type:"text",text} | {type:"image_url",image_url:{url}}。
+export type ChatContent =
+  | string
+  | (
+      | { type: "text"; text: string }
+      | { type: "image_url"; image_url: { url: string } }
+    )[];
+
+export interface ChatMessage {
+  role: ChatRole;
+  content: ChatContent;
+}
+
+export interface ChatOpts {
+  json?: boolean;
+  temperature?: number;
+  maxTokens?: number;
+  timeoutMs?: number;
+}
+
+/**
+ * 通用 OpenAI 兼容对话补全。命中 DashScope 兼容模式与 DeepSeek 官方接口。
+ * 返回模型原始文本；json=true 时尝试 JSON.parse 后返回对象（解析失败抛错由调用方降级）。
+ */
+export async function chat(
+  p: LlmProvider,
+  messages: ChatMessage[],
+  opts: ChatOpts = {}
+): Promise<string> {
+  const cfg = LLM[p];
+  const key = cfg.apiKey();
+  if (!key) throw new Error(`[llm] ${cfg.label} 未配置 API Key`);
+
+  const usesVision = messages.some(
+    (m) => Array.isArray(m.content) && m.content.some((c) => (c as any).type === "image_url")
+  );
+  const model = usesVision && cfg.visionModel ? cfg.visionModel : cfg.model;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 30000);
+  try {
+    const res = await fetch(`${cfg.baseURL}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+        temperature: opts.temperature ?? 0.7,
+        ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
+      }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      throw new Error(`[llm] ${cfg.label} API ${res.status}: ${txt.slice(0, 300)}`);
+    }
+    const data = await res.json();
+    const content: string | undefined = data?.choices?.[0]?.message?.content;
+    if (!content) throw new Error(`[llm] ${cfg.label} 返回为空`);
+    return content;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** 推理层（DeepSeek）：写文案、分类、润色、报告推理。 */
+export function reasoningChat(messages: ChatMessage[], opts?: ChatOpts): Promise<string> {
+  return chat("deepseek", messages, opts);
+}
+
+/** 感知 / 内容理解层（Qwen，千问）：默认文本模型，带图时自动切视觉模型。 */
+export function perceiveChat(messages: ChatMessage[], opts?: ChatOpts): Promise<string> {
+  return chat("qwen", messages, opts);
+}
