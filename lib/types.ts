@@ -87,6 +87,26 @@ export interface ViralFormula {
   factors: { name: string; weight: number; tip: string }[];
 }
 
+/** 爆款公式库：从真实案例沉淀、可跨视频复用的公式模板 */
+export interface FormulaTemplate {
+  id: string;
+  name: string;
+  category: Category;
+  /** 主钩子类型，与 Golden3s.hookType 对齐，用于报告命中关联 */
+  hookType: string;
+  /** 一句话公式，如「身份共鸣 × 具体细节 × 情绪升华」 */
+  formula: string;
+  /** 公式拆解的因子与权重（weight 之和应为 100） */
+  factors: { name: string; weight: number; tip: string }[];
+  /** 适用场景 */
+  whenToUse: string;
+  /** 套用示例（一句话） */
+  example: string;
+  /** 复刻路径提示 */
+  copyPath: string;
+  tags: string[];
+}
+
 /** 剪辑特效难度 */
 export type EffectDifficulty = "易" | "中" | "难";
 

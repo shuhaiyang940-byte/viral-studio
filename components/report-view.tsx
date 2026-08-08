@@ -41,6 +41,7 @@ import { ScoreRing } from "@/components/score-ring";
 import { getReports, saveStoryboard, setPendingAnalysis } from "@/lib/storage";
 import { buildStoryboard } from "@/lib/storyboard";
 import { LEVEL_LABELS } from "@/lib/onboarding";
+import { matchFormulaForReport } from "@/lib/formula-library";
 import {
   getLearningStats,
   recordLearningEvent,
@@ -469,6 +470,22 @@ export function ReportView({ id }: { id?: string }) {
                 </div>
               </>
             )}
+            {(() => {
+              const matched = matchFormulaForReport({
+                hookType: report.golden3s?.hookType,
+                formula: report.formula,
+              });
+              if (!matched) return null;
+              return (
+                <Link
+                  href={`/formulas?focus=${matched.id}`}
+                  className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                >
+                  <Sigma className="h-4 w-4" /> 这条视频命中公式库中的【{matched.name}】 · 查看完整公式
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              );
+            })()}
           </Section>
 
           {/* 第六部分 · 可复制分析 */}

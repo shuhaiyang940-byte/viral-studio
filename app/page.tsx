@@ -122,6 +122,7 @@ const FEATURES = [
     title: "爆款公式库",
     desc: "从真实案例提炼方法，你收藏的是套路，不是视频",
     color: "from-sky-500 to-blue-600",
+    href: "/formulas",
   },
   {
     icon: PenTool,
@@ -278,7 +279,7 @@ export default function HomePage() {
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link href="/library">查看爆款公式</Link>
+                <Link href="/formulas">查看爆款公式库</Link>
               </Button>
             </div>
 
@@ -325,17 +326,26 @@ export default function HomePage() {
           </div>
 
           <div className="mt-14 grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-3 lg:grid-cols-6">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="group flex flex-col items-center text-center">
-                <div className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${f.color} shadow-lg shadow-${f.color.split('-')[0]}-500/20 transition-transform group-hover:-translate-y-1`}>
-                  <f.icon className="h-7 w-7 text-white" />
+            {FEATURES.map((f) => {
+              const card = (
+                <div className="group flex flex-col items-center text-center">
+                  <div className={`flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br ${f.color} shadow-lg shadow-${f.color.split('-')[0]}-500/20 transition-transform group-hover:-translate-y-1`}>
+                    <f.icon className="h-7 w-7 text-white" />
+                  </div>
+                  <h3 className="mt-4 text-sm font-semibold">{f.title}</h3>
+                  <p className="mt-1.5 max-w-[140px] text-xs leading-relaxed text-muted-foreground">
+                    {f.desc}
+                  </p>
                 </div>
-                <h3 className="mt-4 text-sm font-semibold">{f.title}</h3>
-                <p className="mt-1.5 max-w-[140px] text-xs leading-relaxed text-muted-foreground">
-                  {f.desc}
-                </p>
-              </div>
-            ))}
+              );
+              return f.href ? (
+                <Link key={f.title} href={f.href} className="rounded-2xl outline-none transition focus-visible:ring-2 focus-visible:ring-primary">
+                  {card}
+                </Link>
+              ) : (
+                <div key={f.title}>{card}</div>
+              );
+            })}
           </div>
         </div>
       </section>
