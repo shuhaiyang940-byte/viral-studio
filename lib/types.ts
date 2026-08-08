@@ -50,6 +50,43 @@ export interface ReportSection {
   };
 }
 
+/** 黄金 3 秒拆解：逐帧诊断开场钩子 */
+export interface Golden3s {
+  /** 钩子类型，如「身份共鸣」「反常识」「悬念」 */
+  hookType: string;
+  /** 前 3 秒的台词 / 画面脚本（脚本式，方便照抄） */
+  transcript: string;
+  /** 为什么这 3 秒能留人 */
+  why: string;
+  /** 给你的可落地改造建议 */
+  rebuild: string[];
+}
+
+/** 情绪曲线上的一个点 */
+export interface EmotionPoint {
+  /** 时间（秒） */
+  tSec: number;
+  /** 该时间点的情绪强度 0-100 */
+  level: number;
+  /** 该段标签，如「铺垫」「冲突」「高潮」 */
+  label: string;
+}
+
+/** 情绪曲线：随时间的情绪强度走向 */
+export interface EmotionCurve {
+  points: EmotionPoint[];
+  /** 整体情绪走向说明（哪段回落、哪段峰值、为什么） */
+  note: string;
+}
+
+/** 爆款公式提炼：从这条视频抽象出的可复制公式 */
+export interface ViralFormula {
+  /** 一句话公式，如「身份共鸣 × 具体细节 × 情绪升华」 */
+  formula: string;
+  /** 公式拆解的因子与权重 */
+  factors: { name: string; weight: number; tip: string }[];
+}
+
 /** 剪辑特效难度 */
 export type EffectDifficulty = "易" | "中" | "难";
 
@@ -144,6 +181,12 @@ export interface AnalysisReport {
   meta: VideoMeta;
   score: ScoreBreakdown;
   section: ReportSection;
+  /** 黄金 3 秒拆解（Mock 必填；真实模型按返回情况可选） */
+  golden3s?: Golden3s;
+  /** 情绪曲线（Mock 必填；真实模型按返回情况可选） */
+  emotionCurve?: EmotionCurve;
+  /** 爆款公式提炼（Mock 必填；真实模型按返回情况可选） */
+  formula?: ViralFormula;
   /** 特效拆解（Mock 必填；真实模型按返回情况可选） */
   effects?: EffectItem[];
   /** 节奏分析（Mock 必填；真实模型按返回情况可选） */

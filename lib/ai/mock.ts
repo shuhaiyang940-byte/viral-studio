@@ -3,6 +3,9 @@ import type {
   Category,
   EffectDifficulty,
   EffectItem,
+  EmotionCurve,
+  EmotionPoint,
+  Golden3s,
   OnboardingProfile,
   PacingInfo,
   PremiumInfo,
@@ -11,6 +14,7 @@ import type {
   ScoreBreakdown,
   ScoreTarget,
   VideoMeta,
+  ViralFormula,
 } from "@/lib/types";
 import { REFERENCE_TYPES } from "@/lib/types";
 import { detectMismatch } from "@/lib/mismatch";
@@ -89,6 +93,61 @@ function pick<T>(arr: T[], n: number): T[] {
 
 function topicFromTitle(title: string): string {
   return title.replace(/^(我|一个|今天|昨天|终于|竟然|偷偷)/g, "").slice(0, 12) || "这个选题";
+}
+
+/** 把「0分45秒」之类时长解析成秒，失败回退默认 60 */
+function parseDurationToSec(d: string): number {
+  const m = d.match(/(\d+)\s*分?/);
+  const s = d.match(/(\d+)\s*秒/);
+  const mins = m ? parseInt(m[1], 10) : 0;
+  const secs = s ? parseInt(s[1], 10) : 0;
+  return Math.max(20, mins * 60 + secs);
+}
+
+const HOOK_TYPES = ["身份共鸣", "反常识", "悬念前置", "痛点前置", "结果前置", "情绪钩子"];
+
+function generateGolden3s(title: string): Golden3s {
+  const hookType = pick(HOOK_TYPES, 1)[0];
+  const head = title.slice(0, 16) || "这个选题";
+  return {
+    hookType,
+    transcript: `（镜头特写）「${head}……」——前 2 秒直接把冲突甩出来，不铺垫、不自我介绍。`,
+    why: "前 3 秒用强反差 / 悬念抓住注意力，用户本能想知道答案，划走成本立刻变高。",
+    rebuild: [
+      "把钩子提前到 1 秒内，别让 logo / 片头占前 3 秒。",
+      "用「一个具体物件」当贯穿线索（门牌 / 钥匙 / 食物），比空泛关键词更抓人。",
+      "钩子里先给冲突或悬念、再给答案，留一个「为什么」让用户继续看。",
+    ],
+  };
+}
+
+function generateEmotionCurve(durationSec: number): EmotionCurve {
+  const total = durationSec || 60;
+  const at = (ratio: number) => Math.round(total * ratio);
+  const points: EmotionPoint[] = [
+    { tSec: 0, level: 28, label: "开场" },
+    { tSec: at(0.12), level: 52, label: "铺垫" },
+    { tSec: at(0.32), level: 47, label: "展开" },
+    { tSec: at(0.55), level: 68, label: "冲突" },
+    { tSec: at(0.82), level: 92, label: "高潮" },
+    { tSec: total, level: 76, label: "收尾" },
+  ];
+  return {
+    points,
+    note: "整体先平后扬，结尾高潮（升华主题）拉满转发；中段「展开期」有小幅回落，建议插一个具体细节把人拉回，别让情绪空档超过 10 秒。",
+  };
+}
+
+function generateFormula(): ViralFormula {
+  return {
+    formula: "身份共鸣 × 具体细节 × 情绪升华",
+    factors: [
+      { name: "身份共鸣", weight: 35, tip: "用真实普通人的视角切入，唤起集体记忆，降低距离感。" },
+      { name: "具体细节", weight: 30, tip: "老物件 / 人名 / 数字，信息密度高不注水，让人信以为真。" },
+      { name: "情绪升华", weight: 20, tip: "结尾从个人故事升华到时代 / 群体，给用户一个转发的理由。" },
+      { name: "互动钩子", weight: 15, tip: "结尾抛一个开放式问题，自然盘活评论区。" },
+    ],
+  };
 }
 
 interface EffectDef {
@@ -287,12 +346,16 @@ export function generateMockReport(input: {
     platform: PLATFORMS[rand(0, PLATFORMS.length - 1)],
     views: rand(80, 520) * 10000,
   };
+  const durationSec = parseDurationToSec(meta.duration);
 
   return {
     id: randomId(),
     meta,
     score,
     section,
+    golden3s: generateGolden3s(userTitle),
+    emotionCurve: generateEmotionCurve(durationSec),
+    formula: generateFormula(),
     effects: generateEffects(input.profile),
     pacing: generatePacing(input.profile),
     profile: input.profile,
@@ -323,6 +386,20 @@ export function buildPrompt(input: { source?: string; title?: string }): string 
     "titles": string[10]（10 个可直接使用的完整爆款标题，禁止含 {topic} 等占位符/模板变量，禁止直接套用原视频标题，每条 6-40 字、彼此不重复）,
     "shootingTips": { "camera": string[3], "copy": string[3], "music": string[3] }
   },
+  "golden3s": {
+    "hookType": string（如「身份共鸣」「反常识」「悬念前置」之一）,
+    "transcript": string（前 3 秒台词 / 画面脚本，脚本式、可照抄，30 字内）,
+    "why": string（为什么这 3 秒能留人，40 字内）,
+    "rebuild": string[3]（给普通人的可落地改造建议，每条 20-40 字）
+  },
+  "emotionCurve": {
+    "points": [ { "tSec": number, "level": number(0-100), "label": string } ]（6 个时间点，覆盖 0 秒到视频结尾，level 随情绪起伏）,
+    "note": string（整体情绪走向说明：哪段回落、哪段峰值、为什么，40-80 字）
+  },
+  "formula": {
+    "formula": string（一句话公式，如「身份共鸣 × 具体细节 × 情绪升华」）,
+    "factors": [ { "name": string, "weight": number(0-100 整数且四项之和=100), "tip": string } ]（4 个因子，weight 为权重）
+  },
   "effects": [ { "name": string, "used": boolean, "difficulty": "易"|"中"|"难", "tip": string } ],
   "pacing": {
     "hookSeconds": number,
@@ -333,5 +410,5 @@ export function buildPrompt(input: { source?: string; title?: string }): string 
     "suggestion": string
   }
 }
-评分均为 0-100 的整数，overall 为其余四项的平均值（四舍五入）。effects 与 pacing 为新增的特效拆解与节奏分析板块。`;
+评分均为 0-100 的整数，overall 为其余四项的平均值（四舍五入）。golden3s / emotionCurve / formula 为《爆款导演拆解报告》的核心三段（黄金3秒 / 情绪曲线 / 爆款公式提炼）。`;
 }

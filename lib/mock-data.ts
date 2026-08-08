@@ -81,6 +81,36 @@ export const SAMPLE_REPORT: AnalysisReport = {
       ],
     },
   },
+  golden3s: {
+    hookType: "身份共鸣",
+    transcript: "（镜头：斑驳门牌特写）「我在北京胡同住了三十年，今天终于要搬走了。」",
+    why: "前 2 秒用「三十年 + 搬走」的强反差制造悬念，用户本能想知道为什么，划走成本立刻变高。",
+    rebuild: [
+      "把钩子提前到 1 秒内，别让 logo / 片头占前 3 秒。",
+      "用「一个具体物件」（门牌 / 钥匙）当贯穿线索，比空泛关键词更抓人。",
+      "钩子里先给冲突、再给答案，留一个「为什么」让用户继续看。",
+    ],
+  },
+  emotionCurve: {
+    points: [
+      { tSec: 0, level: 30, label: "开场" },
+      { tSec: 9, level: 54, label: "铺垫" },
+      { tSec: 24, level: 47, label: "展开" },
+      { tSec: 42, level: 70, label: "冲突" },
+      { tSec: 60, level: 92, label: "高潮" },
+      { tSec: 72, level: 78, label: "收尾" },
+    ],
+    note: "整体先平后扬，60 秒处情绪峰值（升华主题）拉满转发；24-42 秒「展开期」有小幅回落，靠老物件细节把人拉回，别让情绪空档超过 10 秒。",
+  },
+  formula: {
+    formula: "身份共鸣 × 具体细节 × 情绪升华",
+    factors: [
+      { name: "身份共鸣", weight: 35, tip: "用真实普通人的视角切入，唤起集体记忆，降低距离感。" },
+      { name: "具体细节", weight: 30, tip: "老门牌 / 邻居 / 味道，信息密度高不注水，让人信以为真。" },
+      { name: "情绪升华", weight: 20, tip: "结尾从个人故事升华到城市变迁，给用户一个转发的理由。" },
+      { name: "互动钩子", weight: 15, tip: "结尾抛一个开放式问题，自然盘活评论区。" },
+    ],
+  },
   effects: [
     { name: "转场特效", used: true, difficulty: "易", tip: "全片硬切为主，段落衔接处叠化一次，干净不抢戏。" },
     { name: "滤镜调色", used: true, difficulty: "中", tip: "整片统一偏暖旧胶片色，回忆感一下就有，跟主题贴。" },

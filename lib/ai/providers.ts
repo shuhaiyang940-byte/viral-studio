@@ -1,4 +1,12 @@
-import type { AnalysisReport, ReportSection, ScoreBreakdown, VideoMeta } from "@/lib/types";
+import type {
+  AnalysisReport,
+  EmotionCurve,
+  Golden3s,
+  ReportSection,
+  ScoreBreakdown,
+  VideoMeta,
+  ViralFormula,
+} from "@/lib/types";
 import { buildPrompt, randomId } from "./mock";
 import { chat } from "@/lib/llm";
 
@@ -6,6 +14,9 @@ interface RawReport {
   meta: VideoMeta;
   score: ScoreBreakdown;
   section: ReportSection;
+  golden3s?: Golden3s;
+  emotionCurve?: EmotionCurve;
+  formula?: ViralFormula;
 }
 
 /** 去除 {topic} 之类占位符残留与首尾空白 */

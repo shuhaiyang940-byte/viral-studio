@@ -11,20 +11,17 @@ import {
   TrendingUp,
   ListTree,
   Copy,
-  Heading,
   Video,
   PenLine,
   Music,
   ArrowRight,
   Loader2,
   RefreshCw,
-  Wand2,
   Activity,
   Minus,
   Check,
   AlertTriangle,
   Zap,
-  Route,
   MessageSquare,
   Tags,
   GraduationCap,
@@ -32,8 +29,10 @@ import {
   Lock,
   Crown,
   Clapperboard,
+  Timer,
+  Sigma,
 } from "lucide-react";
-import type { AnalysisReport, OnboardingProfile } from "@/lib/types";
+import type { AnalysisReport, EmotionPoint, OnboardingProfile } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,12 +68,7 @@ export function ReportView({ id }: { id?: string }) {
 
   const router = useRouter();
 
-  // 行动入口：从分析结果一键进入智能剪辑 / 生成导演分镜
-  function goStudio() {
-    if (!report) return;
-    setPendingAnalysis(report.id);
-    router.push("/studio");
-  }
+  // 行动入口：从分析结果一键生成导演分镜 / 写文案
   function goStoryboard() {
     if (!report) return;
     const sb = buildStoryboard(report);
@@ -191,18 +185,10 @@ export function ReportView({ id }: { id?: string }) {
         </Button>
       </div>
 
-      {/* 行动入口：分析 → 智能剪辑 / 导演分镜（会员专享，免费用户引导升级） */}
+      {/* 行动入口：分析 → 导演分镜 / 写文案（会员专享，免费用户引导升级） */}
       <div className="mt-5 flex flex-wrap gap-3">
         {locked ? (
           <>
-            <Button asChild className="gap-2">
-              <Link href="/pricing?feature=auto-edit">
-                <Wand2 className="h-4 w-4" /> 智能剪辑（会员专享）
-                <Badge variant="warning" className="ml-1 gap-1">
-                  <Crown className="h-3 w-3" /> 升级解锁
-                </Badge>
-              </Link>
-            </Button>
             <Button asChild variant="outline" className="gap-2">
               <Link href="/pricing?feature=storyboard">
                 <Clapperboard className="h-4 w-4" /> 导演分镜表（会员专享）
@@ -222,9 +208,6 @@ export function ReportView({ id }: { id?: string }) {
           </>
         ) : (
           <>
-            <Button className="gap-2" onClick={goStudio}>
-              <Wand2 className="h-4 w-4" /> 智能剪辑（按分析自动成片）
-            </Button>
             <Button variant="outline" className="gap-2" onClick={goStoryboard}>
               <Clapperboard className="h-4 w-4" /> 导演分镜表
             </Button>
@@ -325,7 +308,25 @@ export function ReportView({ id }: { id?: string }) {
         </CardContent>
       </Card>
 
-      {/* 提分目标：帮普通人从不及格→70、及格→80 的补齐清单 */}
+      {/* ════════ 第一部分 · 爆款评分（评分体系） ════════ */}
+      <Section
+        icon={TrendingUp}
+        title="第一部分 · 爆款评分（评分体系）"
+        subtitle="综合评分 + 为什么这条视频能火"
+      >
+        <ul className="space-y-3">
+          {section.whyHot.map((w, i) => (
+            <li key={i} className="flex items-start gap-3 rounded-lg bg-muted/40 p-3 text-sm">
+              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                {i + 1}
+              </span>
+              <span className="text-foreground/90">{w}</span>
+            </li>
+          ))}
+        </ul>
+      </Section>
+
+      {/* 提分目标：帮普通人从不及格→70、及格→80 的补齐清单（归属评分体系） */}
       {report.scoreTarget && (
         <Section
           icon={Target}
@@ -360,293 +361,188 @@ export function ReportView({ id }: { id?: string }) {
         </Section>
       )}
 
-      {/* 参考亮点拆解（Phase 3）：这条参考真正用上的手法 + 难度 + 实现 */}
-      <Section
-        icon={Sparkles}
-        title="参考亮点 · 这条视频真正用上的手法"
-        subtitle="普通人可复刻，附实现方式与难度"
-      >
-        <div className="space-y-3">
-          {(report.effects ?? []).filter((e) => e.used).map((e, i) => (
-            <div
-              key={i}
-              className="rounded-lg border border-primary/20 bg-primary/5 p-3"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-semibold">{e.name}</span>
-                <Badge variant="outline">{e.difficulty}</Badge>
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{e.tip}</p>
-            </div>
-          ))}
-          {(report.effects ?? []).filter((e) => e.used).length === 0 && (
-            <p className="text-sm text-muted-foreground">这条参考手法较朴素，没有检测到明显的剪辑特效。</p>
-          )}
-        </div>
-      </Section>
-
-      {/* 第一部分 为什么火 */}
-      <Section icon={TrendingUp} title="第一部分 · 为什么这个视频火？" subtitle="AI 总结的核心成功原因">
-        <ul className="space-y-3">
-          {section.whyHot.map((w, i) => (
-            <li key={i} className="flex items-start gap-3 rounded-lg bg-muted/40 p-3 text-sm">
-              <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                {i + 1}
-              </span>
-              <span className="text-foreground/90">{w}</span>
-            </li>
-          ))}
-        </ul>
-      </Section>
-
-      {/* 第二部分 结构拆解 */}
-      <Section icon={ListTree} title="第二部分 · 视频结构拆解" subtitle="时间轴上的节奏设计">
-        <ol className="relative space-y-5 border-l border-border pl-6">
-          {section.structure.map((s, i) => (
-            <li key={i} className="relative">
-              <span className="absolute -left-[31px] flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary">
-                {i + 1}
-              </span>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{s.time}</Badge>
-                <span className="text-sm font-semibold">{s.label}</span>
-              </div>
-              <p className="mt-1.5 text-sm text-muted-foreground">{s.detail}</p>
-            </li>
-          ))}
-        </ol>
-      </Section>
-
-      {/* 第三部分 特效拆解 */}
-      <Section icon={Wand2} title="第三部分 · 特效拆解" subtitle="参考视频用到的剪辑手法">
-        <div className="space-y-3">
-          {(report.effects ?? []).map((e, i) => (
-            <div
-              key={i}
-              className={cn(
-                "rounded-lg border p-3",
-                e.used ? "border-border bg-card" : "border-dashed border-border bg-muted/30"
-              )}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="inline-flex items-center gap-2 text-sm font-medium">
-                  {e.used ? (
-                    <Check className="h-4 w-4 text-success" />
-                  ) : (
-                    <Minus className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  {e.name}
-                </span>
-                <span className="flex items-center gap-2">
-                  <Badge variant="outline">{e.difficulty}</Badge>
-                  <Badge variant={e.used ? "success" : "secondary"}>
-                    {e.used ? "检测到" : "未使用"}
-                  </Badge>
-                </span>
-              </div>
-              <p className="mt-2 text-sm text-muted-foreground">{e.tip}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* 第四部分 节奏分析 */}
-      <Section icon={Activity} title="第四部分 · 节奏分析" subtitle="时间轴与卡点建议">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Stat label="前 3 秒钩子" value={`${report.pacing?.hookSeconds ?? 0} 秒`} />
-          <Stat label="平均镜头" value={`${report.pacing?.avgShotSeconds ?? 0} 秒`} />
-          <Stat label="高潮点" value={`${report.pacing?.climaxAtSec ?? 0} 秒`} />
-        </div>
-        <div className="mt-4 rounded-lg border border-border bg-card p-4">
-          <div className="mb-2 text-sm font-medium">段落节奏</div>
-          <div className="flex flex-wrap gap-2">
-            {(report.pacing?.segments ?? []).map((s, i) => (
-              <Badge key={i} variant="outline">
-                {s.time} · {s.label}
-              </Badge>
-            ))}
-          </div>
-        </div>
-        <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4 text-sm">
-          <span className="font-medium text-primary">节奏建议：</span>
-          <span className="text-foreground/90">{report.pacing?.suggestion}</span>
-          {report.pacing?.beatSync && (
-            <span className="ml-1 text-muted-foreground">
-              （参考视频已做 BGM 卡点，建议对齐鼓点剪切）
-            </span>
-          )}
-        </div>
-      </Section>
-
-      {/* 第五部分 可复制模板 */}
-      <Section icon={Copy} title="第五部分 · 可复制模板" subtitle="适合普通人的改编方案">
-        <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-          <div className="rounded-lg border border-border bg-card p-4">
-            <div className="mb-1 text-xs font-medium text-muted-foreground">原视频</div>
-            <p className="text-sm font-medium">{section.replicableTemplate.original}</p>
-          </div>
-          <ArrowRight className="mx-auto hidden h-5 w-5 text-primary sm:block" />
-          <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-            <div className="mb-1 text-xs font-medium text-primary">复制模板</div>
-            <p className="text-sm font-medium">{section.replicableTemplate.template}</p>
-          </div>
-        </div>
-      </Section>
-
-      {/* 第六部分 标题优化 */}
-      <Section icon={Heading} title="第六部分 · 标题优化" subtitle="AI 生成的 10 个高点击标题">
-        <div className="grid gap-2.5 sm:grid-cols-2">
-          {section.titles.map((t, i) => (
-            <div
-              key={i}
-              className="flex items-start gap-2 rounded-lg border border-border bg-card p-3 text-sm transition-colors hover:border-primary/40"
-            >
-              <span className="font-bold text-primary">#{i + 1}</span>
-              <span className="text-foreground/90">{t}</span>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* 第七部分 拍摄建议 */}
-      <Section icon={Video} title="第七部分 · 拍摄建议" subtitle="镜头 / 文案 / 配乐">
-        <div className="grid gap-4 md:grid-cols-3">
-          <TipCard icon={Video} title="镜头建议" items={section.shootingTips.camera} />
-          <TipCard icon={PenLine} title="文案建议" items={section.shootingTips.copy} />
-          <TipCard icon={Music} title="配乐建议" items={section.shootingTips.music} />
-        </div>
-      </Section>
-
-      {/* 精品化门槛（Phase 4）：节奏 / 音效音乐 / 色彩，点名小红书抖音精品路线 */}
-      <Section
-        icon={Zap}
-        title="精品化门槛 · 小红书 / 抖音都这么卷"
-        subtitle="节奏 / 音效音乐 / 色彩，少一样就显业余"
-      >
-        <div className="grid gap-4 md:grid-cols-3">
-          <TipCard icon={Activity} title="节奏" items={report.premium?.rhythm ?? []} />
-          <TipCard icon={Music} title="音效 / 音乐" items={report.premium?.audio ?? []} />
-          <TipCard icon={Sparkles} title="色彩" items={report.premium?.color ?? []} />
-        </div>
-      </Section>
-
-      {/* 你的复现路径（Phase 5）：按用户画像给照抄 / 套模板 / 需补素材 + 清单 */}
-      <Section
-        icon={Route}
-        title="你的复现路径 · 普通人照着做"
-        subtitle={`基于你的基础，建议：${report.repro?.path ?? "套模板"}`}
-      >
-        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
-          <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
-            {report.repro?.path}
-          </span>
-          <p className="mt-2 text-sm text-foreground/90">{report.repro?.advice}</p>
-          {report.mismatch && (
-            <p className="mt-2 text-xs text-warning">
-              ⚠️ 方向不对，下面清单仅作手法参考，别套用到你的赛道。
-            </p>
-          )}
-        </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <AssetList title="需要的素材" items={report.repro?.shots ?? []} />
-          <AssetList title="需要的音效" items={report.repro?.sfx ?? []} />
-          <AssetList title="音乐方向" items={report.repro?.music ?? []} />
-        </div>
-      </Section>
-
-      {/* 高级功能 · 会员专属（免费用户锁定） */}
-      <section className="mt-10">
-        <div className="mb-4 flex items-center gap-2">
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Crown className="h-4 w-4" />
-          </span>
-          <div>
-            <h2 className="text-lg font-semibold leading-none">高级功能 · 会员专属</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              开头吸引力深度分析、标题优化器、选题推荐、AI 自动剪辑、导演分镜——会员专享，免费不可用
-            </p>
-          </div>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3">
-          {/* 模块一：开头吸引力深度分析 */}
-          <AdvancedModule
-            locked={locked}
-            icon={Clock}
-            title="开头吸引力深度分析"
-            desc="逐帧诊断前 3 秒钩子，给出可落地的钩子改造方案"
+      {/* ════════ 深度拆解 5 段（付费可见，免费给锁定预览） ════════ */}
+      {locked ? (
+        <LockedDeepParts />
+      ) : (
+        <>
+          {/* 第二部分 · 黄金3秒拆解 */}
+          <Section
+            icon={Timer}
+            title="第二部分 · 黄金3秒拆解"
+            subtitle="逐帧诊断开场钩子"
           >
-            <div className="space-y-3">
-              <div className="flex items-center gap-3">
-                <ScoreRing value={score.hook} size={64} stroke={7} label="开头" />
-                <p className="text-sm text-foreground/90">
-                  前 3 秒钩子得分 {score.hook}。军师逐帧诊断：
-                </p>
-              </div>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                  开场是否直接抛冲突 / 悬念？样本 2 秒内甩出，建议你更早。
-                </li>
-                <li className="flex items-start gap-2">
-                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
-                  有没有反常识钩子？没有就容易被划走。
-                </li>
-                <li className="flex items-start gap-2">
-                  <Minus className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                  画面钩子是否具体？用「一个具体物件」当贯穿线索，比空泛关键词强。
-                </li>
-              </ul>
-            </div>
-          </AdvancedModule>
-
-          {/* 模块二：标题优化器（A/B） */}
-          <AdvancedModule
-            locked={locked}
-            icon={Heading}
-            title="标题优化器 · A/B"
-            desc="按你的赛道预测高点击标题，支持多版本同时测"
-          >
-            <div className="space-y-3">
-              <p className="text-sm text-foreground/90">预测高点击标题 Top 3（可 A/B 分批发）：</p>
-              {section.titles.slice(0, 3).map((t, i) => (
-                <div
-                  key={i}
-                  className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2"
-                >
-                  <span className="text-sm">{t}</span>
-                  <Badge variant="success">{90 - i * 4}%+ 点击</Badge>
+            {report.golden3s && (
+              <>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{report.golden3s.hookType}</Badge>
+                    <span className="text-sm font-medium">开场钩子类型</span>
+                  </div>
+                  <p className="mt-2 text-sm text-foreground/90">
+                    <span className="font-medium">前 3 秒脚本：</span>
+                    {report.golden3s.transcript}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    <span className="font-medium text-primary">为什么能留人：</span>
+                    {report.golden3s.why}
+                  </p>
                 </div>
-              ))}
-              <p className="text-xs text-muted-foreground">
-                同一条内容换 2-3 个标题分批发，用数据挑出真正高点击的那版。
-              </p>
-            </div>
-          </AdvancedModule>
-
-          {/* 模块三：选题推荐 */}
-          <AdvancedModule
-            locked={locked}
-            icon={Target}
-            title="选题推荐"
-            desc="结合你的方向与平台热门缺口，推荐下一条拍什么"
-          >
-            <div className="space-y-2">
-              {recommendTopics(report.profile).map((t, i) => (
-                <div
-                  key={i}
-                  className="flex items-start gap-2 rounded-lg border border-border bg-card p-3 text-sm"
-                >
-                  <span className="font-bold text-primary">#{i + 1}</span>
-                  <span className="text-foreground/90">{t}</span>
+                <div className="mt-4 space-y-2">
+                  {report.golden3s.rebuild.map((r, i) => (
+                    <div
+                      key={i}
+                      className="flex items-start gap-2 rounded-lg border border-border bg-card p-3 text-sm"
+                    >
+                      <Zap className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                      <span className="text-foreground/90">{r}</span>
+                    </div>
+                  ))}
                 </div>
+              </>
+            )}
+          </Section>
+
+          {/* 第三部分 · 视频结构拆解 */}
+          <Section
+            icon={ListTree}
+            title="第三部分 · 视频结构拆解"
+            subtitle="时间轴上的节奏设计"
+          >
+            <ol className="relative space-y-5 border-l border-border pl-6">
+              {section.structure.map((s, i) => (
+                <li key={i} className="relative">
+                  <span className="absolute -left-[31px] flex h-6 w-6 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-xs font-bold text-primary">
+                    {i + 1}
+                  </span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">{s.time}</Badge>
+                    <span className="text-sm font-semibold">{s.label}</span>
+                  </div>
+                  <p className="mt-1.5 text-sm text-muted-foreground">{s.detail}</p>
+                </li>
               ))}
-              <p className="text-xs text-muted-foreground">
-                依据：你的方向（{report.profile?.contentTypes.join("、") || "未填写"}）+ 当前平台热门缺口。
+            </ol>
+          </Section>
+
+          {/* 第四部分 · 情绪曲线 */}
+          <Section
+            icon={Activity}
+            title="第四部分 · 情绪曲线"
+            subtitle="随时间的情绪强度走向"
+          >
+            {report.emotionCurve?.points?.length ? (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <EmotionCurveChart points={report.emotionCurve.points} />
+              </div>
+            ) : null}
+            {report.emotionCurve?.note && (
+              <p className="mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm text-foreground/90">
+                {report.emotionCurve.note}
               </p>
+            )}
+          </Section>
+
+          {/* 第五部分 · 爆款公式提炼 */}
+          <Section
+            icon={Sigma}
+            title="第五部分 · 爆款公式提炼"
+            subtitle="从这条视频抽象出的可复制公式"
+          >
+            {report.formula && (
+              <>
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                  <div className="text-xs font-medium text-muted-foreground">爆款公式</div>
+                  <p className="mt-1 text-lg font-bold text-primary">{report.formula.formula}</p>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {report.formula.factors.map((f, i) => (
+                    <div key={i} className="rounded-lg border border-border bg-card p-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{f.name}</span>
+                        <span className="font-semibold tabular-nums text-primary">{f.weight}%</span>
+                      </div>
+                      <Progress value={f.weight} className="mt-2" />
+                      <p className="mt-2 text-sm text-muted-foreground">{f.tip}</p>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </Section>
+
+          {/* 第六部分 · 可复制分析 */}
+          <Section
+            icon={Copy}
+            title="第六部分 · 可复制分析"
+            subtitle="普通人照着做"
+          >
+            {/* 可复制模板 */}
+            <div className="grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+              <div className="rounded-lg border border-border bg-card p-4">
+                <div className="mb-1 text-xs font-medium text-muted-foreground">原视频</div>
+                <p className="text-sm font-medium">{section.replicableTemplate.original}</p>
+              </div>
+              <ArrowRight className="mx-auto hidden h-5 w-5 text-primary sm:block" />
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <div className="mb-1 text-xs font-medium text-primary">复制模板</div>
+                <p className="text-sm font-medium">{section.replicableTemplate.template}</p>
+              </div>
             </div>
-          </AdvancedModule>
-        </div>
-      </section>
+
+            {/* 复现路径 */}
+            {report.repro && (
+              <div className="mt-4 rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
+                  {report.repro.path}
+                </span>
+                <p className="mt-2 text-sm text-foreground/90">{report.repro.advice}</p>
+                {report.mismatch && (
+                  <p className="mt-2 text-xs text-warning">
+                    ⚠️ 方向不对，下面清单仅作手法参考，别套用到你的赛道。
+                  </p>
+                )}
+              </div>
+            )}
+
+            {/* 标题优化 */}
+            <div className="mt-4">
+              <div className="mb-2 text-sm font-semibold">10 个可直接用的标题</div>
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {section.titles.map((t, i) => (
+                  <div
+                    key={i}
+                    className="flex items-start gap-2 rounded-lg border border-border bg-card p-3 text-sm transition-colors hover:border-primary/40"
+                  >
+                    <span className="font-bold text-primary">#{i + 1}</span>
+                    <span className="text-foreground/90">{t}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 拍摄落地建议 */}
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <TipCard icon={Video} title="镜头建议" items={section.shootingTips.camera} />
+              <TipCard icon={PenLine} title="文案建议" items={section.shootingTips.copy} />
+              <TipCard icon={Music} title="配乐建议" items={section.shootingTips.music} />
+            </div>
+          </Section>
+
+          {/* 精品化门槛（进阶）：节奏 / 音效音乐 / 色彩 */}
+          <Section
+            icon={Zap}
+            title="精品化门槛 · 小红书 / 抖音都这么卷"
+            subtitle="节奏 / 音效音乐 / 色彩，少一样就显业余"
+          >
+            <div className="grid gap-4 md:grid-cols-3">
+              <TipCard icon={Activity} title="节奏" items={report.premium?.rhythm ?? []} />
+              <TipCard icon={Music} title="音效 / 音乐" items={report.premium?.audio ?? []} />
+              <TipCard icon={Sparkles} title="色彩" items={report.premium?.color ?? []} />
+            </div>
+          </Section>
+        </>
+      )}
 
       {/* AI 成长飞轮：匿名学习反馈（本地演示版） */}
       {learning && (
@@ -732,131 +628,79 @@ function LoginGate({ report, id }: { report: AnalysisReport; id?: string }) {
   );
 }
 
-/* ─── 高级模块卡片（免费锁定 / 会员解锁）─── */
-function AdvancedModule({
-  locked,
-  icon: Icon,
-  title,
-  desc,
-  children,
-}: {
-  locked: boolean;
-  icon: React.ElementType;
-  title: string;
-  desc: string;
-  children: React.ReactNode;
-}) {
-  const inner = (
-    <>
-      <div className="flex items-center gap-2 text-sm font-semibold">
-        <Icon className="h-4 w-4 text-primary" /> {title}
-        {locked && (
-          <Badge variant="warning" className="gap-1">
-            <Lock className="h-3 w-3" /> 高级会员
-          </Badge>
-        )}
-      </div>
-      <p className="mt-1.5 text-xs text-muted-foreground">{desc}</p>
-      <div className="mt-3">{children}</div>
-    </>
-  );
-
-  if (!locked) {
-    return (
-      <div className="rounded-lg border border-border bg-card p-5">{inner}</div>
-    );
-  }
-
+/* ─── 情绪曲线内联 SVG 图 ─── */
+function EmotionCurveChart({ points }: { points: EmotionPoint[] }) {
+  const W = 680;
+  const H = 220;
+  const padX = 38;
+  const padY = 26;
+  const maxT = Math.max(...points.map((p) => p.tSec), 1);
+  const x = (t: number) => padX + (t / maxT) * (W - padX * 2);
+  const y = (l: number) => padY + (1 - l / 100) * (H - padY * 2);
+  const line = points
+    .map((p, i) => `${i === 0 ? "M" : "L"}${x(p.tSec).toFixed(1)},${y(p.level).toFixed(1)}`)
+    .join(" ");
+  const area = `${line} L${x(maxT).toFixed(1)},${(H - padY).toFixed(1)} L${x(0).toFixed(1)},${(H - padY).toFixed(1)} Z`;
+  const peak = points.reduce((a, b) => (b.level > a.level ? b : a), points[0]);
   return (
-    <div className="relative overflow-hidden rounded-lg border border-dashed border-border bg-muted/20 p-5">
-      {inner}
-      {/* 锁定遮罩 */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-background/75 backdrop-blur-[2px]">
-        <div className="flex h-11 w-11 items-center justify-center rounded-full bg-warning/10 text-warning">
-          <Lock className="h-5 w-5" />
-        </div>
-        <p className="text-sm font-medium">升级会员解锁</p>
-        <Button asChild variant="gradient" size="sm">
-          <Link href="/pricing">
-            <Crown className="h-4 w-4" /> 升级
-          </Link>
-        </Button>
-      </div>
-    </div>
+    <svg viewBox={`0 0 ${W} ${H}`} className="h-auto w-full" role="img" aria-label="情绪曲线">
+      <line x1={padX} y1={H - padY} x2={W - padX} y2={H - padY} className="stroke-border" strokeWidth={1} />
+      <line x1={padX} y1={padY} x2={padX} y2={H - padY} className="stroke-border" strokeWidth={1} />
+      <path d={area} className="fill-primary/10" />
+      <path
+        d={line}
+        className="stroke-primary"
+        strokeWidth={2.5}
+        fill="none"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      {points.map((p, i) => (
+        <g key={i}>
+          <circle
+            cx={x(p.tSec)}
+            cy={y(p.level)}
+            r={p === peak ? 5.5 : 4}
+            className={p === peak ? "fill-primary" : "fill-primary/70"}
+          />
+          <text x={x(p.tSec)} y={y(p.level) - 10} textAnchor="middle" className="fill-foreground/70" style={{ fontSize: 10 }}>
+            {p.label}
+          </text>
+          <text x={x(p.tSec)} y={H - 8} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>
+            {p.tSec}s
+          </text>
+        </g>
+      ))}
+    </svg>
   );
 }
 
-/* ─── 选题推荐（基于新手画像）─── */
-function recommendTopics(profile?: OnboardingProfile): string[] {
-  const ct = profile?.contentTypes?.[0];
-  const map: Record<string, string[]> = {
-    口播: [
-      "普通人最容易讲透的 3 个认知误区",
-      "你以为的 X，其实全是错的",
-      "用 1 分钟说清一个被误解的概念",
-    ],
-    探店: [
-      "这家店本地人从小吃到大",
-      "人均 30 吃到扶墙出",
-      "老板不会告诉你的隐藏菜单",
-    ],
-    好物种草: [
-      "我用了一个月才敢推荐",
-      "这东西真不是智商税",
-      "99% 人不知道的平替",
-    ],
-    知识科普: [
-      "一个被教材删掉的真相",
-      "为什么高手都在偷偷做 X",
-      "把复杂的事讲成 1 分钟",
-    ],
-    Vlog: [
-      "普通人的一天，藏着不被看见的努力",
-      "我在 XX 住了三十年",
-      "一个人去 XX 的孤独与自由",
-    ],
-    剧情: [
-      "反转三次仍合理的短剧开头",
-      "30 秒立住一个让人恨的角色",
-      "用错位制造笑点的三段式",
-    ],
-    电影解说: [
-      "被片名耽误的神作",
-      "二刷才看懂的隐藏细节",
-      "xx 分钟讲完一部高分片",
-    ],
-    颜值才艺: [
-      "不靠滤镜也能打的神颜",
-      "一段 10 秒惊艳全场的才艺",
-      "素人也能练出的镜头感",
-    ],
-    美食制作: [
-      "厨房小白也能复刻",
-      "3 步搞定的下饭神器",
-      "成本不到 10 块的硬菜",
-    ],
-    旅行记录: [
-      "一个人去 XX 的孤独与自由",
-      "小众到地图都找不到的秘境",
-      "用 24 小时讲一座城",
-    ],
-    健身运动: [
-      "懒人也能坚持的 4 周计划",
-      "不用器械练出线条",
-      "新手最容易练错的动作",
-    ],
-    游戏: [
-      "这游戏最被低估的机制",
-      "开局这样选直接赢一半",
-      "菜鸟到大神的唯一差距",
-    ],
-  };
-  if (ct && map[ct]) return map[ct];
-  return [
-    "从你最熟的日常下手，拍成有情绪的纪实",
-    "用「一个具体场景 + 真实经历 + 一句升华」做第一条",
-    "挑一个你踩过的坑，讲给后来人听",
-  ];
+/* ─── 深度拆解 5 段：免费用户锁定预览 ─── */
+function LockedDeepParts() {
+  const items = ["黄金3秒拆解", "视频结构拆解", "情绪曲线", "爆款公式提炼", "可复制分析"];
+  return (
+    <section className="mt-10 rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center">
+      <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-warning/10 text-warning">
+        <Lock className="h-5 w-5" />
+      </div>
+      <h2 className="text-lg font-semibold">完整《爆款导演拆解报告》需升级解锁</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        免费版含「爆款评分体系」。升级后解锁下方 5 段深度拆解：
+      </p>
+      <ul className="mx-auto mt-4 inline-flex max-w-md flex-col gap-2 text-left">
+        {items.map((it) => (
+          <li key={it} className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+            <Lock className="h-3.5 w-3.5 shrink-0 text-warning" /> {it}
+          </li>
+        ))}
+      </ul>
+      <Button asChild variant="gradient" size="sm" className="mt-5 gap-2">
+        <Link href="/pricing">
+          <Crown className="h-4 w-4" /> 升级解锁
+        </Link>
+      </Button>
+    </section>
+  );
 }
 
 function Section({
@@ -883,15 +727,6 @@ function Section({
       </div>
       {children}
     </section>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4 text-center">
-      <div className="text-2xl font-bold tabular-nums text-primary">{value}</div>
-      <div className="mt-1 text-xs text-muted-foreground">{label}</div>
-    </div>
   );
 }
 
