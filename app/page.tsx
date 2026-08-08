@@ -5,9 +5,6 @@ import * as React from "react";
 import {
   Video,
   Play,
-  Flame,
-  Clapperboard,
-  Scissors,
   CloudUpload,
   PenTool,
   Target,
@@ -16,6 +13,8 @@ import {
   Star,
   Sparkles,
   UserCheck,
+  BookOpen,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,39 +107,39 @@ function ReportPreviewCard() {
 const FEATURES = [
   {
     icon: Video,
-    title: "爆款拆解分析",
-    desc: "AI 多维度拆解爆款视频的成功要素与结构",
+    title: "爆款导演拆解报告",
+    desc: "AI 模拟十年经验导演，五段拆解爆款为什么火、结构是什么",
     color: "from-violet-500 to-purple-600",
-  },
-  {
-    icon: Flame,
-    title: "实时热点追踪",
-    desc: "微博/抖音/百度等热榜，按日期时间轴归档",
-    color: "from-rose-500 to-orange-500",
   },
   {
     icon: Target,
     title: "找对标 & 爆款套路",
-    desc: "按类目匹配流量大的对标账号与可复制套路",
+    desc: "按赛道匹配流量大的对标账号与可复制的爆款公式",
     color: "from-emerald-500 to-teal-600",
+  },
+  {
+    icon: BookOpen,
+    title: "爆款公式库",
+    desc: "从真实案例提炼方法，你收藏的是套路，不是视频",
+    color: "from-sky-500 to-blue-600",
   },
   {
     icon: PenTool,
     title: "AI 写文案",
-    desc: "结合你的风格，从热点生成合规可发的文案",
+    desc: "按参考风格生成标题、口播文案与分镜脚本",
     color: "from-amber-500 to-orange-600",
   },
   {
-    icon: Clapperboard,
-    title: "导演分镜表",
-    desc: "一句话需求生成可落地的分镜脚本",
-    color: "from-sky-500 to-blue-600",
+    icon: Wand2,
+    title: "一键复刻我的版本",
+    desc: "选好你的行业，AI 生成专属短视频方案，直接开拍",
+    color: "from-fuchsia-500 to-pink-600",
   },
   {
-    icon: Scissors,
-    title: "智能剪辑成片",
-    desc: "简易版剪映：字幕 / 花字 / 音乐 / 特效一键包装",
-    color: "from-fuchsia-500 to-pink-600",
+    icon: UserCheck,
+    title: "我的 AI 导演",
+    desc: "填写账号档案，分析越来越懂你的定位与方向",
+    color: "from-rose-500 to-orange-500",
   },
 ];
 
@@ -149,20 +148,20 @@ const STEPS = [
   {
     icon: CloudUpload,
     num: 1,
-    title: "拆解 & 对标",
-    desc: "上传视频 AI 拆解爆款要素，或找同类账号对标",
+    title: "上传爆款视频",
+    desc: "粘贴链接或上传视频，AI 开始拆解它的爆款逻辑",
   },
   {
-    icon: PenTool,
+    icon: Sparkles,
     num: 2,
-    title: "跟热点写文案",
-    desc: "从热点追踪取选题，AI 生成贴合你风格的文案与分镜",
+    title: "AI 导演拆解",
+    desc: "生成评分、五段拆解、情绪曲线与可复制公式",
   },
   {
-    icon: Scissors,
+    icon: Wand2,
     num: 3,
-    title: "剪辑成片",
-    desc: "拖入素材，智能剪辑台完成字幕、包装与导出",
+    title: "一键复刻",
+    desc: "选你的行业，AI 生成标题 / 脚本 / 分镜，直接开拍",
   },
 ];
 
@@ -241,7 +240,7 @@ function OnboardingCTA() {
       <div className="min-w-0 flex-1">
         <p className="text-sm font-semibold">先花 30 秒认识你</p>
         <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed">
-          告诉我们你的剪辑基础和方向，后续所有分析报告都会按你的情况定制。
+          告诉我们你的账号定位和内容方向，后续所有分析报告都会按你的情况定制。
         </p>
       </div>
       <ArrowRight className="h-5 w-5 shrink-0 text-primary" />
@@ -261,26 +260,25 @@ export default function HomePage() {
           {/* 左侧文案 */}
           <div>
             <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-[52px]">
-              从热点到成片
+              把百万播放视频，
               <br />
               <span className="bg-gradient-to-r from-violet-600 to-purple-500 bg-clip-text text-transparent">
-                爆款创作一站式工作台
+                拆成你的下一条爆款
               </span>
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-              拆解爆款 · 跟实时热点 · AI 写文案 · 出分镜 · 剪成片。
-              <br className="hidden sm:block" />
-              把爆款创作的全流程，收进一个工作台。
+              上传一个爆款视频，AI 爆款导演帮你拆解：为什么火、爆款结构是什么、
+              哪些能复制、怎么变成你的下一条内容。
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4">
               <Button asChild size="lg" className="gap-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700">
                 <Link href="/analyze">
-                  <CloudUpload className="h-4 w-4" /> 立即分析视频
+                  <CloudUpload className="h-4 w-4" /> 立即分析爆款视频
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link href="/hotspots">看实时热点</Link>
+                <Link href="/library">查看爆款公式</Link>
               </Button>
             </div>
 
@@ -398,10 +396,10 @@ export default function HomePage() {
       {/* ── 定价 CTA（完整方案见 /pricing）── */}
       <section className="mx-auto w-full max-w-5xl px-4 py-20 sm:px-6">
         <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/[0.04] to-transparent px-6 py-12 text-center sm:px-12">
-          <h2 className="text-3xl font-bold tracking-tight">从免费体验，到把账号当项目运营</h2>
+          <h2 className="text-3xl font-bold tracking-tight">从第一次拆解，到长期陪你做爆款</h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            免费版每天 1 次分析先上手；普通会员解锁完整报告与三大高级模块；
-            高级会员再上账号诊断与内容规划。不同预算，对应不同能力。
+            免费版每天 1 次爆款拆解先上手；创作者版解锁完整导演报告，进阶版加上爆款复刻，
+            专业版由 AI 导演长期陪你优化账号。
           </p>
           <Button asChild size="lg" variant="gradient" className="mt-6 gap-2">
             <Link href="/pricing">

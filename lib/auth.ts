@@ -11,7 +11,7 @@ import * as React from "react";
  * 任何需要真实数据的服务端写操作，都由后端校验 Cookie 完成，前端镜像不可伪造。
  */
 
-export type Tier = "free" | "pro" | "premium";
+export type Tier = "free" | "creator" | "pro" | "studio";
 
 export interface Session {
   userId: string;

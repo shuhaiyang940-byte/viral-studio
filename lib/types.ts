@@ -1,4 +1,4 @@
-export type MembershipTier = "free" | "pro" | "premium";
+export type MembershipTier = "free" | "creator" | "pro" | "studio";
 
 export type Category = "生活" | "旅游" | "美食" | "情感" | "知识" | "商业";
 

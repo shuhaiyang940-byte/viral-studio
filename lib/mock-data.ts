@@ -284,7 +284,7 @@ export const LIBRARY: LibraryItem[] = [
   },
 ];
 
-export type PlanTier = "free" | "pro" | "premium";
+export type PlanTier = "free" | "creator" | "pro" | "studio";
 
 export interface MembershipPlan {
   tier: PlanTier;
@@ -310,64 +310,74 @@ export const MEMBERSHIP: MembershipPlan[] = [
     name: "免费版",
     price: "0",
     period: "永久免费",
-    tagline: "先体验，每天 1 次分析",
+    tagline: "先体验，每天 1 次爆款拆解",
     highlights: [
       "每天 1 次视频分析",
-      "基础版报告（爆款评分 + 核心亮点）",
-      "浏览爆款案例库",
-      "新手摸底档案（定制建议）",
+      "基础版导演报告（爆款评分 + 核心亮点）",
+      "浏览爆款公式库",
+      "新手创作者档案（定制建议）",
     ],
     cta: "免费开始",
     ctaHref: "/analyze",
   },
   {
-    tier: "pro",
-    name: "普通会员",
-    price: "29",
+    tier: "creator",
+    name: "创作者版",
+    price: "39",
     period: "月",
-    tagline: "认真做内容的性价比之选",
+    tagline: "进阶导演报告，认真做内容",
+    highlights: [
+      "每日 5 次视频分析",
+      "完整版《爆款导演拆解报告》（五段拆解 + 情绪曲线）",
+      "爆款公式库全量查阅",
+      "AI 写文案（按风格生成标题与脚本）",
+    ],
+    cta: "升级创作者版",
+    ctaHref: "/payment?tier=creator",
+  },
+  {
+    tier: "pro",
+    name: "进阶版",
+    price: "99",
+    period: "月",
+    tagline: "无限分析 + 爆款复刻",
     highlights: [
       "无限次视频分析",
-      "完整版报告（结构拆解 + 可复制模板 + 拍摄建议）",
-      "三大高级模块：开头吸引力 / 标题优化 / 选题推荐",
-      "AI 自动剪辑：按分析结果自动铺时间线，你只做微调",
-      "导演分镜表：一键生成含场景示意图的拍摄分镜",
-      "AI 写文案：按参考视频风格，重写接近质量的文案",
-      "可复制模板一键生成 · 优先排队",
-      "历史记录云同步 · 导出 PDF 报告",
+      "爆款复刻助手：一键生成你的行业版本（标题 / 脚本 / 分镜）",
+      "行业模板库：按赛道匹配可复制公式",
+      "我的 AI 导演：结合你的账号档案给建议",
+      "历史报告云同步",
     ],
-    cta: "升级普通会员",
+    cta: "升级进阶版",
     ctaHref: "/payment?tier=pro",
     featured: true,
   },
   {
-    tier: "premium",
-    name: "高级会员",
-    price: "99",
+    tier: "studio",
+    name: "专业版",
+    price: "299",
     period: "月",
-    tagline: "把账号当项目来运营（功能完善中）",
+    tagline: "个人 AI 导演 + 账号长期优化",
     highlights: [
-      "包含普通会员全部功能",
-      "AI 自动剪辑 · 导演分镜 · AI 写文案（高级制作全套）",
-      "我的账号诊断（定位 + 内容方向诊断）",
-      "每日 AI 选题推荐 · 内容规划助手（周历）",
-      "数据看板（爆款趋势）· 专属客服",
-      "团队席位 3 个",
+      "包含进阶版全部功能",
+      "账号长期优化：定期诊断定位与内容方向",
+      "优先模型队列（分析更快）",
+      "专属客服支持",
     ],
-    cta: "功能完善中",
-    ctaHref: "/pricing",
-    comingSoon: true,
+    cta: "升级专业版",
+    ctaHref: "/payment?tier=studio",
   },
 ];
 
 /** 年付价（展示用，含立省说明）。免费档永远 0。 */
 export const ANNUAL: Record<PlanTier, { price: string; save?: string }> = {
   free: { price: "0" },
-  pro: { price: "290", save: "约 ¥24/月，立省 ¥58" },
-  premium: { price: "990", save: "约 ¥82/月，立省 ¥198" },
+  creator: { price: "390", save: "约 ¥32/月，立省 ¥78" },
+  pro: { price: "990", save: "约 ¥82/月，立省 ¥198" },
+  studio: { price: "2990", save: "约 ¥249/月，立省 ¥598" },
 };
 
-/** 功能对比矩阵：不同费用下功能差异一目了然 */
+/** 功能对比矩阵：不同档位下能力差异一目了然 */
 export type PricingCell = boolean | string;
 
 export interface PricingRow {
@@ -375,37 +385,28 @@ export interface PricingRow {
   group: string;
   label: string;
   free: PricingCell;
+  creator: PricingCell;
   pro: PricingCell;
-  premium: PricingCell;
+  studio: PricingCell;
 }
 
-export const PRICING_GROUPS = ["分析能力", "报告内容", "高级 AI 模块", "智能制作", "账号与增长", "服务"] as const;
+export const PRICING_GROUPS = ["分析能力", "爆款导演报告", "爆款复刻与公式", "我的 AI 导演", "服务"] as const;
 
 export const PRICING_MATRIX: PricingRow[] = [
   // 分析能力
-  { group: "分析能力", label: "每日分析次数", free: "1 次 / 天", pro: "无限", premium: "无限" },
-  { group: "分析能力", label: "分析排队", free: "普通", pro: "优先", premium: "优先" },
-  { group: "分析能力", label: "报告完整度", free: "基础版", pro: "完整版", premium: "完整版 + 诊断" },
-  // 报告内容
-  { group: "报告内容", label: "爆款评分 + 核心亮点", free: true, pro: true, premium: true },
-  { group: "报告内容", label: "结构拆解 + 可复制模板", free: false, pro: true, premium: true },
-  { group: "报告内容", label: "拍摄建议（镜头 / 文案 / 配乐）", free: false, pro: true, premium: true },
-  { group: "报告内容", label: "导出 PDF 报告", free: false, pro: true, premium: true },
-  // 高级 AI 模块
-  { group: "高级 AI 模块", label: "开头吸引力深度分析", free: false, pro: true, premium: true },
-  { group: "高级 AI 模块", label: "标题优化器 · A/B", free: false, pro: true, premium: true },
-  { group: "高级 AI 模块", label: "选题推荐（按你的方向）", free: false, pro: true, premium: true },
-  // 智能制作
-  { group: "智能制作", label: "AI 自动剪辑（按分析自动成片）", free: false, pro: true, premium: true },
-  { group: "智能制作", label: "导演分镜表（含场景示意图）", free: false, pro: true, premium: true },
-  { group: "智能制作", label: "AI 写文案（按参考风格重写）", free: false, pro: true, premium: true },
-  // 账号与增长
-  { group: "账号与增长", label: "我的账号诊断", free: false, pro: false, premium: true },
-  { group: "账号与增长", label: "每日 AI 选题推荐", free: false, pro: false, premium: true },
-  { group: "账号与增长", label: "内容规划助手（周历）", free: false, pro: false, premium: true },
-  { group: "账号与增长", label: "数据看板（爆款趋势）", free: false, pro: false, premium: true },
+  { group: "分析能力", label: "每日分析次数", free: "1 次 / 天", creator: "5 次 / 天", pro: "无限", studio: "无限" },
+  { group: "分析能力", label: "报告完整度", free: "基础版", creator: "完整版", pro: "完整版 + 复刻", studio: "完整版 + 复刻 + 诊断" },
+  // 爆款导演报告
+  { group: "爆款导演报告", label: "爆款评分体系（传播 / 完播 / 互动 / 商业）", free: true, creator: true, pro: true, studio: true },
+  { group: "爆款导演报告", label: "五段拆解（黄金3秒 / 结构 / 情绪曲线 / 公式 / 可复制）", free: false, creator: true, pro: true, studio: true },
+  { group: "爆款导演报告", label: "行业模板与可复制公式", free: false, creator: false, pro: true, studio: true },
+  // 爆款复刻与公式
+  { group: "爆款复刻与公式", label: "一键生成我的版本（标题 / 脚本 / 分镜）", free: false, creator: false, pro: true, studio: true },
+  { group: "爆款复刻与公式", label: "爆款公式库查阅", free: "部分", creator: "全量", pro: "全量", studio: "全量" },
+  // 我的 AI 导演
+  { group: "我的 AI 导演", label: "创作者档案定制建议", free: "基础", creator: "进阶", pro: "专属", studio: "长期优化" },
+  { group: "我的 AI 导演", label: "账号定位诊断（定期）", free: false, creator: false, pro: false, studio: true },
   // 服务
-  { group: "服务", label: "历史记录同步", free: "仅本地", pro: "云同步", premium: "云同步" },
-  { group: "服务", label: "团队席位", free: false, pro: false, premium: "3 席" },
-  { group: "服务", label: "专属客服", free: false, pro: false, premium: true },
+  { group: "服务", label: "历史报告云同步", free: "仅本地", creator: "云同步", pro: "云同步", studio: "云同步" },
+  { group: "服务", label: "专属客服", free: false, creator: false, pro: false, studio: true },
 ];

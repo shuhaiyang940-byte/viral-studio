@@ -9,9 +9,9 @@ export function Logo({ className, showText = true }: { className?: string; showT
         <Sparkles className="h-4 w-4" />
       </span>
       {showText && (
-        <span className="flex flex-col leading-none">
+          <span className="flex flex-col leading-none">
           <span className="text-sm font-bold tracking-tight">爆款研究所</span>
-          <span className="text-[10px] font-medium text-muted-foreground">Viral Studio AI</span>
+          <span className="text-[10px] font-medium text-muted-foreground">AI 短视频导演</span>
         </span>
       )}
     </Link>

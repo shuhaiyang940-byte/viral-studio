@@ -74,11 +74,11 @@ export default function PricingPage() {
             <Crown className="h-3.5 w-3.5 text-primary" /> 会员方案
           </Badge>
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-            不同预算，对应不同能力
+            为「想做出爆款」的人，提供不同深度的导演能力
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            免费版每天 1 次分析先体验；普通会员解锁完整报告、三大高级模块，以及 AI 自动剪辑（按分析成片）与导演分镜表；
-            高级会员再上账号诊断、每日选题与内容规划——把账号当项目来运营。
+            免费版每天 1 次爆款拆解先体验；创作者版解锁完整《爆款导演拆解报告》与公式库；
+            进阶版再加爆款复刻助手（一键生成你的行业版本）；专业版由 AI 导演长期陪你优化账号。
           </p>
 
           {/* 月付 / 年付切换 */}
@@ -186,7 +186,7 @@ export default function PricingPage() {
 
         <p className="mx-auto mt-6 flex max-w-2xl items-start gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
           <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          演示模式：点击付费档会进入「会员支付占位页」，不会真实扣费，仅用于展示升级后的解锁效果。真实支付需接入微信支付 / 支付宝商户号。注：高级会员功能正在完善中、暂未开放，当前最高可开通档位为「普通会员」。
+          演示模式：点击付费档会进入「会员支付占位页」，不会真实扣费，仅用于展示升级后的解锁效果。真实支付需接入微信支付 / 支付宝商户号（需营业执照），当前尚未接入。
         </p>
       </section>
 
@@ -238,11 +238,14 @@ export default function PricingPage() {
                       <td className="px-4 py-3 text-center">
                         <Cell value={r.free} />
                       </td>
+                      <td className="px-4 py-3 text-center">
+                        <Cell value={r.creator} />
+                      </td>
                       <td className="bg-primary/[0.03] px-4 py-3 text-center">
                         <Cell value={r.pro} />
                       </td>
                       <td className="px-4 py-3 text-center">
-                        <Cell value={r.premium} />
+                        <Cell value={r.studio} />
                       </td>
                     </tr>
                   ))}

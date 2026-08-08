@@ -6,9 +6,9 @@ import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
-  title: "爆款研究所 | AI 帮你拆解爆款视频",
+  title: "爆款研究所 | 你的 AI 短视频导演",
   description:
-    "上传一个视频，AI 自动分析内容结构、爆点、标题、情绪与可复制方法。普通人也能找到爆款规律。",
+    "上传一个爆款视频，AI 爆款导演帮你拆解：为什么火、爆款结构是什么、哪些能复制、怎么变成你的下一条内容。",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

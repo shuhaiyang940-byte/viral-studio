@@ -29,12 +29,9 @@ export function SiteHeader() {
         <nav className="hidden items-center gap-8 md:flex">
           {[
             { label: "首页", href: "/" },
-            { label: "AI分析", href: "/analyze" },
+            { label: "爆款拆解", href: "/analyze" },
             { label: "找对标", href: "/find-peer" },
-            { label: "热点追踪", href: "/hotspots" },
             { label: "AI写文案", href: "/copywriting" },
-            { label: "智能剪辑", href: "/studio" },
-            { label: "字体库", href: "/fonts" },
             { label: "案例库", href: "/library" },
             { label: "定价", href: "/pricing" },
             { label: "帮助中心", href: "/help" },

@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 
 export const dynamic = "force-dynamic";
 
-const TIERS = ["free", "pro", "premium"] as const;
+const TIERS = ["free", "creator", "pro", "studio"] as const;
 type Tier = (typeof TIERS)[number];
 
 /**

@@ -86,7 +86,7 @@ export default function PaymentPage() {
     setMounted(true);
     if (typeof window !== "undefined") {
       const t = new URLSearchParams(window.location.search).get("tier");
-      if (t === "free" || t === "pro" || t === "premium") setTier(t);
+      if (t === "free" || t === "creator" || t === "pro" || t === "studio") setTier(t);
     }
   }, []);
 

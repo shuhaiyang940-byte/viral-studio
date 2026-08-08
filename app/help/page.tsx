@@ -107,10 +107,10 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 }
 
 const FEATURES = [
-  { icon: Target, title: "开头吸引力深度分析", desc: "逐帧诊断前 3 秒钩子，给出可落地的钩子改造方案。", tier: "普通会员" },
-  { icon: Heading, title: "标题优化器 · A/B", desc: "按你的赛道预测高点击标题，多版本分批发测。", tier: "普通会员" },
-  { icon: Sparkles, title: "选题推荐", desc: "结合你的方向与平台热门缺口，推荐下一条拍什么。", tier: "普通会员" },
-  { icon: Crown, title: "账号诊断 + 内容规划", desc: "诊断账号定位，生成每周内容日历与爆款趋势看板。", tier: "高级会员" },
+  { icon: Target, title: "爆款导演拆解报告", desc: "AI 模拟资深导演，输出评分与五段拆解，说清为什么火。", tier: "创作者版" },
+  { icon: BookOpen, title: "爆款公式库", desc: "从真实案例提炼可复制公式，按赛道查阅与收藏。", tier: "进阶版" },
+  { icon: Sparkles, title: "一键复刻我的版本", desc: "选好你的行业，AI 生成标题 / 脚本 / 分镜方案。", tier: "进阶版" },
+  { icon: Crown, title: "我的 AI 导演", desc: "结合你的账号档案长期优化定位与内容方向。", tier: "专业版" },
 ];
 
 export default function HelpPage() {
