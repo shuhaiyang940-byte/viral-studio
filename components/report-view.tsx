@@ -50,7 +50,7 @@ import {
   type LearningStats,
   type EvolutionInfo,
 } from "@/lib/learning";
-import { getSession, type Session } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 import { cn, formatNumber } from "@/lib/utils";
 
 const DIMENSIONS = [
@@ -65,11 +65,7 @@ export function ReportView({ id }: { id?: string }) {
   const [loading, setLoading] = React.useState(true);
   const [learning, setLearning] = React.useState<LearningStats | null>(null);
   const [evolution, setEvolution] = React.useState<EvolutionInfo | null>(null);
-  const [session, setSession] = React.useState<Session | null>(null);
-
-  React.useEffect(() => {
-    setSession(getSession());
-  }, []);
+  const { session } = useSession();
 
   const router = useRouter();
 

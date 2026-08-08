@@ -29,7 +29,7 @@ import {
 } from "@/lib/copywrite";
 import { CREATOR_STYLES, AUDIENCE_OPTIONS } from "@/lib/types";
 import { getProfile } from "@/lib/onboarding";
-import { getSession, type Session } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 
 function catToType(cat?: string): CopyType {
   switch (cat) {
@@ -47,7 +47,7 @@ function catToType(cat?: string): CopyType {
 }
 
 export default function CopywritingPage() {
-  const [session, setSession] = React.useState<Session | null>(null);
+  const { session } = useSession();
   const [reportId, setReportId] = React.useState<string | null>(null);
 
   const [reference, setReference] = React.useState("");
@@ -104,7 +104,6 @@ export default function CopywritingPage() {
   }, [topic, topicCat]);
 
   React.useEffect(() => {
-    setSession(getSession());
     const params = new URLSearchParams(window.location.search);
     const id = params.get("id");
     const t = params.get("topic");

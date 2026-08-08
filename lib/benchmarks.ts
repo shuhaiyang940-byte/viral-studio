@@ -29,6 +29,12 @@ export interface BenchmarkAccount {
   sampleTitle: string;
 }
 
+/** 接口返回给前端的对标账号：附带「是否精选库」与「当前用户是否已关注」 */
+export type BenchmarkItem = BenchmarkAccount & {
+  isSeed: boolean;
+  tracked: boolean;
+};
+
 export const IDEA_OPTIONS: { id: IdeaType; label: string; desc: string }[] = [
   { id: "sell", label: "卖货", desc: "带货 / 种草 / 商品转化" },
   { id: "talk", label: "口播", desc: "知识 / 观点 / 情绪表达" },

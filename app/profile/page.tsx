@@ -18,10 +18,10 @@ import {
   Wand2,
 } from "lucide-react";
 import type { AnalysisReport, OnboardingProfile, Storyboard, EditPlanRecord } from "@/lib/types";
-import { MEMBERSHIP, LIBRARY } from "@/lib/mock-data";
+import { MEMBERSHIP } from "@/lib/mock-data";
 import { getReports, getStoryboards, getEditPlans } from "@/lib/storage";
 import { getProfile, LEVEL_LABELS } from "@/lib/onboarding";
-import { getSession, logout, type Session } from "@/lib/auth";
+import { useSession, logout } from "@/lib/auth";
 import { getQuota } from "@/lib/quota";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,9 +33,14 @@ export default function ProfilePage() {
   const [storyboards, setStoryboards] = React.useState<Storyboard[]>([]);
   const [editPlans, setEditPlans] = React.useState<EditPlanRecord[]>([]);
   const [profile, setProfile] = React.useState<OnboardingProfile | null>(null);
-  const [session, setSession] = React.useState<Session | null>(null);
+  const { session } = useSession();
   const [quota, setQuota] = React.useState<ReturnType<typeof getQuota> | null>(null);
   const [mounted, setMounted] = React.useState(false);
+
+  /** 真实收藏（来自数据库），而不是从案例库里随便切三条 */
+  type SavedCase = { id: string; title: string; category: string; cover: string };
+  const [saved, setSaved] = React.useState<SavedCase[]>([]);
+  const [savedState, setSavedState] = React.useState<"loading" | "ready" | "error">("loading");
 
   React.useEffect(() => {
     setMounted(true);
@@ -43,18 +48,37 @@ export default function ProfilePage() {
     setStoryboards(getStoryboards());
     setEditPlans(getEditPlans());
     setProfile(getProfile());
-    const s = getSession();
-    setSession(s);
-    setQuota(getQuota(s));
   }, []);
 
-  function handleLogout() {
-    logout();
-    setSession(null);
+  React.useEffect(() => {
+    setQuota(getQuota(session));
+  }, [session]);
+
+  React.useEffect(() => {
+    if (!session) {
+      setSaved([]);
+      setSavedState("ready");
+      return;
+    }
+    let alive = true;
+    setSavedState("loading");
+    fetch("/api/library/saved", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("加载失败"))))
+      .then((d) => {
+        if (!alive) return;
+        setSaved(Array.isArray(d.items) ? d.items : []);
+        setSavedState("ready");
+      })
+      .catch(() => alive && setSavedState("error"));
+    return () => {
+      alive = false;
+    };
+  }, [session]);
+
+  async function handleLogout() {
+    await logout();
     setQuota(getQuota(null));
   }
-
-  const saved = LIBRARY.slice(0, 3);
 
   // 统一「创作记录」：分析 + 分镜 + 剪辑方案，按日期倒序
   type Rec = { type: "分析" | "分镜" | "剪辑"; title: string; date: string; href: string; tag?: string; score?: number };
@@ -310,23 +334,50 @@ export default function ProfilePage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {saved.map((s) => (
-              <div key={s.id} className="flex items-center gap-3">
-                <div
-                  className="h-10 w-10 shrink-0 rounded-md"
-                  style={{ background: s.cover }}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="line-clamp-1 text-sm font-medium">{s.title}</p>
-                  <p className="text-xs text-muted-foreground">{s.category}</p>
-                </div>
-                <Button asChild variant="ghost" size="icon">
-                  <Link href="/report">
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
+            {savedState === "loading" && (
+              <div className="space-y-3" aria-busy="true">
+                {[0, 1, 2].map((i) => (
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="h-10 w-10 shrink-0 animate-pulse rounded-md bg-muted" />
+                    <div className="flex-1 space-y-1.5">
+                      <div className="h-3 w-3/4 animate-pulse rounded bg-muted" />
+                      <div className="h-2.5 w-1/4 animate-pulse rounded bg-muted" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {savedState === "error" && (
+              <p className="py-4 text-center text-sm text-muted-foreground">
+                收藏加载失败，请刷新页面重试
+              </p>
+            )}
+            {savedState === "ready" && saved.length === 0 && (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <p className="text-sm text-muted-foreground">还没有收藏任何案例</p>
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/library">去案例库逛逛</Link>
                 </Button>
               </div>
-            ))}
+            )}
+            {savedState === "ready" &&
+              saved.map((s) => (
+                <div key={s.id} className="flex items-center gap-3">
+                  <div
+                    className="h-10 w-10 shrink-0 rounded-md bg-muted"
+                    style={s.cover ? { background: s.cover } : undefined}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="line-clamp-1 text-sm font-medium">{s.title}</p>
+                    <p className="text-xs text-muted-foreground">{s.category}</p>
+                  </div>
+                  <Button asChild variant="ghost" size="icon">
+                    <Link href="/library" aria-label={`在案例库查看 ${s.title}`}>
+                      <ArrowRight className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              ))}
           </CardContent>
         </Card>
 

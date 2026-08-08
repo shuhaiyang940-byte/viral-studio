@@ -5,22 +5,21 @@ import Link from "next/link";
 import { LogOut, User, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
-import { getSession, logout, type Session } from "@/lib/auth";
+import { useSession, logout } from "@/lib/auth";
 
 export function SiteHeader() {
-  const [session, setSession] = React.useState<Session | null>(null);
+  // useSession 挂载时会回源 /api/auth/me 校准，避免本地镜像与服务端 Cookie 不一致
+  const { session, loading } = useSession();
   const [mounted, setMounted] = React.useState(false);
+  const [loggingOut, setLoggingOut] = React.useState(false);
 
-  React.useEffect(() => {
-    setMounted(true);
-    setSession(getSession());
-  }, []);
+  React.useEffect(() => setMounted(true), []);
 
-  function handleLogout() {
-    logout();
-    setSession(null);
+  async function handleLogout() {
+    setLoggingOut(true);
+    await logout();
     // 刷新当前页让各处登录态同步
-    if (typeof window !== "undefined") window.location.reload();
+    if (typeof window !== "undefined") window.location.href = "/";
   }
 
   return (
@@ -50,7 +49,10 @@ export function SiteHeader() {
           ))}
         </nav>
         <div className="flex items-center gap-3">
-          {mounted && session ? (
+          {!mounted || (loading && !session) ? (
+            // 校准中显示占位骨架，避免已登录用户每次刷新都闪一下「登录」按钮
+            <div className="h-8 w-24 animate-pulse rounded-md bg-muted" aria-hidden />
+          ) : session ? (
             <>
               {!session.isPro && (
                 <Button asChild variant="outline" size="sm">
@@ -72,6 +74,7 @@ export function SiteHeader() {
                 variant="ghost"
                 size="sm"
                 onClick={handleLogout}
+                disabled={loggingOut}
                 className="px-2 text-muted-foreground"
                 title="退出登录"
               >

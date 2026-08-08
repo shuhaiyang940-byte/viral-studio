@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { MEMBERSHIP, type PlanTier } from "@/lib/mock-data";
-import { getSession, upgradeSession, type Session } from "@/lib/auth";
+import { useSession, refreshSession } from "@/lib/auth";
 
 type PayMethod = "wechat" | "alipay";
 
@@ -76,13 +76,14 @@ export default function PaymentPage() {
   const router = useRouter();
   const [tier, setTier] = React.useState<PlanTier>("pro");
   const [method, setMethod] = React.useState<PayMethod>("wechat");
-  const [session, setSession] = React.useState<Session | null>(null);
+  const { session } = useSession();
   const [mounted, setMounted] = React.useState(false);
   const [paid, setPaid] = React.useState(false);
+  const [paying, setPaying] = React.useState(false);
+  const [payError, setPayError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
-    setSession(getSession());
     if (typeof window !== "undefined") {
       const t = new URLSearchParams(window.location.search).get("tier");
       if (t === "free" || t === "pro" || t === "premium") setTier(t);
@@ -91,11 +92,34 @@ export default function PaymentPage() {
 
   const plan = MEMBERSHIP.find((m) => m.tier === tier) ?? MEMBERSHIP[1];
 
-  function handlePay() {
-    // Demo：不真实扣费，仅翻转本地会话等级以展示解锁效果
-    upgradeSession(tier);
-    setPaid(true);
-    setTimeout(() => router.push("/profile"), 900);
+  /**
+   * 只改前端 localStorage 是没用的：useSession 挂载时会回读 /api/auth/me，
+   * 服务端等级仍是 free，本地假升级会被立刻冲掉。所以必须让服务端也改，
+   * 而服务端那个接口默认关闭（ALLOW_DEMO_UPGRADE=1 才开），关着时如实报错。
+   */
+  async function handlePay() {
+    if (paying) return;
+    setPaying(true);
+    setPayError(null);
+    try {
+      const res = await fetch("/api/billing/demo-upgrade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        setPayError(d.error || "开通失败，请稍后重试");
+        return;
+      }
+      await refreshSession();
+      setPaid(true);
+      setTimeout(() => router.push("/profile"), 900);
+    } catch {
+      setPayError("网络异常，请检查连接后重试");
+    } finally {
+      setPaying(false);
+    }
   }
 
   return (
@@ -277,13 +301,21 @@ export default function PaymentPage() {
                   <Check className="h-4 w-4" /> 支付成功，正在开通…
                 </div>
               ) : (
-                <Button
-                  onClick={handlePay}
-                  className="mt-3 w-full gap-2"
-                  variant="gradient"
-                >
-                  <Check className="h-4 w-4" /> 模拟支付成功（演示）
-                </Button>
+                <>
+                  <Button
+                    onClick={handlePay}
+                    disabled={paying}
+                    className="mt-3 w-full gap-2"
+                    variant="gradient"
+                  >
+                    <Check className="h-4 w-4" /> {paying ? "开通中…" : "模拟支付成功（演示）"}
+                  </Button>
+                  {payError && (
+                    <p role="alert" className="mt-2 rounded-md bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">
+                      {payError}
+                    </p>
+                  )}
+                </>
               )}
 
               <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-muted-foreground">

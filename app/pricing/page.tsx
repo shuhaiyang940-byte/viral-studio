@@ -22,7 +22,7 @@ import {
   type PlanTier,
   type PricingCell,
 } from "@/lib/mock-data";
-import { getSession, type Session } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 
 type Billing = "monthly" | "yearly";
 
@@ -39,12 +39,11 @@ function Cell({ value }: { value: PricingCell }) {
 
 export default function PricingPage() {
   const [billing, setBilling] = React.useState<Billing>("monthly");
-  const [session, setSession] = React.useState<Session | null>(null);
+  const { session } = useSession();
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
     setMounted(true);
-    setSession(getSession());
   }, []);
 
   function priceFor(tier: PlanTier): { price: string; period: string; note?: string } {

@@ -1,38 +1,27 @@
 "use client";
 
+import * as React from "react";
+
 /**
- * Mock 微信登录体系（本地演示版）。
+ * 客户端会话层（真实账号体系）。
  *
- * 现实里微信登录需要「微信开放平台」的 AppID / AppSecret + 后端换 code 拿 access_token，
- * 再落地成你自己的用户体系（数据库 + JWT/Session）。这里用 localStorage 模拟整个流程，
- * 让你在 Demo 里跑通「扫码 → 拿到微信身份 → 建立会话」的完整体验，但**不接触任何真实凭证**。
- *
- * 切换真实微信登录的入口（占位说明，勿删）：
- * 1. 在微信开放平台创建网站应用，拿到 AppID。
- * 2. 前端跳转 https://open.weixin.qq.com/connect/qrconnect?appid=...&redirect_uri=...&scope=snsapi_login
- * 3. 后端用 code 调 /sns/oauth2/access_token 换 access_token + openid。
- * 4. 用 openid 在自家用户表 upsert，下发 Session（HttpOnly Cookie / JWT）。
- * 5. 把下面 getSession() 换成读后端下发的 Cookie，logout() 调后端销毁会话。
+ * 设计：登录/注册/登出走 /api/auth/* 真实后端（邮箱+密码，密码哈希存库，会话为 HttpOnly Cookie 里的 JWT）。
+ * 同时在本地点一份「非敏感 UI 镜像」（userId/name/avatar/tier，不含 token/密码）写入 localStorage，
+ * 这样全站既有页面用 getSession() 同步读登录态的代码无需改动即可工作。
+ * 任何需要真实数据的服务端写操作，都由后端校验 Cookie 完成，前端镜像不可伪造。
  */
 
 export type Tier = "free" | "pro" | "premium";
 
 export interface Session {
-  /** 本站用户 id（真实场景来自自家用户表，这里用 wx- 前缀模拟） */
   userId: string;
-  /** 昵称（真实场景来自微信 userInfo.nickname） */
   name: string;
-  /** 头像首字（真实场景是微信头像 url） */
   avatar: string;
-  /** 登录方式，目前只有微信 */
-  provider: "wechat";
-  /** 是否付费会员（pro / premium 均为 true） */
+  provider: "email";
   isPro: boolean;
-  /** 会员等级 */
   tier: Tier;
-  /** 会话建立时间 */
   createdAt: string;
-  /** 绑定手机号（双重注册：微信登录后按法规要求补绑，Demo 存本地） */
+  email?: string;
   phone?: string;
 }
 
@@ -47,99 +36,184 @@ function safeGet(key: string): string | null {
   }
 }
 
-function safeSet(key: string, val: string) {
+function safeSet(key: string, val: string): void {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(key, val);
   } catch {
-    /* 隐私模式 / 配额满：静默失败，主流程不依赖它 */
+    /* 隐私模式/配额满：静默失败，登录态以服务端 Cookie 为准 */
   }
 }
 
-function randomSuffix(len = 4): string {
-  return Math.random().toString(36).slice(2, 2 + len);
+function safeRemove(key: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    /* ignore */
+  }
 }
 
-/** SSR 安全的会话读取；服务端或未登录均返回 null */
-export function getSession(): Session | null {
-  const raw = safeGet(LS_KEY);
+// ── 响应式快照 ──────────────────────────────────────────────
+// useSyncExternalStore 要求 getSnapshot 返回稳定引用，
+// 所以按 localStorage 原始字符串做缓存，内容没变就返回同一个对象。
+let cachedRaw: string | null | undefined;
+let cachedSession: Session | null = null;
+const listeners = new Set<() => void>();
+
+function parseSession(raw: string | null): Session | null {
   if (!raw) return null;
   try {
     const s = JSON.parse(raw) as Session;
-    if (s && s.userId && s.provider === "wechat") return s;
-    return null;
+    return s && s.userId ? s : null;
   } catch {
     return null;
   }
+}
+
+function emit(): void {
+  cachedRaw = undefined; // 强制下次重读
+  listeners.forEach((l) => l());
+}
+
+/** SSR 安全：同步读 UI 镜像（无副作用，可用在 useState 初始化） */
+export function getSession(): Session | null {
+  const raw = safeGet(LS_KEY);
+  if (raw === cachedRaw) return cachedSession;
+  cachedRaw = raw;
+  cachedSession = parseSession(raw);
+  return cachedSession;
 }
 
 export function isLoggedIn(): boolean {
   return getSession() !== null;
 }
 
-/** 模拟「已注册用户扫码授权」——有旧会话则复用，没有则按微信身份建一个 */
-export function login(): Session {
-  const existing = getSession();
-  if (existing) return existing;
-  const session: Session = {
-    userId: "wx-" + randomSuffix(8),
-    name: "微信用户" + randomSuffix(4),
-    avatar: "微",
-    provider: "wechat",
-    isPro: false,
-    tier: "free",
+function mapUser(u: { id: string; email: string; name: string; tier: string }): Session {
+  const name = u.name?.trim() || u.email.split("@")[0];
+  return {
+    userId: u.id,
+    email: u.email,
+    name,
+    avatar: name.slice(0, 1).toUpperCase(),
+    provider: "email",
+    isPro: u.tier !== "free",
+    tier: (u.tier as Tier) || "free",
     createdAt: new Date().toISOString(),
   };
+}
+
+function persist(session: Session): Session {
   safeSet(LS_KEY, JSON.stringify(session));
+  emit();
   return session;
 }
 
-/** 模拟「首次微信扫码 = 注册」——总是建立一个新的本站账号 */
-export function register(name?: string): Session {
-  const session: Session = {
-    userId: "wx-" + randomSuffix(8),
-    name: name?.trim() || "微信用户" + randomSuffix(4),
-    avatar: (name?.trim() || "微").slice(0, 1),
-    provider: "wechat",
-    isPro: false,
-    tier: "free",
-    createdAt: new Date().toISOString(),
-  };
-  safeSet(LS_KEY, JSON.stringify(session));
-  return session;
+function clearMirror(): void {
+  safeRemove(LS_KEY);
+  emit();
 }
 
-export function logout(): void {
-  if (typeof window === "undefined") return;
+async function postJSON(url: string, body: unknown) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data?.error || "请求失败");
+  }
+  return data;
+}
+
+/** 真实注册：邮箱 + 密码（+ 昵称） */
+export async function register(email: string, password: string, name?: string): Promise<Session> {
+  const data = await postJSON("/api/auth/register", { email, password, name });
+  return persist(mapUser(data.user));
+}
+
+/** 真实登录：邮箱 + 密码 */
+export async function login(email: string, password: string): Promise<Session> {
+  const data = await postJSON("/api/auth/login", { email, password });
+  return persist(mapUser(data.user));
+}
+
+/** 登出：清前端镜像 + 通知后端销毁 Cookie 会话 */
+export async function logout(): Promise<void> {
+  await fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+  clearMirror();
+}
+
+/** 绑定手机号：更新前端镜像，并尽力同步到后端（后端无 key 时静默跳过） */
+export async function bindPhone(phone: string): Promise<Session | null> {
+  const s = getSession();
+  if (!s) return null;
+  await postJSON("/api/auth/bind-phone", { phone }).catch(() => {});
+  return persist({ ...s, phone: phone.trim() });
+}
+
+// 注：曾有个 upgradeSession()「只改本地镜像的会员等级」，已删除。
+// 原因：useSession 挂载时会回读 /api/auth/me，本地改的 tier 会被服务端值覆盖，
+// 造成「支付页说解锁了、导航栏还是免费」。会员等级只能由服务端改（见 /api/billing/demo-upgrade）。
+
+/** 拉取服务端真实会话并刷新前端镜像（页面挂载时调用，保证与服务端一致） */
+export async function refreshSession(): Promise<Session | null> {
   try {
-    window.localStorage.removeItem(LS_KEY);
+    const res = await fetch("/api/auth/me", { cache: "no-store" });
+    if (!res.ok) {
+      // Cookie 已失效 / 从未登录 —— 清掉可能残留的本地镜像，避免「假装已登录」
+      clearMirror();
+      return null;
+    }
+    const data = await res.json();
+    return persist(mapUser(data.user));
   } catch {
-    /* ignore */
+    // 网络故障：保留现有镜像，不把用户误登出
+    return getSession();
   }
 }
 
-/** Demo 用：一键切换会员等级，方便演示「锁定 → 解锁」效果 */
-export function upgradeSession(tier: Tier = "pro"): Session | null {
-  const s = getSession();
-  if (!s) return null;
-  const next: Session = {
-    ...s,
-    isPro: tier !== "free",
-    tier,
+/** 订阅登录态变化（含跨标签页同步） */
+function subscribeSession(cb: () => void): () => void {
+  listeners.add(cb);
+  const onStorage = (e: StorageEvent) => {
+    if (e.key === LS_KEY || e.key === null) emit();
   };
-  safeSet(LS_KEY, JSON.stringify(next));
-  return next;
+  window.addEventListener("storage", onStorage);
+  return () => {
+    listeners.delete(cb);
+    window.removeEventListener("storage", onStorage);
+  };
 }
 
 /**
- * 双重注册：微信登录/注册后补绑手机号（法规要求）。
- * 真实环境这一步应走后端校验短信验证码并写入数据库 users.phone，
- * 这里仅把手机号记录到本地会话，便于 Demo 展示「已绑定」状态。
+ * 全站统一的登录态 Hook。
+ *
+ * 为什么不能只读 localStorage：真正的会话是服务端 HttpOnly Cookie，
+ * 本地镜像只是给 UI 用的。两者会在「换设备 / 清缓存 / Cookie 过期」时不一致，
+ * 所以挂载时必须回源 /api/auth/me 校准一次。
+ *
+ * loading 为 true 时表示还没校准完，UI 应显示骨架而不是「未登录」，
+ * 否则已登录用户每次刷新都会看到一瞬间的登录按钮。
  */
-export function bindPhone(phone: string): Session | null {
-  const s = getSession();
-  if (!s) return null;
-  const next: Session = { ...s, phone: phone.trim() };
-  safeSet(LS_KEY, JSON.stringify(next));
-  return next;
+export function useSession(): { session: Session | null; loading: boolean } {
+  const session = React.useSyncExternalStore(
+    subscribeSession,
+    getSession,
+    () => null // 服务端渲染时一律当作未登录
+  );
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    let alive = true;
+    refreshSession().finally(() => {
+      if (alive) setLoading(false);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return { session, loading };
 }

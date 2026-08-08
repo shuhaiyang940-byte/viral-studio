@@ -36,7 +36,7 @@ import { saveReport } from "@/lib/storage";
 import { getProfile, LEVEL_LABELS } from "@/lib/onboarding";
 import { REFERENCE_TYPES, type OnboardingProfile } from "@/lib/types";
 import { mockReferenceSignal } from "@/lib/reference-signal";
-import { getSession, type Session } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 import { consumeQuota, getQuota } from "@/lib/quota";
 
 const PIPELINE = [
@@ -60,9 +60,6 @@ export default function AnalyzePage() {
     } else {
       setNeedsOnboarding(true);
     }
-    const s = getSession();
-    setSession(s);
-    setQuota(getQuota(s));
   }, []);
 
   const [mode, setMode] = React.useState<"upload" | "url">("upload");
@@ -73,8 +70,13 @@ export default function AnalyzePage() {
   const [step, setStep] = React.useState(-1);
   const [loading, setLoading] = React.useState(false);
   const [showLinkHelp, setShowLinkHelp] = React.useState(false);
-  const [session, setSession] = React.useState<Session | null>(null);
+  const { session } = useSession();
   const [quota, setQuota] = React.useState<ReturnType<typeof getQuota> | null>(null);
+
+  // 配额跟着会话走：登录 / 升级后要立刻重算，不能只在首次挂载算一次
+  React.useEffect(() => {
+    setQuota(getQuota(session));
+  }, [session]);
 
   const canStart =
     ((mode === "upload" && !!file) || (mode === "url" && url.trim().length > 0)) &&

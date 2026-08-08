@@ -16,10 +16,20 @@ import {
   Crown,
   Clapperboard,
   Lock,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   IDEA_OPTIONS,
   STYLE_OPTIONS,
@@ -27,14 +37,12 @@ import {
   PRODUCT_OPTIONS,
   CATEGORY_OPTIONS,
   GOAL_OPTIONS,
-  BENCHMARKS,
-  findPeers,
   findPlaybooks,
   type IdeaType,
-  type PeerQuery,
+  type BenchmarkItem,
   type Playbook,
 } from "@/lib/benchmarks";
-import { getSession, type Session } from "@/lib/auth";
+import { useSession } from "@/lib/auth";
 import { saveReport, saveStoryboard } from "@/lib/storage";
 import { briefToStoryboard } from "@/lib/storyboard";
 
@@ -63,6 +71,34 @@ function Chip({
   );
 }
 
+const PLATFORMS = ["抖音", "小红书", "视频号", "快手"] as const;
+
+type BenchForm = {
+  name: string;
+  platform: string;
+  ideaType: string;
+  followers: string;
+  engagementRate: string;
+  reason: string;
+  sampleTitle: string;
+  styles: string;
+  effects: string;
+  face: boolean;
+};
+
+const EMPTY_FORM: BenchForm = {
+  name: "",
+  platform: "抖音",
+  ideaType: "sell",
+  followers: "",
+  engagementRate: "",
+  reason: "",
+  sampleTitle: "",
+  styles: "",
+  effects: "",
+  face: true,
+};
+
 export default function FindPeerPage() {
   const router = useRouter();
   const [step, setStep] = React.useState<1 | 2 | 3>(1);
@@ -75,39 +111,45 @@ export default function FindPeerPage() {
   const [goal, setGoal] = React.useState<string>("");
   const [title, setTitle] = React.useState<string>("");
   const [loading, setLoading] = React.useState(false);
-  const [results, setResults] = React.useState<typeof BENCHMARKS>([]);
+  const [results, setResults] = React.useState<BenchmarkItem[]>([]);
   const [playbooks, setPlaybooks] = React.useState<Playbook[]>([]);
-  const [session, setSession] = React.useState<Session | null>(null);
+  const [trackingId, setTrackingId] = React.useState<string | null>(null);
+  /** 会话以服务端 Cookie 为准 */
+  const { session } = useSession();
   const [mounted, setMounted] = React.useState(false);
+  const [addOpen, setAddOpen] = React.useState(false);
+  const [addLoading, setAddLoading] = React.useState(false);
+  const [addError, setAddError] = React.useState<string | null>(null);
+  const [form, setForm] = React.useState<BenchForm>(EMPTY_FORM);
 
   React.useEffect(() => {
     setMounted(true);
-    setSession(getSession());
   }, []);
 
   function toggle(list: string[], v: string): string[] {
     return list.includes(v) ? list.filter((x) => x !== v) : [...list, v];
   }
 
-  function runSearch() {
+  async function runSearch() {
     if (!ideaType) return;
     setLoading(true);
-    const q: PeerQuery = {
-      ideaType,
-      styles,
-      effects,
-      face,
-      productType: productType || undefined,
-      category: category || undefined,
-      goal: goal || undefined,
-    };
-    // 模拟「系统自主查找」耗时
-    setTimeout(() => {
-      setResults(findPeers(q, 6));
+    setStep(3);
+    try {
+      const params = new URLSearchParams();
+      params.set("ideaType", ideaType);
+      params.set("face", face);
+      if (styles.length) params.set("styles", styles.join(","));
+      if (effects.length) params.set("effects", effects.join(","));
+      if (productType) params.set("productType", productType);
+      const res = await fetch(`/api/benchmarks?${params.toString()}`);
+      const data = await res.json();
+      setResults(data.items ?? []);
       setPlaybooks(findPlaybooks({ ideaType, category, goal, limit: 3 }));
+    } catch {
+      setResults([]);
+    } finally {
       setLoading(false);
-      setStep(3);
-    }, 650);
+    }
   }
 
   function reset() {
@@ -122,6 +164,83 @@ export default function FindPeerPage() {
     setTitle("");
     setResults([]);
     setPlaybooks([]);
+  }
+
+  async function toggleTrack(a: BenchmarkItem) {
+    if (!mounted || !session) {
+      router.push("/login?redirect=/find-peer");
+      return;
+    }
+    if (trackingId) return;
+    setTrackingId(a.id);
+    try {
+      const res = a.tracked
+        ? await fetch(`/api/benchmarks/tracked?benchmarkId=${a.id}`, { method: "DELETE" })
+        : await fetch("/api/benchmarks/tracked", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ benchmarkId: a.id }),
+          });
+      // 请求成功才翻转 UI，避免「假关注」
+      if (res.ok) {
+        setResults((prev) =>
+          prev.map((x) => (x.id === a.id ? { ...x, tracked: !x.tracked } : x))
+        );
+      } else if (res.status === 401) {
+        router.push("/login?redirect=/find-peer");
+      }
+    } catch {
+      /* 网络异常时保持原状即可 */
+    } finally {
+      setTrackingId(null);
+    }
+  }
+
+  async function submitAccount() {
+    if (!form.name.trim()) return;
+    if (!mounted || !session) {
+      router.push("/login?redirect=/find-peer");
+      return;
+    }
+    setAddLoading(true);
+    setAddError(null);
+    try {
+      const res = await fetch("/api/benchmarks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          platform: form.platform,
+          ideaType: form.ideaType,
+          followers: Number(form.followers) || 0,
+          engagementRate: Number(form.engagementRate) || 0,
+          reason: form.reason.trim(),
+          sampleTitle: form.sampleTitle.trim(),
+          styles: form.styles
+            .split(/[,，]/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+          effects: form.effects
+            .split(/[,，]/)
+            .map((s) => s.trim())
+            .filter(Boolean),
+          face: form.face,
+        }),
+      });
+      if (res.ok) {
+        setAddOpen(false);
+        setForm(EMPTY_FORM);
+        runSearch();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setAddError(d.error || (res.status === 503 ? "服务端未配置数据库，暂时无法提交" : "提交失败，请稍后重试"));
+        if (res.status === 401) router.push("/login?redirect=/find-peer");
+      }
+    } catch {
+      setAddError("网络异常，请检查连接后重试");
+    } finally {
+      setAddLoading(false);
+    }
   }
 
   /** 高级功能：由需求入口直接生成 AI 分镜（会员可用，免费软引导） */
@@ -151,8 +270,8 @@ export default function FindPeerPage() {
         </Badge>
         <h1 className="text-3xl font-extrabold tracking-tight">先选你的想法，系统帮你找对标</h1>
         <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
-          告诉我们你是谁、卖什么、要什么效果，系统会按类目匹配「流量大、效果好」的对标账号与可复刻的爆款套路，
-          高级会员还能一键把需求变成 AI 分镜图。
+          告诉我们你是谁、卖什么、要什么效果，系统会按类目从对标库里匹配「流量大、效果好」的账号与可复刻的爆款套路，
+          登录后即可关注追踪、或补充你自己的对标账号。
         </p>
       </div>
 
@@ -321,7 +440,7 @@ export default function FindPeerPage() {
               )}
 
               <div className="flex items-center justify-between border-t border-border pt-4">
-                <p className="text-xs text-muted-foreground">系统将按你的条件，从精选对标库里自主匹配排序</p>
+                <p className="text-xs text-muted-foreground">系统将按你的条件，从对标库里自主匹配排序</p>
                 <Button onClick={runSearch} variant="gradient">
                   <Search className="h-4 w-4" /> 帮我找对标
                 </Button>
@@ -344,15 +463,20 @@ export default function FindPeerPage() {
                   <p className="text-sm text-muted-foreground">
                     为你找到 <span className="font-semibold text-foreground">{results.length}</span> 个对标账号
                   </p>
-                  <Button variant="outline" size="sm" onClick={reset}>
-                    重新查找
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
+                      <Plus className="h-4 w-4" /> 添加对标账号
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={reset}>
+                      重新查找
+                    </Button>
+                  </div>
                 </div>
 
                 {results.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-border p-10 text-center text-muted-foreground">
                     <Users className="mx-auto h-8 w-8" />
-                    <p className="mt-2 text-sm">当前库里没有完全匹配的对标，换个条件试试？</p>
+                    <p className="mt-2 text-sm">当前库里没有完全匹配的对标，换个条件试试？也可以点右上角「添加对标账号」补充。</p>
                   </div>
                 ) : (
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -399,6 +523,20 @@ export default function FindPeerPage() {
                           <p className="mt-3 truncate text-xs text-muted-foreground">
                             代表作：{a.sampleTitle}
                           </p>
+
+                          <div className="mt-3 flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground">
+                              {a.isSeed ? "精选库" : "用户贡献"}
+                            </span>
+                            <Button
+                              size="sm"
+                              variant={a.tracked ? "outline" : "default"}
+                              disabled={trackingId === a.id}
+                              onClick={() => toggleTrack(a)}
+                            >
+                              {a.tracked ? "已关注" : "关注"}
+                            </Button>
+                          </div>
                         </CardContent>
                       </Card>
                     ))}
@@ -488,14 +626,114 @@ export default function FindPeerPage() {
 
                 <p className="mx-auto mt-6 flex max-w-2xl items-start gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs text-muted-foreground">
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  以上为「精选对标库」示例数据，系统按你的条件在库内自主匹配排序。后续可补充更多真实账号，
-                  或等你具备平台开放平台资质后接入实时搜索。
+                  对标账号来自实时数据库：精选库由平台维护，登录后你可以关注追踪、或补充自己的对标账号。
                 </p>
               </>
             )}
           </div>
         )}
       </div>
+
+      {/* 添加对标账号 */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>添加对标账号</DialogTitle>
+            <DialogDescription>补充你自己的对标账号，提交后会进入对标库并立即出现在结果里。</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium">账号名称 *</label>
+                <Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="如：XX说运营" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">平台</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {PLATFORMS.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setForm({ ...form, platform: p })}
+                      className={
+                        "rounded-full border px-3 py-1 text-xs " +
+                        (form.platform === p ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground")
+                      }
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium">类型</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {IDEA_OPTIONS.map((o) => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => setForm({ ...form, ideaType: o.id })}
+                      className={
+                        "rounded-full border px-3 py-1 text-xs " +
+                        (form.ideaType === o.id ? "border-primary bg-primary/10 text-foreground" : "border-border text-muted-foreground")
+                      }
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-end gap-2">
+                <label className="flex items-center gap-1.5 text-xs">
+                  <input type="checkbox" checked={form.face} onChange={(e) => setForm({ ...form, face: e.target.checked })} />
+                  露脸
+                </label>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium">粉丝量（万）</label>
+                <Input value={form.followers} onChange={(e) => setForm({ ...form, followers: e.target.value })} placeholder="如：120" inputMode="numeric" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">互动率（%）</label>
+                <Input value={form.engagementRate} onChange={(e) => setForm({ ...form, engagementRate: e.target.value })} placeholder="如：8" inputMode="numeric" />
+              </div>
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium">为什么值得对标</label>
+              <Textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} placeholder="如：人设反差强、评论区运营到位" rows={2} />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium">代表作标题</label>
+              <Input value={form.sampleTitle} onChange={(e) => setForm({ ...form, sampleTitle: e.target.value })} placeholder="如：一条视频涨粉 10 万的方法" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium">风格（逗号分隔）</label>
+                <Input value={form.styles} onChange={(e) => setForm({ ...form, styles: e.target.value })} placeholder="测评, 干货" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">效果（逗号分隔）</label>
+                <Input value={form.effects} onChange={(e) => setForm({ ...form, effects: e.target.value })} placeholder="涨粉快, 互动强" />
+              </div>
+            </div>
+          </div>
+          {addError && (
+            <p role="alert" className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {addError}
+            </p>
+          )}
+          <div className="mt-4 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setAddOpen(false)}>取消</Button>
+            <Button onClick={submitAccount} disabled={addLoading || !form.name.trim()}>
+              {addLoading ? "提交中…" : "提交"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
