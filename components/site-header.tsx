@@ -34,6 +34,7 @@ export function SiteHeader() {
             { label: "AI写文案", href: "/copywriting" },
             { label: "案例库", href: "/library" },
             { label: "公式库", href: "/formulas" },
+            { label: "复刻助手", href: "/replicate" },
             { label: "定价", href: "/pricing" },
             { label: "帮助中心", href: "/help" },
           ].map((n) => (

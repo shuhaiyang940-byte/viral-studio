@@ -204,15 +204,15 @@ export function FormulaLibrary({ focusId }: { focusId?: string }) {
                 ))}
               </div>
 
-              {/* CTA：套用此公式（复刻助手 Phase 5 上线后替换为专属生成） */}
+              {/* CTA：用此公式一键复刻（Phase 5 复刻助手） */}
               <div className="flex items-center justify-between gap-3 rounded-lg border border-dashed border-primary/40 bg-primary/[0.03] p-3">
                 <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Sparkles className="h-3.5 w-3.5 text-primary" />
-                  想直接套用？去分析入口，按这条公式复刻你的版本。
+                  想直接套用？用这条公式，一键生成你的专属标题 / 脚本 / 分镜。
                 </p>
                 <Button asChild size="sm" className="shrink-0">
-                  <Link href="/analyze">
-                    立即套用 <ArrowUpRight className="h-4 w-4" />
+                  <Link href={`/replicate?formula=${detail.id}`}>
+                    用此公式复刻 <ArrowUpRight className="h-4 w-4" />
                   </Link>
                 </Button>
               </div>

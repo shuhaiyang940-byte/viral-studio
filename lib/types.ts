@@ -363,3 +363,62 @@ export interface EditPlanRecord {
   /** 骨架段落数（占位镜头数） */
   segmentCount: number;
 }
+
+/** 我的 AI 导演：基于用户档案 + 历史分析记录的长期优化建议（规则驱动，纯前端） */
+export interface DirectorAdvice {
+  /** 是否具备生成条件（有档案或历史记录） */
+  ready: boolean;
+  /** 定位诊断（一句话结论） */
+  diagnosis: string;
+  /** 优先优化建议（3-5 条，按优先级排序） */
+  priorities: string[];
+  /** 本周内容方向建议（3 个选题角度） */
+  weeklyTopics: { angle: string; why: string }[];
+  /** 基于历史报告的进步轨迹（历史足够时给出） */
+  progress?: {
+    /** 已分析视频数 */
+    analyzed: number;
+    /** 平均综合分 */
+    avgScore: number;
+    /** 与首条对比的趋势 */
+    trend: "up" | "down" | "flat";
+    /** 轨迹说明 */
+    note: string;
+  };
+  /** 还缺什么数据才能给更准的建议 */
+  missingHint?: string;
+}
+
+/** 复刻助手：单个分镜镜头 */
+export interface ReplicaShot {
+  /** 镜头序号（从 1 开始） */
+  index: number;
+  /** 段落：钩子 / 铺垫 / 展开 / 高潮 / 收尾 */
+  phase: string;
+  /** 画面描述（拍什么） */
+  visual: string;
+  /** 台词 / 旁白（脚本式，可照念） */
+  line: string;
+  /** 时长（秒） */
+  durationSec: number;
+  /** 音效 / BGM 提示 */
+  sfx: string;
+}
+
+/** 复刻助手：按行业一键生成的短视频方案 */
+export interface ReplicaResult {
+  /** 套用自公式库的哪条公式 */
+  basedOnFormula: FormulaTemplate;
+  /** 前 3 秒钩子（脚本式，可照抄） */
+  hook: string;
+  /** 主标题 */
+  title: string;
+  /** 备选标题（含主标题共 N 条） */
+  titles: string[];
+  /** 分镜表 */
+  shots: ReplicaShot[];
+  /** 复刻路径提示（来自公式库 copyPath） */
+  copyPath: string;
+  /** 落地提示（设备 / 时长 / 发布建议） */
+  tips: string[];
+}

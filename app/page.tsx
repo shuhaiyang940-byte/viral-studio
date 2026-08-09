@@ -135,12 +135,14 @@ const FEATURES = [
     title: "一键复刻我的版本",
     desc: "选好你的行业，AI 生成专属短视频方案，直接开拍",
     color: "from-fuchsia-500 to-pink-600",
+    href: "/replicate",
   },
   {
     icon: UserCheck,
     title: "我的 AI 导演",
     desc: "填写账号档案，分析越来越懂你的定位与方向",
     color: "from-rose-500 to-orange-500",
+    href: "/profile#director",
   },
 ];
 
@@ -163,6 +165,7 @@ const STEPS = [
     num: 3,
     title: "一键复刻",
     desc: "选你的行业，AI 生成标题 / 脚本 / 分镜，直接开拍",
+    href: "/replicate",
   },
 ];
 
@@ -357,9 +360,9 @@ export default function HomePage() {
         </div>
 
         <div className="mt-14 grid items-center gap-4 sm:grid-cols-3 sm:gap-6">
-          {STEPS.map((step, i) => (
-            <>
-              <div key={step.title} className="flex flex-col items-center rounded-2xl border border-border/70 bg-card p-6 text-center transition-shadow hover:shadow-lg">
+          {STEPS.map((step, i) => {
+            const card = (
+              <div className="flex h-full flex-col items-center rounded-2xl border border-border/70 bg-card p-6 text-center transition-shadow hover:shadow-lg">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-violet-100 to-purple-100 dark:from-violet-900/30 dark:to-purple-900/20">
                   <step.icon className="h-6 w-6 text-primary" />
                 </div>
@@ -369,11 +372,22 @@ export default function HomePage() {
                 <h3 className="mt-2 text-sm font-semibold">{step.title}</h3>
                 <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">{step.desc}</p>
               </div>
-              {i < STEPS.length - 1 && (
-                <ArrowRight className="hidden h-5 w-5 text-muted-foreground/50 sm:flex justify-self-center" />
-              )}
-            </>
-          ))}
+            );
+            return (
+              <React.Fragment key={step.title}>
+                {step.href ? (
+                  <Link href={step.href} className="rounded-2xl outline-none transition focus-visible:ring-2 focus-visible:ring-primary">
+                    {card}
+                  </Link>
+                ) : (
+                  card
+                )}
+                {i < STEPS.length - 1 && (
+                  <ArrowRight className="hidden h-5 w-5 text-muted-foreground/50 sm:flex justify-self-center" />
+                )}
+              </React.Fragment>
+            );
+          })}
         </div>
       </section>
 

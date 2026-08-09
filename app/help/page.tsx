@@ -53,7 +53,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "免费版和会员有什么区别？",
-    a: "免费版：每天 1 次分析、基础版报告（爆款评分 + 核心亮点）、浏览案例库与爆款公式库。创作者版：每日 5 次分析、完整版《爆款导演拆解报告》（六段：评分 / 黄金 3 秒 / 结构 / 情绪曲线 / 公式 / 可复制）、爆款公式库全量查阅、AI 写文案。进阶版与专业版在创作者版基础上叠加更高配额，并把「爆款复刻助手」「我的 AI 导演」「账号诊断」等能力列入开发路线（规划中）。完整对比见「价格」页。",
+    a: "免费版：每天 1 次分析、基础版报告（仅爆款评分体系）、浏览案例库与爆款公式库、每天 1 次爆款复刻（精简版）。创作者版：每日 5 次分析、完整版《爆款导演拆解报告》（六段）、爆款公式库全量查阅、AI 写文案。进阶版再叠加无限次分析、爆款复刻助手全量（5 标题 + 完整分镜）与我的 AI 导演（定位诊断 + 本周规划）；专业版增加 AI 导演长期陪跑。完整对比见「价格」页。",
   },
   {
     q: "微信登录安全吗？我的数据存在哪？",
@@ -109,8 +109,8 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 const FEATURES = [
   { icon: Target, title: "爆款导演拆解报告", desc: "AI 模拟资深导演，输出评分与六段拆解，说清为什么火。", tier: "创作者版" },
   { icon: BookOpen, title: "爆款公式库", desc: "从真实案例提炼可复制公式，按赛道查阅与收藏。", tier: "进阶版" },
-  { icon: Sparkles, title: "一键复刻我的版本", desc: "选好你的行业，AI 生成标题 / 脚本 / 分镜方案。开发中，敬请期待。", tier: "进阶版", soon: true },
-  { icon: Crown, title: "我的 AI 导演", desc: "结合你的账号档案长期优化定位与内容方向。开发中，敬请期待。", tier: "专业版", soon: true },
+  { icon: Sparkles, title: "一键复刻我的版本", desc: "选好你的行业，AI 一键生成标题 / 脚本 / 分镜，直接开拍。", tier: "进阶版" },
+  { icon: Crown, title: "我的 AI 导演", desc: "结合你的账号档案，给出定位诊断与本周内容规划。", tier: "专业版" },
 ];
 
 export default function HelpPage() {
@@ -168,15 +168,9 @@ export default function HelpPage() {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-semibold">{f.title}</h3>
-                    {f.soon ? (
-                      <Badge variant="warning" className="text-[10px]">
-                        规划中
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-[10px]">
-                        {f.tier}
-                      </Badge>
-                    )}
+                    <Badge variant="outline" className="text-[10px]">
+                      {f.tier}
+                    </Badge>
                   </div>
                   <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{f.desc}</p>
                 </div>

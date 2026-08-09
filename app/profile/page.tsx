@@ -9,7 +9,6 @@ import {
   Crown,
   Sparkles,
   ArrowRight,
-  Info,
   FileBarChart,
   UserCheck,
   Pencil,
@@ -21,6 +20,7 @@ import type { AnalysisReport, OnboardingProfile, Storyboard, EditPlanRecord } fr
 import { MEMBERSHIP } from "@/lib/mock-data";
 import { getReports, getStoryboards, getEditPlans } from "@/lib/storage";
 import { getProfile, LEVEL_LABELS } from "@/lib/onboarding";
+import { generateDirectorAdvice } from "@/lib/director";
 import { useSession, logout } from "@/lib/auth";
 import { getQuota } from "@/lib/quota";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export default function ProfilePage() {
   const [storyboards, setStoryboards] = React.useState<Storyboard[]>([]);
   const [editPlans, setEditPlans] = React.useState<EditPlanRecord[]>([]);
   const [profile, setProfile] = React.useState<OnboardingProfile | null>(null);
+  const [advice, setAdvice] = React.useState<ReturnType<typeof generateDirectorAdvice> | null>(null);
   const { session } = useSession();
   const [quota, setQuota] = React.useState<ReturnType<typeof getQuota> | null>(null);
   const [mounted, setMounted] = React.useState(false);
@@ -49,6 +50,14 @@ export default function ProfilePage() {
     setEditPlans(getEditPlans());
     setProfile(getProfile());
   }, []);
+
+  React.useEffect(() => {
+    if (profile || reports.length > 0) {
+      setAdvice(generateDirectorAdvice(profile, reports));
+    } else {
+      setAdvice(null);
+    }
+  }, [profile, reports]);
 
   React.useEffect(() => {
     setQuota(getQuota(session));
@@ -381,33 +390,89 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        {/* 我的账号分析（高级会员） */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <UserCog className="h-4 w-4 text-primary" /> 我的账号分析
-              <Badge variant="warning" className="gap-1">
-                <Info className="h-3 w-3" /> 功能完善中
+      {/* 我的 AI 导演（基于档案 + 历史记录生成） */}
+      <Card className="lg:col-span-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <UserCog className="h-4 w-4 text-primary" /> 我的 AI 导演
+            {advice?.ready && (
+              <Badge variant="success" className="gap-1">
+                <Sparkles className="h-3 w-3" /> 已基于你的数据生成
               </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border p-8 text-center sm:flex-row sm:text-left">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-warning/10 text-warning">
-                <Crown className="h-6 w-6" />
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!advice ? (
+            <div className="rounded-lg border border-dashed border-border p-8 text-center">
+              <UserCog className="mx-auto h-8 w-8 text-muted-foreground" />
+              <p className="mt-2 text-sm text-muted-foreground">
+                填写创作档案并分析几个视频后，AI 导演会给你定制建议
+              </p>
+              <div className="mt-3 flex justify-center gap-2">
+                <Button asChild size="sm">
+                  <a href="/onboarding">
+                    <Sparkles className="mr-1 h-3.5 w-3.5" /> 填写档案
+                  </a>
+                </Button>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/analyze">去分析</Link>
+                </Button>
               </div>
-              <div className="flex-1">
-                <p className="font-medium">账号诊断 + 内容规划</p>
-                <p className="text-sm text-muted-foreground">
-                  基于你的历史分析与账号定位，生成诊断报告与每周内容规划。会员功能完善中，敬请期待。
-                </p>
-              </div>
-              <Button variant="outline" disabled>
-                <Info className="h-4 w-4" /> 功能完善中
-              </Button>
             </div>
-          </CardContent>
-        </Card>
+          ) : (
+            <div className="space-y-5">
+              {/* 定位诊断 */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">定位诊断</p>
+                <p className="mt-1 text-sm leading-relaxed">{advice.diagnosis}</p>
+              </div>
+              {/* 优先优化建议 */}
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">优先优化建议</p>
+                <ul className="space-y-2">
+                  {advice.priorities.map((p, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                        {i + 1}
+                      </span>
+                      <span className="text-foreground/90">{p}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {/* 本周内容方向 */}
+              <div>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">本周内容方向</p>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  {advice.weeklyTopics.map((t, i) => (
+                    <div key={i} className="rounded-lg border border-border p-3">
+                      <p className="text-sm font-medium">{t.angle}</p>
+                      <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{t.why}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {/* 进步轨迹 */}
+              {advice.progress && (
+                <div className="rounded-lg bg-muted/40 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="font-medium">进步轨迹</span>
+                    <span className="text-muted-foreground">
+                      已分析 {advice.progress.analyzed} 条 · 平均 {advice.progress.avgScore} 分
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">{advice.progress.note}</p>
+                </div>
+              )}
+              {/* 缺失提示 */}
+              {advice.missingHint && (
+                <p className="text-[11px] text-muted-foreground">{advice.missingHint}</p>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
       </div>
 
       {/* 会员状态 */}
