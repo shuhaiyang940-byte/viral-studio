@@ -1,17 +1,23 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 /** 需要登录才能访问的页面 */
-const PROTECTED = ["/profile"];
+const PROTECTED = ["/profile", "/onboarding", "/bind-phone"];
 
 /**
  * 乐观的登录检查：只看有没有会话 Cookie，不在 Edge 里验签。
  *
- * 为什么这样够用：真正的鉴权发生在 API 层（每个接口都会 verify JWT），
+ * 真实邮箱会话靠服务端 HttpOnly Cookie（vs_session）；
+ * 演示会话（手机/QQ/微信 mock）没有服务端 Cookie，靠客户端可读写的
+ * vs_demo_session 让 middleware 也能识别。两者任一存在即视为已登录。
+ *
+ * 真正的鉴权发生在 API 层（每个接口都会 verify JWT / 校验本地会话），
  * 中间件的职责只是「别让未登录用户看到一个空壳页面」。
  * 伪造一个 Cookie 顶多能打开页面骨架，拿不到任何数据。
  */
 export function middleware(req: NextRequest) {
-  const hasSession = Boolean(req.cookies.get("vs_session")?.value);
+  const hasSession =
+    Boolean(req.cookies.get("vs_session")?.value) ||
+    Boolean(req.cookies.get("vs_demo_session")?.value);
   const { pathname, search } = req.nextUrl;
 
   if (!hasSession && PROTECTED.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
@@ -33,5 +39,5 @@ export function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/profile/:path*", "/login"],
+  matcher: ["/profile/:path*", "/onboarding/:path*", "/bind-phone", "/login"],
 };

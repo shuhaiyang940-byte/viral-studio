@@ -159,7 +159,7 @@ export default function ProfilePage() {
             </div>
             <Button asChild variant="gradient">
               <Link href="/login?redirect=/profile">
-                <Sparkles className="h-4 w-4" /> 微信登录
+                <Sparkles className="h-4 w-4" /> 登录 / 注册
               </Link>
             </Button>
           </CardContent>
@@ -176,9 +176,9 @@ export default function ProfilePage() {
               </span>
               {profile ? (
                 <Button asChild variant="ghost" size="sm">
-                  <a href="/onboarding">
+                  <Link href="/onboarding?edit=1">
                     <Pencil className="mr-1 h-3.5 w-3.5" /> 修改
-                  </a>
+                  </Link>
                 </Button>
               ) : (
                 <Button asChild variant="gradient" size="sm">

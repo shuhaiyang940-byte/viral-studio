@@ -19,13 +19,44 @@ type RawAnswers = Record<string, string | string[]>;
 /** 存储「其他」手填的自定义值 */
 type OtherValues = Record<string, string>;
 
+/** 各题目的已知选项值（排除「其他」），用于把已存档案还原回问卷时识别自定义项 */
+const KNOWN_VALUES: Record<string, Set<string>> = Object.fromEntries(
+  QUIZ.map((q) => [q.id as string, new Set(q.options.filter((o) => !o.isOther).map((o) => o.value))])
+) as Record<string, Set<string>>;
+
+/** 预填已有档案：把 OnboardingProfile 还原成问卷的 answers / otherValues */
+function buildInitial(profile?: OnboardingProfile): { answers: RawAnswers; otherValues: OtherValues } {
+  if (!profile) return { answers: {}, otherValues: {} };
+  const answers: RawAnswers = {
+    level: profile.level,
+    weeklyHours: profile.weeklyHours,
+    style: profile.style,
+    audience: profile.audience,
+  };
+  const otherValues: OtherValues = {};
+  (["tools", "contentTypes", "platforms", "painPoints"] as const).forEach((key) => {
+    const known = KNOWN_VALUES[key];
+    const arr = (profile[key] as string[]).map((v) => {
+      if (known.has(v)) return v;
+      otherValues[key] = v;
+      return "__other__";
+    });
+    answers[key] = arr;
+  });
+  return { answers, otherValues };
+}
+
 export function OnboardingQuiz({
   onComplete,
+  initialProfile,
+  editMode = false,
 }: {
   onComplete: (profile: OnboardingProfile) => void;
+  initialProfile?: OnboardingProfile;
+  editMode?: boolean;
 }) {
-  const [answers, setAnswers] = React.useState<RawAnswers>({});
-  const [otherValues, setOtherValues] = React.useState<OtherValues>({});
+  const [answers, setAnswers] = React.useState<RawAnswers>(() => buildInitial(initialProfile).answers);
+  const [otherValues, setOtherValues] = React.useState<OtherValues>(() => buildInitial(initialProfile).otherValues);
   const [advice, setAdvice] = React.useState<AdviceResult | null>(null);
 
   function toggle(questionId: string, value: string, multi: boolean) {
@@ -96,13 +127,15 @@ export function OnboardingQuiz({
     <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6">
       <div className="text-center">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-          <Sparkles className="h-3.5 w-3.5" /> 新手摸底
+          <Sparkles className="h-3.5 w-3.5" /> {editMode ? "修改档案" : "新手摸底"}
         </span>
         <h1 className="mt-4 text-3xl font-bold tracking-tight">
-          先花 30 秒认识你
+          {editMode ? "修改你的创作档案" : "先花 30 秒认识你"}
         </h1>
         <p className="mt-3 text-muted-foreground">
-          我们根据你的剪辑基础，给出更对口的「特效」和「节奏」分析建议。
+          {editMode
+            ? "改完立即生效，所有分析报告都会按新的档案重新定制。"
+            : "我们根据你的剪辑基础，给出更对口的「特效」和「节奏」分析建议。"}
         </p>
       </div>
 
@@ -240,7 +273,7 @@ export function OnboardingQuiz({
               size="lg"
               className="mt-5 w-full"
             >
-              开始分析我的视频 <ArrowRight className="h-4 w-4" />
+              {editMode ? "保存修改" : "开始分析我的视频"} <ArrowRight className="h-4 w-4" />
             </Button>
           </CardContent>
         </Card>
