@@ -5,31 +5,24 @@
 
 ---
 
-## 第 1 步：在 GitHub 建仓库并推送代码
+## 第 1 步：推送代码到 GitHub
+
+> 仓库已经建好、remote 也配好了（`https://github.com/shuhaiyang940-byte/viral-studio.git`），
+> 但**本地 10 个 commit 一次都没推上去过**。只需要推一次：
 
 ```bash
-# 1a. 进入项目目录
 cd /Users/maxshy/WorkBuddy/2026-08-05-12-16-11
-
-# 1b. 创建 GitHub 仓库（需要你第一次登录授权）
-#    如果没装 gh CLI，先装：brew install gh && gh auth login
-gh repo create viral-studio --public --source=. --push
-
-# 如果上面报错"not logged in"，先跑：
-# gh auth login  → 选 GitHub.com → 浏览器登录 → 再重试上面那条
+git push -u origin main
 ```
 
-**如果不想用命令行**，替代方案：
-1. 打开 https://github.com/new
-2. Repository name: `viral-studio`
-3. 选 **Public**
-4. **不要**勾选 "Add a README"（我们已有代码）
-5. 点 Create repository
-6. 然后终端里跑：
+**如果提示要账号密码**：GitHub 早就不收密码了，要用 Personal Access Token。
+1. 打开 https://github.com/settings/tokens → Generate new token (classic)
+2. 勾选 `repo` 权限 → 生成 → 复制那串 `ghp_xxxx`
+3. 回到终端重跑 `git push -u origin main`，用户名填你的 GitHub 用户名，**密码位置粘贴那串 token**
+
+**如果嫌麻烦**，用 gh CLI 一次授权永久省事：
 ```bash
-cd /Users/maxshy/WorkBuddy/2026-08-05-12-16-11
-git remote add origin https://github.com/你的GitHub用户名/viral-studio.git
-git branch -M main
+brew install gh && gh auth login   # 选 GitHub.com → 浏览器登录
 git push -u origin main
 ```
 
@@ -114,15 +107,44 @@ curl "https://你的域名.vercel.app/api/seed?token=你在SEED_TOKEN填的值"
 
 ## 验证清单（部署后逐项检查）
 
+**账号与流程**
 - [ ] 打开首页 → 看到「爆款研究所」导航栏
-- [ ] 点注册 → 填邮箱密码 → 注册成功跳转
+- [ ] 未登录访问 `/profile`、`/onboarding` → 都自动跳转登录页
+- [ ] 登录页看到四个入口：邮箱 / 手机号 / QQ / 微信（后三个带「演示」徽章）
+- [ ] **用邮箱注册** → 成功 → 因为没手机号，被弹到 `/bind-phone`
+- [ ] 绑手机页填任意手机号 + 任意 6 位验证码 → 通过 → 进入「认识你自己」摸底
+- [ ] 摸底填完 → 进入分析页
+- [ ] 「我的」页看到创作档案 → 点「修改」→ **已填内容被带出来**（不是空白重填）→ 改完保存回「我的」
+
+**数据与功能**
 - [ ] 点案例库 → 看到 12 条种子案例
 - [ ] 点找对标 → 看到 14 条种子对标
 - [ ] 登录后收藏一个案例 → 刷新还在
 - [ ] 跑一次分析 → AI 返回结果
-- [ ] 未登录访问 `/profile` → 自动跳转登录页
+- [ ] 「复刻助手」免费档 → 1 个标题 + 3 个分镜；升级后 → 5 标题 + 6 分镜
+- [ ] 「我的」页 AI 导演卡 → 有分析记录后显示诊断与本周选题
 
 全部通过 = 上线完成 ✅
+
+---
+
+## ⚠️ 上线时必须知道的「哪些是真、哪些是演示」
+
+诚实口径，别对外宣传成已完成：
+
+| 能力 | 状态 |
+|------|------|
+| 邮箱注册 / 登录 | ✅ **真实**（Neon 数据库 + bcrypt + JWT） |
+| 手机号 / QQ / 微信 登录 | ⚠️ **演示**（点了模拟成功，不走真实 OAuth） |
+| 短信验证码 | ⚠️ **演示**（任意 6 位通过，不真发短信） |
+| 会员升级支付 | ⚠️ **演示**（无营业执照，未接真实支付） |
+| 复刻助手每日限次 | ⚠️ 存在浏览器本地，**清缓存可绕过**（要真防刷需落服务端） |
+| AI 分析 / 复刻 / 导演 | ✅ **真实**（千问 + DeepSeek；未配 Key 时优雅回落到 Mock） |
+
+**要把演示变真，各自需要什么：**
+- QQ/微信登录 → 开放平台 AppID + Secret + 服务端回调域名（微信还要企业认证）
+- 短信 → 阿里云/腾讯云短信服务（签名 + 模板，按条计费）
+- 支付 → 营业执照 + 微信支付/支付宝商户号
 
 ---
 
