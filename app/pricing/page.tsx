@@ -77,8 +77,8 @@ export default function PricingPage() {
             为「想做出爆款」的人，提供不同深度的导演能力
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
-            免费版每天 1 次爆款拆解先体验；创作者版解锁完整《爆款导演拆解报告》与公式库；
-            进阶版再加爆款复刻助手（一键生成你的行业版本）；专业版由 AI 导演长期陪你优化账号。
+            免费版每天 1 次爆款拆解先体验；创作者版已是完整可用产品，解锁完整《爆款导演拆解报告》与公式库。
+            进阶版 / 专业版在创作者版基础上叠加更高配额，并把「爆款复刻助手」「我的 AI 导演」等能力列入开发路线（规划中）。
           </p>
 
           {/* 月付 / 年付切换 */}
@@ -178,6 +178,22 @@ export default function PricingPage() {
                       </li>
                     ))}
                   </ul>
+
+                  {m.roadmap && m.roadmap.length > 0 && (
+                    <div className="mt-4 rounded-lg border border-dashed border-border bg-muted/30 p-3">
+                      <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                        <Sparkles className="h-3.5 w-3.5" /> 规划中（即将推出）
+                      </p>
+                      <ul className="space-y-1.5 text-xs leading-relaxed text-muted-foreground">
+                        {m.roadmap.map((r) => (
+                          <li key={r} className="flex items-start gap-2">
+                            <span className="mt-0.5 leading-none">·</span>
+                            <span>{r}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -195,7 +211,7 @@ export default function PricingPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold tracking-tight">功能对比</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            同一套能力，按档位逐步开放——付费越高，越接近「代运营级」支持
+            同一套能力，按档位逐步开放；标注「规划中」的功能正在开发中，上线后自动对对应档位开放
           </p>
         </div>
 

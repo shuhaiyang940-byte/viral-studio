@@ -332,6 +332,11 @@ export interface MembershipPlan {
   featured?: boolean;
   /** 功能完善中：暂未开放（如高级会员，因当前无公司资质无法开通收费） */
   comingSoon?: boolean;
+  /**
+   * 规划中能力：当前档位承诺但尚在开发的功能，仅作透明公示，
+   * 不渲染为「已包含」。上线后对应能力交付即从这里移除并转为 highlights。
+   */
+  roadmap?: string[];
 }
 
 export const MEMBERSHIP: MembershipPlan[] = [
@@ -370,13 +375,16 @@ export const MEMBERSHIP: MembershipPlan[] = [
     name: "进阶版",
     price: "99",
     period: "月",
-    tagline: "无限分析 + 爆款复刻",
+    tagline: "无限分析 + 规划中的 AI 导演能力",
     highlights: [
       "无限次视频分析",
+      "完整版《爆款导演拆解报告》全段解锁",
+      "爆款公式库全量查阅 + 按品类匹配",
+      "AI 写文案（标题 / 脚本）",
+    ],
+    roadmap: [
       "爆款复刻助手：一键生成你的行业版本（标题 / 脚本 / 分镜）",
-      "行业模板库：按赛道匹配可复制公式",
-      "我的 AI 导演：结合你的账号档案给建议",
-      "历史报告云同步",
+      "我的 AI 导演：结合账号档案给专属建议",
     ],
     cta: "升级进阶版",
     ctaHref: "/payment?tier=pro",
@@ -387,10 +395,14 @@ export const MEMBERSHIP: MembershipPlan[] = [
     name: "专业版",
     price: "299",
     period: "月",
-    tagline: "个人 AI 导演 + 账号长期优化",
+    tagline: "进阶版全部能力 + 规划中的长期优化",
     highlights: [
       "包含进阶版全部功能",
-      "账号长期优化：定期诊断定位与内容方向",
+      "无限次视频分析",
+      "爆款公式库全量查阅",
+    ],
+    roadmap: [
+      "账号长期优化：定期定位诊断与内容方向",
       "优先模型队列（分析更快）",
       "专属客服支持",
     ],
@@ -425,18 +437,18 @@ export const PRICING_GROUPS = ["分析能力", "爆款导演报告", "爆款复�
 export const PRICING_MATRIX: PricingRow[] = [
   // 分析能力
   { group: "分析能力", label: "每日分析次数", free: "1 次 / 天", creator: "5 次 / 天", pro: "无限", studio: "无限" },
-  { group: "分析能力", label: "报告完整度", free: "基础版", creator: "完整版", pro: "完整版 + 复刻", studio: "完整版 + 复刻 + 诊断" },
+  { group: "分析能力", label: "报告完整度", free: "基础版", creator: "完整版", pro: "完整版", studio: "完整版" },
   // 爆款导演报告
   { group: "爆款导演报告", label: "爆款评分体系（传播 / 完播 / 互动 / 商业）", free: true, creator: true, pro: true, studio: true },
-  { group: "爆款导演报告", label: "五段拆解（黄金3秒 / 结构 / 情绪曲线 / 公式 / 可复制）", free: false, creator: true, pro: true, studio: true },
-  { group: "爆款导演报告", label: "行业模板与可复制公式", free: false, creator: false, pro: true, studio: true },
+  { group: "爆款导演报告", label: "六段拆解（黄金3秒 / 结构 / 情绪曲线 / 公式 / 可复制）", free: false, creator: true, pro: true, studio: true },
+  { group: "爆款导演报告", label: "行业模板与可复制公式", free: false, creator: true, pro: true, studio: true },
   // 爆款复刻与公式
-  { group: "爆款复刻与公式", label: "一键生成我的版本（标题 / 脚本 / 分镜）", free: false, creator: false, pro: true, studio: true },
+  { group: "爆款复刻与公式", label: "一键生成我的版本（标题 / 脚本 / 分镜）", free: false, creator: false, pro: "规划中", studio: "规划中" },
   { group: "爆款复刻与公式", label: "爆款公式库查阅", free: "部分", creator: "全量", pro: "全量", studio: "全量" },
   // 我的 AI 导演
-  { group: "我的 AI 导演", label: "创作者档案定制建议", free: "基础", creator: "进阶", pro: "专属", studio: "长期优化" },
-  { group: "我的 AI 导演", label: "账号定位诊断（定期）", free: false, creator: false, pro: false, studio: true },
+  { group: "我的 AI 导演", label: "创作者档案定制建议", free: "基础版", creator: "基础版", pro: "规划中", studio: "规划中" },
+  { group: "我的 AI 导演", label: "账号定位诊断（定期）", free: false, creator: false, pro: false, studio: "规划中" },
   // 服务
-  { group: "服务", label: "历史报告云同步", free: "仅本地", creator: "云同步", pro: "云同步", studio: "云同步" },
-  { group: "服务", label: "专属客服", free: false, creator: false, pro: false, studio: true },
+  { group: "服务", label: "历史报告存储", free: "仅本地", creator: "仅本地", pro: "仅本地", studio: "规划中（云同步）" },
+  { group: "服务", label: "专属客服", free: false, creator: false, pro: false, studio: "规划中" },
 ];
