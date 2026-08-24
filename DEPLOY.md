@@ -27,11 +27,21 @@
 > DATABASE_URL="postgresql://你的连接串" npx tsx scripts/seed-neon.ts
 > ```
 
-重新部署命令（本机）：
+自动部署已接通（推荐方式）：推送到 GitHub main 即自动构建发布，无需手动命令。
+```bash
+cd /Users/maxshy/WorkBuddy/2026-08-05-12-16-11
+git add -A && git commit -m "说明改动" && git push
+```
+
+手动重新部署（备用，本机）：
 ```bash
 cd /Users/maxshy/WorkBuddy/2026-08-05-12-16-11
 vercel deploy --prod --yes --token "$VERCEL_TOKEN"
 ```
+
+> ⚠️ 部署 Hook URL 是触发凭据，**不要写进公共仓库**；需要时在 Vercel 项目
+> Settings → Git → Deploy Hooks 查看。若同时存在 GitHub webhook 与 Vercel Git
+> 集成，推送会双触发（Vercel 会自动取消重复构建，无害但建议只保留官方 Git 集成）。
 
 > ⚠️ 本机（国内网络）无法直连 `*.vercel.app` 域名（TLS 被重置）。
 > 线上验证请用浏览器/手机流量打开，或到 Vercel Dashboard 看部署与日志。
