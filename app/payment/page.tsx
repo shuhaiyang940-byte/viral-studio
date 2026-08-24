@@ -26,12 +26,14 @@ type PayMethod = "wechat" | "alipay";
 function FakeQR({ brand }: { brand: PayMethod }) {
   const cells = 21;
   const dots = React.useMemo(() => {
-    let seed = brand === "wechat" ? 20260805 : 668855;
-    const rng = () => {
-      seed = (seed * 9301 + 49297) % 233280;
-      return seed / 233280;
-    };
-    return Array.from({ length: cells * cells }, () => rng() > 0.5);
+    const init = brand === "wechat" ? 20260805 : 668855;
+    const out: boolean[] = [];
+    let s = init;
+    for (let i = 0; i < cells * cells; i++) {
+      s = (s * 9301 + 49297) % 233280;
+      out.push(s / 233280 > 0.5);
+    }
+    return out;
   }, [brand]);
 
   const center =
@@ -134,7 +136,7 @@ export default function PaymentPage() {
       {/* 演示横幅 */}
       <div className="mb-6 flex items-start gap-2 rounded-lg border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-foreground/90">
         <Info className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
-        演示模式：这是「会员支付占位页」，不会真实扣费。点击「模拟支付成功」仅用于在本地会话解锁对应会员能力。真实支付需接入微信支付 / 支付宝商户号。
+        会员功能建设中：当前全站免费开放，暂不收费。此页为支付占位，真实支付需后续接入微信支付 / 支付宝商户号；在正式收费前，全部功能无需开通即可使用。
       </div>
 
       {/* 免费档无需支付 */}

@@ -220,6 +220,16 @@ export default function LoginPage() {
                     autoComplete={mode === "register" ? "new-password" : "current-password"}
                   />
                 </div>
+                {mode === "login" && (
+                  <div className="mt-1.5 text-right">
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs text-muted-foreground hover:text-primary"
+                    >
+                      忘记密码？
+                    </Link>
+                  </div>
+                )}
               </div>
 
               {error && (

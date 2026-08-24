@@ -34,7 +34,7 @@ export const LLM: Record<LlmProvider, ProviderCfg> = {
     role: "perception",
     baseURL: "https://dashscope.aliyuncs.com/compatible-mode/v1",
     model: process.env.QWEN_MODEL || "qwen-plus",
-    visionModel: process.env.QWEN_VL_MODEL || "qwen-vl-max-latest",
+    visionModel: process.env.QWEN_VL_MODEL || "qwen-vl-max",
     apiKey: () => process.env.QWEN_API_KEY || process.env.LLM_API_KEY || "",
   },
 };
@@ -52,6 +52,7 @@ export type ChatContent =
   | (
       | { type: "text"; text: string }
       | { type: "image_url"; image_url: { url: string } }
+      | { type: "video_url"; video_url: { url: string } }
     )[];
 
 export interface ChatMessage {
@@ -80,36 +81,52 @@ export async function chat(
   if (!key) throw new Error(`[llm] ${cfg.label} 未配置 API Key`);
 
   const usesVision = messages.some(
-    (m) => Array.isArray(m.content) && m.content.some((c) => (c as any).type === "image_url")
+    (m) =>
+      Array.isArray(m.content) &&
+      m.content.some(
+        (c) => (c as any).type === "image_url" || (c as any).type === "video_url"
+      )
   );
   const model = usesVision && cfg.visionModel ? cfg.visionModel : cfg.model;
 
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 30000);
+  // 视觉模型回退链：部分账号未开通带 -latest 后缀的模型时，自动降级到稳定版
+  const candidates = usesVision
+    ? [...new Set([model, "qwen-vl-max", "qwen-vl-plus"])]
+    : [model];
+  let lastErr: unknown = null;
   try {
-    const res = await fetch(`${cfg.baseURL}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${key}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        ...(opts.json ? { response_format: { type: "json_object" } } : {}),
-        temperature: opts.temperature ?? 0.7,
-        ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
-      }),
-      signal: ctrl.signal,
-    });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
-      throw new Error(`[llm] ${cfg.label} API ${res.status}: ${txt.slice(0, 300)}`);
+    for (const m of candidates) {
+      const res = await fetch(`${cfg.baseURL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${key}`,
+        },
+        body: JSON.stringify({
+          model: m,
+          messages,
+          ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+          temperature: opts.temperature ?? 0.7,
+          ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
+        }),
+        signal: ctrl.signal,
+      });
+      if (!res.ok) {
+        const txt = await res.text().catch(() => "");
+        lastErr = new Error(`[llm] ${cfg.label} API ${res.status}: ${txt.slice(0, 300)}`);
+        continue;
+      }
+      const data = await res.json();
+      const content: string | undefined = data?.choices?.[0]?.message?.content;
+      if (!content) {
+        lastErr = new Error(`[llm] ${cfg.label} 返回为空`);
+        continue;
+      }
+      return content;
     }
-    const data = await res.json();
-    const content: string | undefined = data?.choices?.[0]?.message?.content;
-    if (!content) throw new Error(`[llm] ${cfg.label} 返回为空`);
-    return content;
+    throw lastErr ?? new Error(`[llm] ${cfg.label} 调用失败`);
   } finally {
     clearTimeout(timer);
   }

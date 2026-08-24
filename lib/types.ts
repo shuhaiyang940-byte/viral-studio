@@ -223,6 +223,18 @@ export interface AnalysisReport {
   signal?: ReferenceSignal;
   /** 提分目标：帮普通人从不及格到 70、及格到 80 */
   scoreTarget?: ScoreTarget;
+  /** 分镜蓝图：参考视频逐镜头怎么拍（手把手教拍第一层） */
+  storyboard?: ShotBlueprint[];
+  /** 主题适配：换成你的主题，每一镜怎么拍（手把手教拍第二层） */
+  adaptedPlan?: AdaptedPlan;
+  /** 真实视频理解信息（上传分析时返回，用于诚实展示分析依据） */
+  visual?: {
+    mode: "real" | "mock" | "none";
+    frameCount: number;
+    note: string;
+    /** 语音转写文本（真实 ASR 成功时返回） */
+    transcript?: string;
+  };
   createdAt: string;
 }
 
@@ -274,6 +286,51 @@ export interface ScoreTarget {
   gaps: { dimension: string; tip: string }[];
   /** 给用户的整体提分路径 */
   advice: string;
+}
+
+/** 分镜蓝图：参考视频的逐镜头拆解（手把手教拍的第一层：「他这条是怎么拍的」） */
+export interface ShotBlueprint {
+  /** 镜头序号（从 1 开始） */
+  index: number;
+  /** 时间点，如「0-3 秒」 */
+  time: string;
+  /** 所属段落：钩子 / 铺垫 / 展开 / 高潮 / 收尾 */
+  phase: string;
+  /** 场景，如「胡同入口 · 日外」 */
+  scene: string;
+  /** 画面拍什么 */
+  visual: string;
+  /** 台词 / 旁白（脚本式，可照念） */
+  line: string;
+  /** 运镜 / 机位，如「固定机位特写」 */
+  camera: string;
+  /** 音效 / BGM 提示 */
+  sfx: string;
+  /** 为什么这样拍（这一镜的目的） */
+  why: string;
+  difficulty: "易" | "中" | "难";
+}
+
+/** 主题适配的单个镜头：参考镜头 → 换成你的主题怎么拍 */
+export interface AdaptedShot {
+  index: number;
+  phase: string;
+  /** 参考镜头在做什么 */
+  reference: string;
+  /** 换成你的主题后拍什么 */
+  yourVersion: string;
+  /** 手把手拍摄步骤（照着做就能拍） */
+  howToFilm: string[];
+  difficulty: "易" | "中" | "难";
+}
+
+/** 主题适配计划：把参考视频逐镜头翻译成「你的版本」 */
+export interface AdaptedPlan {
+  /** 你的主题（来自档案 / 输入） */
+  userTopic: string;
+  /** 整体说明（为什么这样改） */
+  note: string;
+  shots: AdaptedShot[];
 }
 
 export interface LibraryItem {

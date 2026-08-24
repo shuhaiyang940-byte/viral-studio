@@ -6,7 +6,6 @@ import {
   Clapperboard,
   Clock,
   Layers,
-  ArrowRight,
   Film,
   Loader2,
   AlertTriangle,
@@ -15,13 +14,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ShotDiagram } from "@/components/shot-diagram";
-import { getStoryboards, setPendingAnalysis } from "@/lib/storage";
+import { getStoryboards } from "@/lib/storage";
 import { formatDate } from "@/lib/utils";
 import type { Storyboard } from "@/lib/types";
 
 export function StoryboardView({ id }: { id?: string }) {
   const [sb, setSb] = React.useState<Storyboard | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [copied, setCopied] = React.useState(false);
 
   React.useEffect(() => {
     const found = id ? getStoryboards().find((s) => s.id === id) : undefined;
@@ -52,6 +52,27 @@ export function StoryboardView({ id }: { id?: string }) {
     );
   }
 
+  async function copyStoryboard() {
+    if (!sb) return;
+    const L: string[] = [];
+    L.push(`【分镜表】${sb.title}`);
+    L.push(`共 ${sb.shots.length} 个镜头 · 总时长约 ${sb.totalDurationSec} 秒`);
+    L.push("");
+    sb.shots.forEach((s) => {
+      L.push(`${s.index}. [${s.phase}] ${s.scene}`);
+      L.push(`   人物：${s.characters?.join("、") || "—"}`);
+      L.push(`   运镜：${s.camera} ｜ 时长：${s.durationSec} 秒`);
+      if (s.note) L.push(`   注意：${s.note}`);
+    });
+    try {
+      await navigator.clipboard.writeText(L.join("\n"));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* 剪贴板不可用时静默 */
+    }
+  }
+
   return (
     <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
       {/* 头部 */}
@@ -75,21 +96,14 @@ export function StoryboardView({ id }: { id?: string }) {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={copyStoryboard} className="gap-1.5">
+            {copied ? "已复制 ✓" : "复制分镜表"}
+          </Button>
           {sb.source !== "brief" && (
             <Button asChild variant="outline" size="sm">
               <Link href={`/report?id=${sb.reportId}`}>看分析报告</Link>
             </Button>
           )}
-          <Button
-            size="sm"
-            className="gap-1"
-            onClick={() => {
-              setPendingAnalysis(sb.reportId);
-              window.location.href = "/studio";
-            }}
-          >
-            用这套分镜去智能剪辑 <ArrowRight className="h-4 w-4" />
-          </Button>
         </div>
       </div>
 

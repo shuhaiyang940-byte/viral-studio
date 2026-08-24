@@ -18,14 +18,21 @@ export async function GET() {
   try {
     const sql = getSql();
     const rows = await sql`
-      SELECT id, email, name, tier, phone FROM users WHERE id = ${session.id}`;
+      SELECT id, email, name, tier, phone, email_verified FROM users WHERE id = ${session.id}`;
     if (!rows.length) {
       // 用户已被删除，但 Cookie 还在 —— 视为未登录
       return NextResponse.json({ error: "未登录" }, { status: 401 });
     }
     const u = rows[0];
     return NextResponse.json({
-      user: { id: u.id, email: u.email, name: u.name, tier: u.tier, phone: u.phone ?? null },
+      user: {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        tier: u.tier,
+        phone: u.phone ?? null,
+        emailVerified: u.email_verified === true,
+      },
     });
   } catch {
     // 数据库抖动时退回 JWT 里的快照，不至于把用户直接登出

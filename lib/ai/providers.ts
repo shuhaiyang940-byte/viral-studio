@@ -1,9 +1,12 @@
 import type {
+  AdaptedPlan,
   AnalysisReport,
   EmotionCurve,
   Golden3s,
+  OnboardingProfile,
   ReportSection,
   ScoreBreakdown,
+  ShotBlueprint,
   VideoMeta,
   ViralFormula,
 } from "@/lib/types";
@@ -17,6 +20,8 @@ interface RawReport {
   golden3s?: Golden3s;
   emotionCurve?: EmotionCurve;
   formula?: ViralFormula;
+  storyboard?: ShotBlueprint[];
+  adaptedPlan?: AdaptedPlan;
 }
 
 /** 去除 {topic} 之类占位符残留与首尾空白 */
@@ -58,6 +63,50 @@ function sanitizeReport(raw: RawReport, input: { title?: string }): RawReport {
     }
     if (Array.isArray(sec.whyHot)) {
       sec.whyHot = sec.whyHot.map((w) => cleanText(w)).filter((w) => (w || "").length >= 4);
+    }
+  }
+  // 分镜蓝图 / 主题适配：过滤结构不完整的条目，避免 UI 拿到脏数据
+  if (Array.isArray(raw.storyboard)) {
+    raw.storyboard = raw.storyboard
+      .filter(
+        (s) =>
+          s &&
+          typeof s === "object" &&
+          typeof s.visual === "string" &&
+          typeof s.line === "string"
+      )
+      .map((s, i) => ({ ...s, index: i + 1 }))
+      .slice(0, 10);
+    if (!raw.storyboard.length) delete raw.storyboard;
+  }
+  if (raw.adaptedPlan && typeof raw.adaptedPlan === "object") {
+    const ap = raw.adaptedPlan as {
+      userTopic?: unknown;
+      note?: unknown;
+      shots?: unknown[];
+    };
+    ap.shots = Array.isArray(ap.shots)
+      ? ap.shots
+          .filter(
+            (s) =>
+              s &&
+              typeof s === "object" &&
+              typeof (s as any).yourVersion === "string"
+          )
+          .map((s) => {
+            const shot = s as any;
+            return {
+              ...shot,
+              index: shot.index ?? 0,
+              howToFilm: Array.isArray(shot.howToFilm)
+                ? shot.howToFilm.filter((h: unknown) => typeof h === "string").slice(0, 4)
+                : [],
+            };
+          })
+          .slice(0, 10)
+      : [];
+    if (!ap.shots.length || typeof ap.userTopic !== "string") {
+      delete raw.adaptedPlan;
     }
   }
   return raw;
@@ -122,7 +171,14 @@ async function callClaude(prompt: string): Promise<RawReport> {
 
 export async function analyzeWithProvider(
   provider: string,
-  input: { source?: string; title?: string }
+  input: {
+    source?: string;
+    title?: string;
+    profile?: OnboardingProfile;
+    refType?: string;
+    visualSummary?: string;
+    transcript?: string;
+  }
 ): Promise<AnalysisReport> {
   const prompt = buildPrompt(input);
   let raw: RawReport;

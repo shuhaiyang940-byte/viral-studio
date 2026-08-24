@@ -20,6 +20,8 @@ export interface Session {
   provider: "email" | "phone" | "qq" | "wechat";
   isPro: boolean;
   tier: Tier;
+  /** 邮箱是否已验证（仅邮箱账号有值） */
+  emailVerified?: boolean;
   createdAt: string;
   email?: string;
   phone?: string;
@@ -89,7 +91,13 @@ export function isLoggedIn(): boolean {
   return getSession() !== null;
 }
 
-function mapUser(u: { id: string; email: string; name: string; tier: string }): Session {
+function mapUser(u: {
+  id: string;
+  email: string;
+  name: string;
+  tier: string;
+  emailVerified?: boolean;
+}): Session {
   const name = u.name?.trim() || u.email.split("@")[0];
   return {
     userId: u.id,
@@ -99,6 +107,7 @@ function mapUser(u: { id: string; email: string; name: string; tier: string }): 
     provider: "email",
     isPro: u.tier !== "free",
     tier: (u.tier as Tier) || "free",
+    emailVerified: u.emailVerified === true,
     createdAt: new Date().toISOString(),
   };
 }

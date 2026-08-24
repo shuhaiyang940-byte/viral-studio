@@ -4,6 +4,8 @@ import { getSql, ensureSchema, hasDatabase } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { setSession } from "@/lib/auth/session";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
+import { createEmailToken, verifyEmailLink, emailShell } from "@/lib/auth/tokens";
+import { sendMail, shouldExposeDevLink } from "@/lib/mail";
 
 export const dynamic = "force-dynamic";
 
@@ -49,12 +51,47 @@ export async function POST(req: NextRequest) {
     const rows = await sql`
       INSERT INTO users (id, email, password_hash, name)
       VALUES (${id}, ${email}, ${hash}, ${name})
-      RETURNING id, email, name, tier`;
+      RETURNING id, email, name, tier, email_verified`;
     const u = rows[0];
-    const res = NextResponse.json({
-      user: { id: u.id, email: u.email, name: u.name, tier: u.tier },
-    });
+    const user = {
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      tier: u.tier,
+      emailVerified: u.email_verified === true,
+    };
+    let devLink: string | undefined;
+    const res = NextResponse.json({ user });
     await setSession(res, { sub: u.id, email: u.email, name: u.name, tier: u.tier });
+
+    // 发送验证邮件（失败不阻断注册；开发模式把链接带回响应方便联调）
+    const token = await createEmailToken(id, "verify-email");
+    if (token) {
+      const link = verifyEmailLink(token);
+      const result = await sendMail({
+        to: email,
+        subject: "验证你的爆款研究所邮箱",
+        html: emailShell(
+          "验证邮箱",
+          `<p>欢迎加入爆款研究所${name ? `，${name}` : ""}！</p>
+           <p>点击下面的按钮完成邮箱验证（24 小时内有效）：</p>
+           <p style="text-align:center">
+             <a href="${link}" style="display:inline-block;padding:10px 22px;background:#6d28d9;color:#fff;border-radius:8px;text-decoration:none">验证邮箱</a>
+           </p>
+           <p style="word-break:break-all;font-size:12px;color:#9ca3af">或复制链接：${link}</p>`,
+          "24 小时"
+        ),
+        text: `验证邮箱链接（24 小时内有效）：${link}`,
+      });
+      if (result.ok && shouldExposeDevLink(result.method)) devLink = link;
+    }
+    if (devLink) {
+      // 开发模式把验证链接带回响应（生产环境绝不返回）
+      const body = { user, devVerifyLink: devLink };
+      const finalRes = NextResponse.json(body);
+      await setSession(finalRes, { sub: u.id, email: u.email, name: u.name, tier: u.tier });
+      return finalRes;
+    }
     return res;
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "注册失败" }, { status: 500 });

@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     await ensureSchema();
     const sql = getSql();
     const rows = await sql`
-      SELECT id, email, name, tier, password_hash FROM users WHERE email = ${email}`;
+      SELECT id, email, name, tier, password_hash, email_verified FROM users WHERE email = ${email}`;
     if (!rows.length) return NextResponse.json({ error: "邮箱或密码错误" }, { status: 401 });
 
     const u = rows[0];
@@ -50,7 +50,13 @@ export async function POST(req: NextRequest) {
     resetRateLimit(emailKey);
 
     const res = NextResponse.json({
-      user: { id: u.id, email: u.email, name: u.name, tier: u.tier },
+      user: {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        tier: u.tier,
+        emailVerified: u.email_verified === true,
+      },
     });
     await setSession(res, { sub: u.id, email: u.email, name: u.name, tier: u.tier });
     return res;

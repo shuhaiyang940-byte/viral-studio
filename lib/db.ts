@@ -38,6 +38,15 @@ CREATE TABLE IF NOT EXISTS users (
   avatar TEXT NOT NULL DEFAULT '',
   phone TEXT,
   tier TEXT NOT NULL DEFAULT 'free',
+  email_verified BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS email_tokens (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  used_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE TABLE IF NOT EXISTS cases (
@@ -70,7 +79,7 @@ CREATE TABLE IF NOT EXISTS benchmarks (
   face BOOLEAN NOT NULL DEFAULT true,
   product_type TEXT,
   followers INTEGER NOT NULL DEFAULT 0,
-  engagement_rate INTEGER NOT NULL DEFAULT 0,
+  engagement_rate DOUBLE PRECISION NOT NULL DEFAULT 0,
   reason TEXT NOT NULL DEFAULT '',
   sample_title TEXT NOT NULL DEFAULT '',
   is_seed BOOLEAN NOT NULL DEFAULT false,
@@ -83,9 +92,34 @@ CREATE TABLE IF NOT EXISTS benchmark_tracks (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   PRIMARY KEY (user_id, benchmark_id)
 );
+CREATE TABLE IF NOT EXISTS ip_blocklist (
+  ip TEXT PRIMARY KEY,
+  reason TEXT NOT NULL DEFAULT '',
+  expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS rate_limits (
+  key TEXT PRIMARY KEY,
+  count INTEGER NOT NULL DEFAULT 0,
+  window_start BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS kv_store (
+  key TEXT PRIMARY KEY,
+  value JSONB NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS quota_usage (
+  key TEXT PRIMARY KEY,
+  count INTEGER NOT NULL DEFAULT 0,
+  day TEXT NOT NULL
+);
 CREATE INDEX IF NOT EXISTS idx_cases_category ON cases(category);
 CREATE INDEX IF NOT EXISTS idx_benchmarks_platform ON benchmarks(platform);
 CREATE INDEX IF NOT EXISTS idx_benchmarks_ideatype ON benchmarks(idea_type);
+CREATE INDEX IF NOT EXISTS idx_email_tokens_user ON email_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_email_tokens_type ON email_tokens(type);
+-- 旧库兼容：engagement_rate 从 INTEGER 升级为 DOUBLE PRECISION（种子数据为 6.4~11.2 的百分数）
+ALTER TABLE benchmarks ALTER COLUMN engagement_rate TYPE DOUBLE PRECISION;
 `;
 
 /**

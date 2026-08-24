@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateReplica } from "@/lib/replica";
 import type { Category } from "@/lib/types";
+import { guardAiRequest } from "@/lib/ai-guard";
 
 export const dynamic = "force-dynamic";
 
 const VALID: Category[] = ["生活", "旅游", "美食", "情感", "知识", "商业"];
 
 export async function POST(req: NextRequest) {
+  const g = await guardAiRequest(req, "replicate");
+  if (!g.ok) return g.res;
   const body = await req.json().catch(() => ({}));
   const category = body.category as Category;
   if (!VALID.includes(category)) {

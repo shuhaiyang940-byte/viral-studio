@@ -21,25 +21,26 @@ export function SiteFooter() {
           </ul>
         </div>
         <div>
-          <h4 className="mb-3 text-sm font-semibold">资源</h4>
+          <h4 className="mb-3 text-sm font-semibold">关于</h4>
           <ul className="space-y-2 text-sm text-muted-foreground">
             <li><Link href="/help" className="hover:text-foreground">帮助中心</Link></li>
-            <li><Link href="/#about" className="hover:text-foreground">关于我们</Link></li>
+            <li><Link href="/about" className="hover:text-foreground">关于我们</Link></li>
             <li><Link href="/profile" className="hover:text-foreground">我的 AI 导演</Link></li>
           </ul>
         </div>
         <div>
-          <h4 className="mb-3 text-sm font-semibold">联系</h4>
+          <h4 className="mb-3 text-sm font-semibold">合规</h4>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>hello@viralstudio.ai</li>
-            <li>商务合作 / 媒体咨询</li>
+            <li><Link href="/privacy" className="hover:text-foreground">隐私政策</Link></li>
+            <li><Link href="/terms" className="hover:text-foreground">服务条款</Link></li>
+            <li><a href="mailto:hello@viralstudio.ai" className="hover:text-foreground">联系：hello@viralstudio.ai</a></li>
           </ul>
         </div>
       </div>
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:px-6">
           <span>© {new Date().getFullYear()} 爆款研究所 · AI 短视频导演. 保留所有权利。</span>
-          <span>本网站为 MVP Demo，分析结果为模拟数据。</span>
+          <span>当前为免费公测阶段 · 会员功能建设中 · 分析结果由 AI 生成，请结合自身情况判断</span>
         </div>
       </div>
     </footer>

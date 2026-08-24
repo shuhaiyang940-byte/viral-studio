@@ -31,6 +31,7 @@ import {
   Clapperboard,
   Timer,
   Sigma,
+  Wand2,
 } from "lucide-react";
 import type { AnalysisReport, EmotionPoint, OnboardingProfile } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -60,11 +61,18 @@ const DIMENSIONS = [
   { key: "interaction", label: "互动能力", icon: ListTree },
 ] as const;
 
+/**
+ * 会员功能建设中：NEXT_PUBLIC_FREE_FULL_ACCESS 未设或不为 "0" 时，
+ * 全站免费开放完整报告（含深度拆解）；正式收费上线前请保持默认。
+ */
+const FREE_FULL_ACCESS = process.env.NEXT_PUBLIC_FREE_FULL_ACCESS !== "0";
+
 export function ReportView({ id }: { id?: string }) {
   const [report, setReport] = React.useState<AnalysisReport | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [learning, setLearning] = React.useState<LearningStats | null>(null);
   const [evolution, setEvolution] = React.useState<EvolutionInfo | null>(null);
+  const [copiedScript, setCopiedScript] = React.useState(false);
   const { session } = useSession();
 
   const router = useRouter();
@@ -75,6 +83,47 @@ export function ReportView({ id }: { id?: string }) {
     const sb = buildStoryboard(report);
     saveStoryboard(sb);
     router.push(`/storyboard?id=${sb.id}`);
+  }
+
+  /** 把「分镜 + 主题适配 + 标题」合成一份可照拍的拍摄脚本 */
+  function buildShootingScript(r: AnalysisReport): string {
+    const L: string[] = [];
+    L.push(`【拍摄脚本】${r.meta.title}`);
+    L.push(`类型：${r.meta.type} ｜ 平台参考：${r.meta.platform ?? "—"} ｜ 时长参考：${r.meta.duration}`);
+    L.push("");
+    if (r.storyboard?.length) {
+      L.push("一、参考分镜（爆款是怎么拍的）");
+      r.storyboard.forEach((s) => {
+        L.push(`${s.index}. [${s.time}·${s.phase}] ${s.visual}`);
+        L.push(`   台词：「${s.line}」`);
+        L.push(`   运镜：${s.camera} ｜ 音效：${s.sfx}`);
+      });
+      L.push("");
+    }
+    if (r.adaptedPlan?.shots.length) {
+      L.push(`二、换成你的主题（${r.adaptedPlan.userTopic}）`);
+      r.adaptedPlan.shots.forEach((a) => {
+        L.push(`${a.index}. [${a.phase}] ${a.yourVersion}`);
+        a.howToFilm.forEach((h, i) => L.push(`   ${i + 1}. ${h}`));
+      });
+      L.push("");
+    }
+    if (r.section.titles.length) {
+      L.push("三、可直接用的标题");
+      r.section.titles.slice(0, 5).forEach((t, i) => L.push(`${i + 1}. ${t}`));
+    }
+    return L.join("\n");
+  }
+
+  async function copyShootingScript() {
+    if (!report) return;
+    try {
+      await navigator.clipboard.writeText(buildShootingScript(report));
+      setCopiedScript(true);
+      setTimeout(() => setCopiedScript(false), 2000);
+    } catch {
+      /* 剪贴板不可用时静默 */
+    }
   }
 
   React.useEffect(() => {
@@ -147,7 +196,7 @@ export function ReportView({ id }: { id?: string }) {
     return <LoginGate report={report} id={id} />;
   }
 
-  const locked = !session.isPro;
+  const locked = !session.isPro && !FREE_FULL_ACCESS;
   const { meta, score, section } = report;
 
   return (
@@ -178,6 +227,30 @@ export function ReportView({ id }: { id?: string }) {
               </span>
             )}
           </div>
+          {report.visual && (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {report.visual.mode === "real" ? (
+                <Badge variant="success" className="gap-1">
+                  <Check className="h-3 w-3" /> 已真实理解 {report.visual.frameCount} 帧画面
+                </Badge>
+              ) : report.visual.mode === "mock" ? (
+                <Badge variant="secondary" className="gap-1">
+                  画面理解（演示模式）
+                </Badge>
+              ) : null}
+              {report.visual.note && (
+                <span className="text-xs text-muted-foreground">{report.visual.note}</span>
+              )}
+              {report.visual.transcript && (
+                <div className="w-full rounded-md border border-border bg-muted/30 p-3 text-sm">
+                  <div className="text-xs font-semibold text-muted-foreground">
+                    语音转写（AI 真实提取）
+                  </div>
+                  <p className="mt-1 text-foreground/90">「{report.visual.transcript}」</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <Button asChild variant="outline" size="sm">
           <Link href="/analyze">
@@ -216,6 +289,10 @@ export function ReportView({ id }: { id?: string }) {
               <Link href={`/copywriting?id=${report.id}`}>
                 <PenLine className="h-4 w-4" /> 写文案（按参考风格）
               </Link>
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={copyShootingScript}>
+              <Copy className="h-4 w-4" />
+              {copiedScript ? "已复制 ✓" : "复制拍摄脚本"}
             </Button>
           </>
         )}
@@ -546,6 +623,109 @@ export function ReportView({ id }: { id?: string }) {
             </div>
           </Section>
 
+          {/* 第七部分 · 分镜拆解：一镜一镜怎么拍（手把手教拍第一层） */}
+          {report.storyboard && report.storyboard.length > 0 && (
+            <Section
+              icon={Clapperboard}
+              title="第七部分 · 分镜拆解：这条爆款是怎么一镜一镜拍的"
+              subtitle="拍什么、怎么拍、为什么这样拍——照着这个镜头表就能看懂它"
+            >
+              <div className="space-y-3">
+                {report.storyboard.map((s) => (
+                  <div key={s.index} className="rounded-lg border border-border bg-card p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                        {s.index}
+                      </span>
+                      <Badge variant="outline">{s.time}</Badge>
+                      <Badge variant="secondary">{s.phase}</Badge>
+                      <Badge variant="outline">难度：{s.difficulty}</Badge>
+                    </div>
+                    <div className="mt-3 grid gap-x-6 gap-y-1.5 text-sm sm:grid-cols-2">
+                      <p className="text-foreground/90">
+                        <span className="font-medium text-muted-foreground">场景：</span>
+                        {s.scene}
+                      </p>
+                      <p className="text-foreground/90">
+                        <span className="font-medium text-muted-foreground">画面：</span>
+                        {s.visual}
+                      </p>
+                      <p className="text-foreground/90 sm:col-span-2">
+                        <span className="font-medium text-muted-foreground">台词：</span>
+                        <span className="font-medium text-primary">「{s.line}」</span>
+                      </p>
+                      <p className="text-foreground/90">
+                        <span className="font-medium text-muted-foreground">运镜：</span>
+                        {s.camera}
+                      </p>
+                      <p className="text-foreground/90">
+                        <span className="font-medium text-muted-foreground">音效 / BGM：</span>
+                        {s.sfx}
+                      </p>
+                    </div>
+                    <p className="mt-3 rounded-md bg-primary/5 p-2.5 text-sm text-foreground/80">
+                      <span className="font-semibold text-primary">为什么这样拍：</span>
+                      {s.why}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {/* 第八部分 · 换成你的主题怎么拍（手把手教拍第二层） */}
+          {report.adaptedPlan && report.adaptedPlan.shots.length > 0 && (
+            <Section
+              icon={Wand2}
+              title="第八部分 · 换成你的主题怎么拍（手把手）"
+              subtitle={`把参考视频逐镜头翻译成「${report.adaptedPlan.userTopic}」的版本，照着清单拍就能发`}
+            >
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm font-medium text-foreground/90">你的主题</span>
+                  <span className="inline-flex items-center rounded-full bg-primary px-2.5 py-0.5 text-xs font-semibold text-primary-foreground">
+                    {report.adaptedPlan.userTopic}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-foreground/90">{report.adaptedPlan.note}</p>
+              </div>
+              <div className="mt-4 space-y-3">
+                {report.adaptedPlan.shots.map((a) => (
+                  <div key={a.index} className="rounded-lg border border-border bg-card p-4">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                        {a.index}
+                      </span>
+                      <Badge variant="secondary">{a.phase}</Badge>
+                      <Badge variant="outline">难度：{a.difficulty}</Badge>
+                    </div>
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-md bg-muted/40 p-3">
+                        <div className="text-xs font-semibold text-muted-foreground">参考镜头在做什么</div>
+                        <p className="mt-1.5 text-sm text-foreground/80">{a.reference}</p>
+                      </div>
+                      <div className="rounded-md border border-primary/30 bg-primary/5 p-3">
+                        <div className="text-xs font-semibold text-primary">换成你的主题</div>
+                        <p className="mt-1.5 text-sm font-medium text-foreground/90">{a.yourVersion}</p>
+                      </div>
+                    </div>
+                    <div className="mt-3">
+                      <div className="text-xs font-semibold text-muted-foreground">照做清单</div>
+                      <ul className="mt-2 space-y-1.5">
+                        {a.howToFilm.map((h, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm text-foreground/85">
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" />
+                            {h}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
           {/* 精品化门槛（进阶）：节奏 / 音效音乐 / 色彩 */}
           <Section
             icon={Zap}
@@ -618,10 +798,10 @@ function LoginGate({ report, id }: { report: AnalysisReport; id?: string }) {
       <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
         <Lock className="h-7 w-7 text-primary" />
       </div>
-      <h1 className="text-2xl font-bold tracking-tight">登录后查看完整拆解报告</h1>
+      <h1 className="text-2xl font-bold tracking-tight">登录后免费查看完整拆解报告</h1>
       <p className="mt-3 text-muted-foreground leading-relaxed">
-        报告已生成，但完整内容（含具体做法建议与高级模块）需登录后查看。
-        免费会员每天可看 1 次「分析 + 具体做法建议」，高级模块需升级解锁。
+        报告已生成，完整内容（评分、分镜拆解、换成你的主题怎么拍）登录后全部免费查看。
+        会员功能建设中，当前全站免费开放。
       </p>
       {/* 模糊 teaser */}
       <div className="mt-8 select-none rounded-xl border border-border bg-muted/20 p-6 text-left blur-sm">
@@ -635,11 +815,11 @@ function LoginGate({ report, id }: { report: AnalysisReport; id?: string }) {
       </div>
       <Button asChild variant="gradient" size="lg" className="mt-6 gap-2">
         <Link href={redirect}>
-          <Sparkles className="h-4 w-4" /> 微信登录查看
+          <Sparkles className="h-4 w-4" /> 登录免费查看
         </Link>
       </Button>
       <p className="mt-3 text-xs text-muted-foreground">
-        支持微信注册和登录 · 演示模式不收集任何真实凭证
+        支持邮箱注册登录 · 会员功能建设中，当前不收费
       </p>
     </div>
   );
@@ -694,15 +874,23 @@ function EmotionCurveChart({ points }: { points: EmotionPoint[] }) {
 
 /* ─── 深度拆解 5 段：免费用户锁定预览 ─── */
 function LockedDeepParts() {
-  const items = ["黄金3秒拆解", "视频结构拆解", "情绪曲线", "爆款公式提炼", "可复制分析"];
+  const items = [
+    "黄金3秒拆解",
+    "视频结构拆解",
+    "情绪曲线",
+    "爆款公式提炼",
+    "可复制分析",
+    "分镜拆解：一镜一镜怎么拍",
+    "主题适配：换成你的主题怎么拍",
+  ];
   return (
     <section className="mt-10 rounded-lg border border-dashed border-border bg-muted/20 p-6 text-center">
       <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-warning/10 text-warning">
         <Lock className="h-5 w-5" />
       </div>
-      <h2 className="text-lg font-semibold">完整《爆款导演拆解报告》需升级解锁</h2>
+      <h2 className="text-lg font-semibold">完整《爆款导演拆解报告》</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        免费版含「爆款评分体系」。升级后解锁下方 5 段深度拆解：
+        会员功能建设中，当前全站免费开放。注册登录后即可查看全部 8 段内容：
       </p>
       <ul className="mx-auto mt-4 inline-flex max-w-md flex-col gap-2 text-left">
         {items.map((it) => (
@@ -712,8 +900,8 @@ function LockedDeepParts() {
         ))}
       </ul>
       <Button asChild variant="gradient" size="sm" className="mt-5 gap-2">
-        <Link href="/pricing">
-          <Crown className="h-4 w-4" /> 升级解锁
+        <Link href="/login?redirect=/report">
+          <Sparkles className="h-4 w-4" /> 登录免费查看
         </Link>
       </Button>
     </section>

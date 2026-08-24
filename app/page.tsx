@@ -108,7 +108,7 @@ const FEATURES = [
   {
     icon: Video,
     title: "爆款导演拆解报告",
-    desc: "AI 模拟十年经验导演，五段拆解爆款为什么火、结构是什么",
+    desc: "AI 模拟十年经验导演：为什么火、结构是什么、一镜一镜怎么拍",
     color: "from-violet-500 to-purple-600",
   },
   {
@@ -132,8 +132,8 @@ const FEATURES = [
   },
   {
     icon: Wand2,
-    title: "一键复刻我的版本",
-    desc: "选好你的行业，AI 生成专属短视频方案，直接开拍",
+    title: "换成你的主题怎么拍",
+    desc: "参考视频的每一镜，AI 都翻译成你的版本，附照做清单",
     color: "from-fuchsia-500 to-pink-600",
     href: "/replicate",
   },
@@ -157,43 +157,34 @@ const STEPS = [
   {
     icon: Sparkles,
     num: 2,
-    title: "AI 导演拆解",
-    desc: "生成评分、五段拆解、情绪曲线与可复制公式",
+    title: "拆成镜头脚本",
+    desc: "生成评分、逐镜头分镜拆解与可复制公式",
   },
   {
     icon: Wand2,
     num: 3,
-    title: "一键复刻",
-    desc: "选你的行业，AI 生成标题 / 脚本 / 分镜，直接开拍",
+    title: "手把手教你拍",
+    desc: "换成你的主题，每一镜怎么拍都有照做清单",
     href: "/replicate",
   },
 ];
 
-/* ─── 用户评价 ─── */
-const TESTIMONIALS = [
+/* ─── 定位区块：不做一百分，先帮三十分变七十分 ─── */
+const UPGRADE_PATH = [
   {
-    name: "@小暖爱生活",
-    role: "小红书博主",
-    avatar: "X",
-    quote: "\"帮这个工具分析了10个对标账号，很快就找到了自己的内容方向，粉丝涨了3倍！\"",
+    title: "三十分 → 七十分",
+    desc: "新手先别追求原创。把爆款的结构骨架搬过来，镜头照着拍，先把「像样」做出来。",
+    icon: Check,
   },
   {
-    name: "@摄影师阿杰",
-    role: "旅行博主",
-    avatar: "S",
-    quote: "\"报告里的结构拆解太实用了。跟着模板拍视频，播放量稳定在10w+！\"",
+    title: "六十分 → 九十分",
+    desc: "结构已经及格的人，卡在节奏、音效、色彩和情绪曲线——逐项补齐，精品感就出来了。",
+    icon: Star,
   },
   {
-    name: "@柠檬不酸",
-    role: "美食博主",
-    avatar: "N",
-    quote: "\"标题推荐功能帮我解决了大难题，再也不用为起标题发愁了！\"",
-  },
-  {
-    name: "@创业小王",
-    role: "创业者",
-    avatar: "C",
-    quote: "\"作为新手，这个工具就像我的AI导师，让我少走了很多弯路。\"",
+    title: "每条视频都讲人话",
+    desc: "不说「提升完播率」这种空话，直接告诉你：这一镜怎么拍、这句台词怎么念。",
+    icon: Sparkles,
   },
 ];
 
@@ -264,15 +255,16 @@ export default function HomePage() {
           {/* 左侧文案 */}
           <div>
             <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-[52px]">
-              把百万播放视频，
+              把别人的爆款，
               <br />
               <span className="bg-gradient-to-r from-violet-600 to-purple-500 bg-clip-text text-transparent">
-                拆成你的下一条爆款
+                拆成你的镜头脚本
               </span>
             </h1>
             <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-              上传一个爆款视频，AI 爆款导演帮你拆解：为什么火、爆款结构是什么、
-              哪些能复制、怎么变成你的下一条内容。
+              上传一个爆款视频，AI 爆款导演帮你拆成一份能照着拍的分镜：
+              它为什么火、每一镜怎么拍、换成你的主题怎么改。
+              不追求一百分，先把你的三十分做到七十分。
             </p>
 
             <div className="mt-8 flex flex-wrap gap-4">
@@ -289,26 +281,14 @@ export default function HomePage() {
             {/* 新手摸底入口（首页醒目位置） */}
             <OnboardingCTA />
 
-            {/* 用户头像行 */}
+            {/* 公测状态行 */}
             <div className="mt-8 flex items-center gap-3">
-              <div className="flex -space-x-2">
-                {[
-                  { bg: "bg-violet-500", t: "小" },
-                  { bg: "bg-blue-500", t: "摄" },
-                  { bg: "bg-emerald-500", t: "柠" },
-                  { bg: "bg-orange-500", t: "创" },
-                ].map((u, i) => (
-                  <div
-                    key={i}
-                    className={`flex h-9 w-9 items-center justify-center rounded-full ${u.bg} text-xs font-bold text-white ring-2 ring-background`}
-                  >
-                    {u.t}
-                  </div>
-                ))}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                已帮助 <span className="font-semibold text-foreground">10,000+</span> 创作者找到爆款规律
-              </p>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
+                <Sparkles className="h-3.5 w-3.5" /> 公测中 · 全站免费
+              </span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+                会员功能建设中
+              </span>
             </div>
           </div>
 
@@ -391,28 +371,41 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── 用户评价 ── */}
+      {/* ── 定位：三十分到七十分 ── */}
       <section className="border-t border-border/50 bg-muted/20">
-        <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {TESTIMONIALS.map((t) => (
-              <Card key={t.name} className="transition-shadow hover:shadow-md">
-                <CardContent className="p-5">
-                  <p className="text-sm leading-relaxed text-foreground/85 italic">
-                    &ldquo;{t.quote.replace(/^"/, "").replace(/"$/, "")}&rdquo;
-                  </p>
-                  <div className="mt-4 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-purple-500 text-sm font-bold text-white">
-                      {t.avatar}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold">{t.name}</p>
-                      <p className="text-xs text-muted-foreground">{t.role}</p>
-                    </div>
+        <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold tracking-tight">
+              不帮你做一百分，
+              <br className="sm:hidden" />
+              先帮你把三十分做到七十分
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+              普通创作者缺的不是天赋，是一份「照着做就能拍」的说明书。我们把爆款拆到镜头级，再翻译成你的版本。
+            </p>
+          </div>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {UPGRADE_PATH.map((u) => (
+              <Card key={u.title} className="transition-shadow hover:shadow-md">
+                <CardContent className="p-6">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 text-white">
+                    <u.icon className="h-5 w-5" />
                   </div>
+                  <h3 className="mt-4 text-base font-bold">{u.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{u.desc}</p>
                 </CardContent>
               </Card>
             ))}
+          </div>
+          <div className="mt-10 text-center">
+            <Button asChild size="lg" variant="gradient" className="gap-2">
+              <Link href="/analyze">
+                <Wand2 className="h-4 w-4" /> 免费拆解第一条爆款
+              </Link>
+            </Button>
+            <p className="mt-3 text-xs text-muted-foreground">
+              会员功能建设中，当前全站免费
+            </p>
           </div>
         </div>
       </section>

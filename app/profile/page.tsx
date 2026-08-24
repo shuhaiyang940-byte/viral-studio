@@ -15,6 +15,8 @@ import {
   LogOut,
   Clapperboard,
   Wand2,
+  ShieldCheck,
+  Check,
 } from "lucide-react";
 import type { AnalysisReport, OnboardingProfile, Storyboard, EditPlanRecord } from "@/lib/types";
 import { MEMBERSHIP } from "@/lib/mock-data";
@@ -22,7 +24,7 @@ import { getReports, getStoryboards, getEditPlans } from "@/lib/storage";
 import { getProfile, LEVEL_LABELS } from "@/lib/onboarding";
 import { generateDirectorAdvice } from "@/lib/director";
 import { useSession, logout } from "@/lib/auth";
-import { getQuota } from "@/lib/quota";
+import { fetchQuota } from "@/lib/quota-client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -35,7 +37,7 @@ export default function ProfilePage() {
   const [profile, setProfile] = React.useState<OnboardingProfile | null>(null);
   const [advice, setAdvice] = React.useState<ReturnType<typeof generateDirectorAdvice> | null>(null);
   const { session } = useSession();
-  const [quota, setQuota] = React.useState<ReturnType<typeof getQuota> | null>(null);
+  const [quota, setQuota] = React.useState<Awaited<ReturnType<typeof fetchQuota>>>(null);
   const [mounted, setMounted] = React.useState(false);
 
   /** 真实收藏（来自数据库），而不是从案例库里随便切三条 */
@@ -60,7 +62,13 @@ export default function ProfilePage() {
   }, [profile, reports]);
 
   React.useEffect(() => {
-    setQuota(getQuota(session));
+    let alive = true;
+    fetchQuota().then((q) => {
+      if (alive) setQuota(q);
+    });
+    return () => {
+      alive = false;
+    };
   }, [session]);
 
   React.useEffect(() => {
@@ -86,7 +94,7 @@ export default function ProfilePage() {
 
   async function handleLogout() {
     await logout();
-    setQuota(getQuota(null));
+    setQuota(null);
   }
 
   // 统一「创作记录」：分析 + 分镜 + 剪辑方案，按日期倒序
@@ -111,13 +119,22 @@ export default function ProfilePage() {
                 <div className="flex items-center gap-2">
                   <h1 className="text-lg font-semibold">{session.name}</h1>
                   <Badge variant={session.isPro ? "success" : "secondary"}>
-                    {session.isPro ? "会员" : "免费会员"}
+                    {(
+                      {
+                        free: "免费版",
+                        creator: "创作者版",
+                        pro: "进阶版",
+                        studio: "专业版",
+                      }[session.tier] ?? "会员"
+                    )}
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
                   {session.isPro
                     ? "会员：无限次分析，已解锁全部高级模块"
-                    : `今日剩余分析次数：${quota?.remaining ?? 1} / 1`}
+                    : quota && quota.limit !== null
+                      ? `今日剩余分析次数：${quota.remaining ?? 0} / ${quota.limit}`
+                      : "今日剩余分析次数：加载中…"}
                 </p>
               </div>
             </div>
@@ -162,6 +179,41 @@ export default function ProfilePage() {
                 <Sparkles className="h-4 w-4" /> 登录 / 注册
               </Link>
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 账号安全：邮箱验证状态 */}
+      {mounted && session && session.provider === "email" && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ShieldCheck className="h-4 w-4 text-primary" /> 账号安全
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium">{session.email}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  邮箱验证用于账号归属确认与找回密码
+                </p>
+              </div>
+              {session.emailVerified ? (
+                <Badge variant="success" className="gap-1">
+                  <Check className="h-3 w-3" /> 已验证
+                </Badge>
+              ) : (
+                <Button asChild variant="outline" size="sm">
+                  <Link href={`/verify-email?email=${encodeURIComponent(session.email || "")}`}>
+                    去验证邮箱
+                  </Link>
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              密码由 bcrypt 加密存储，会话使用 HttpOnly Cookie 保护；如忘记密码可随时找回。
+            </p>
           </CardContent>
         </Card>
       )}

@@ -31,12 +31,12 @@ const PORT = Number(process.argv[2] || 5555);
 const VERBOSE = process.env.FAKE_NEON_VERBOSE === "1";
 
 // ── 表结构（列名 + pg 类型 OID，Neon 需要 fields 才能正确解析）─────────
-const T = { text: 25, int4: 23, bool: 16, jsonb: 3802, ts: 1184 };
+const T = { text: 25, int4: 23, float8: 701, bool: 16, jsonb: 3802, ts: 1184 };
 
 const SCHEMA = {
   users: [
     ["id", T.text], ["email", T.text], ["name", T.text], ["password_hash", T.text],
-    ["tier", T.text], ["phone", T.text], ["created_at", T.ts],
+    ["tier", T.text], ["phone", T.text], ["email_verified", T.bool], ["created_at", T.ts],
   ],
   cases: [
     ["id", T.text], ["title", T.text], ["category", T.text], ["cover", T.text],
@@ -46,12 +46,22 @@ const SCHEMA = {
   benchmarks: [
     ["id", T.text], ["name", T.text], ["handle", T.text], ["platform", T.text],
     ["idea_type", T.text], ["styles", T.jsonb], ["effects", T.jsonb], ["face", T.bool],
-    ["product_type", T.text], ["followers", T.int4], ["engagement_rate", T.int4],
+    ["product_type", T.text], ["followers", T.int4], ["engagement_rate", T.float8],
     ["reason", T.text], ["sample_title", T.text], ["is_seed", T.bool],
     ["created_by", T.text], ["created_at", T.ts],
   ],
   case_saves: [["user_id", T.text], ["case_id", T.text], ["created_at", T.ts]],
   benchmark_tracks: [["user_id", T.text], ["benchmark_id", T.text], ["created_at", T.ts]],
+  email_tokens: [
+    ["token_hash", T.text], ["user_id", T.text], ["type", T.text],
+    ["expires_at", T.ts], ["used_at", T.ts], ["created_at", T.ts],
+  ],
+  ip_blocklist: [
+    ["ip", T.text], ["reason", T.text], ["expires_at", T.ts], ["created_at", T.ts],
+  ],
+  rate_limits: [["key", T.text], ["count", T.int4], ["window_start", T.int4]],
+  kv_store: [["key", T.text], ["value", T.jsonb], ["updated_at", T.ts]],
+  quota_usage: [["key", T.text], ["count", T.int4], ["day", T.text]],
 };
 
 const TYPE_OF = {};
@@ -84,6 +94,8 @@ function tokenize(src) {
 }
 
 function makeWhere(clause, params) {
+  // now() 在 WHERE 里直接替换成当前 ISO 时间字符串（无空格，方便 tokenize 与比较）
+  clause = clause.replace(/\bnow\(\)/gi, "'" + new Date().toISOString() + "'");
   const toks = tokenize(clause);
   let i = 0;
   const peek = () => toks[i];
@@ -105,6 +117,7 @@ function makeWhere(clause, params) {
     return (row) => {
       const v = row[col];
       const target = idx >= 0 ? params[idx] : literal;
+      if (op === "IS") return v == null;
       if (op === "ILIKE") {
         const hay = v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v);
         const pat = String(target ?? "");
@@ -116,6 +129,23 @@ function makeWhere(clause, params) {
         return rx.test(hay);
       }
       if (target === null || target === undefined) return v === null || v === undefined;
+      // 数值 / 时间戳比较（> < >= <=）：优先按数字比，时间字符串归一化后按时间戳比
+      if (op === ">" || op === "<" || op === ">=" || op === "<=") {
+        const num = (x) => {
+          const n = Number(x);
+          if (!Number.isNaN(n)) return n;
+          const t = Date.parse(String(x).replace(" ", "T"));
+          return Number.isNaN(t) ? Number.NaN : t;
+        };
+        const a = num(v);
+        const b = num(target);
+        if (!Number.isNaN(a) && !Number.isNaN(b)) {
+          if (op === ">") return a > b;
+          if (op === "<") return a < b;
+          if (op === ">=") return a >= b;
+          return a <= b;
+        }
+      }
       // 参数化查询里数字/布尔都可能以字符串过来，统一按字符串比
       return String(v) === String(target);
     };
@@ -199,16 +229,53 @@ function route(query, params = []) {
       else if (/^(now\(\)|CURRENT_TIMESTAMP)$/i.test(v)) row[c] = NOW();
       else row[c] = v;
     });
-    for (const [c] of SCHEMA[table]) if (!(c in row)) row[c] = c === "created_at" ? NOW() : null;
+    for (const [c] of SCHEMA[table]) {
+      if (c in row) continue;
+      if (c === "created_at") row[c] = NOW();
+      else if (c === "tier") row[c] = "free";
+      else if (c === "email_verified") row[c] = false;
+      else row[c] = null;
+    }
 
-    // 主键/联合唯一冲突检测（ON CONFLICT DO NOTHING 时静默跳过）
+    // 主键/联合唯一冲突检测（ON CONFLICT DO NOTHING 时静默跳过；DO UPDATE 时执行更新）
     const keys = table === "case_saves"
       ? ["user_id", "case_id"]
       : table === "benchmark_tracks"
       ? ["user_id", "benchmark_id"]
-      : ["id"];
+      : SCHEMA[table].some(([c]) => c === "id")
+        ? ["id"]
+        : [SCHEMA[table][0][0]];
     const dup = db[table].find((r) => keys.every((k) => String(r[k]) === String(row[k])));
     const emailDup = table === "users" && db.users.find((r) => r.email === row.email);
+    if (dup && /ON CONFLICT.*DO UPDATE/i.test(tail)) {
+      // UPSERT：rate_limits 需要「同窗口 +1 / 跨窗口重置」语义；其余表用新值覆盖
+      if (table === "rate_limits") {
+        if (Number(dup.window_start) === Number(row.window_start)) {
+          dup.count = (Number(dup.count) || 0) + 1;
+        } else {
+          dup.count = 1;
+          dup.window_start = row.window_start;
+        }
+      } else if (table === "quota_usage") {
+        if (dup.day === row.day) {
+          dup.count = (Number(dup.count) || 0) + 1;
+        } else {
+          dup.count = 1;
+          dup.day = row.day;
+        }
+      } else {
+        Object.assign(dup, row);
+      }
+      const ret = tail.match(/RETURNING\s+(.+?)(?:;|$)/i);
+      if (ret) {
+        const rc = ret[1]
+          .split(",")
+          .map((s) => s.trim().split(/\s+as\s+/i)[0].trim())
+          .flatMap((c) => (c === "*" || /\w+\.\*$/.test(c)) ? SCHEMA[table].map(([col]) => col) : [c]);
+        return result("INSERT", table, rc, [dup]);
+      }
+      return { ...EMPTY, command: "INSERT", rowCount: 1 };
+    }
     if (dup || emailDup) {
       if (/ON CONFLICT/i.test(tail)) return EMPTY;
       const err = new Error("duplicate key value violates unique constraint");
@@ -292,8 +359,10 @@ function route(query, params = []) {
     return result("SELECT", table, cols, rows);
   }
 
-  // UPDATE t SET a = $1, b = $2 WHERE ...
-  m = q.match(/^UPDATE (\w+) SET (.+?)(?: WHERE (.+?))?$/i);
+  // UPDATE t SET a = $1, b = $2 [WHERE ...] [RETURNING ...]
+  const upRet = q.match(/RETURNING\s+(.+?)(?:;|$)/i);
+  const upBase = upRet ? q.replace(/RETURNING\s+.+?(?:;|$)/i, "") : q;
+  m = upBase.match(/^UPDATE (\w+) SET (.+?)(?: WHERE (.+?))?$/i);
   if (m) {
     const [, table, setList, where] = m;
     if (!db[table]) return EMPTY;
@@ -303,6 +372,13 @@ function route(query, params = []) {
         const [c, v] = pair.split("=").map((s) => s.trim());
         row[c] = /^\$\d+$/.test(v) ? params[Number(v.slice(1)) - 1] ?? null : v.replace(/^'|'$/g, "");
       }
+    }
+    if (upRet) {
+      const rc = upRet[1]
+        .split(",")
+        .map((s) => s.trim().split(/\s+as\s+/i)[0].trim())
+        .flatMap((c) => (c === "*" || /\w+\.\*$/.test(c)) ? SCHEMA[table].map(([col]) => col) : [c]);
+      return result("UPDATE", table, rc, targets);
     }
     return { ...EMPTY, command: "UPDATE", rowCount: targets.length };
   }

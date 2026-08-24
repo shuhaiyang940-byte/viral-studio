@@ -7,7 +7,6 @@ import {
   Link2,
   Loader2,
   Check,
-  FileText,
   Image as ImageIcon,
   Brain,
   FileBarChart,
@@ -37,12 +36,12 @@ import { getProfile, LEVEL_LABELS } from "@/lib/onboarding";
 import { REFERENCE_TYPES, type OnboardingProfile } from "@/lib/types";
 import { mockReferenceSignal } from "@/lib/reference-signal";
 import { useSession } from "@/lib/auth";
-import { consumeQuota, getQuota } from "@/lib/quota";
+import { fetchQuota, type ClientQuota } from "@/lib/quota-client";
+import { put } from "@vercel/blob/client";
 
 const PIPELINE = [
   { icon: Upload, label: "上传视频" },
-  { icon: FileText, label: "视频转文字 (ASR)" },
-  { icon: ImageIcon, label: "提取画面信息" },
+  { icon: ImageIcon, label: "AI 看画面 + 转语音" },
   { icon: Brain, label: "AI 分析" },
   { icon: FileBarChart, label: "生成报告" },
 ];
@@ -71,20 +70,26 @@ export default function AnalyzePage() {
   const [loading, setLoading] = React.useState(false);
   const [showLinkHelp, setShowLinkHelp] = React.useState(false);
   const { session } = useSession();
-  const [quota, setQuota] = React.useState<ReturnType<typeof getQuota> | null>(null);
+  const [quota, setQuota] = React.useState<ClientQuota | null>(null);
 
-  // 配额跟着会话走：登录 / 升级后要立刻重算，不能只在首次挂载算一次
+  // 配额来自服务端：登录 / 升级后要立刻重算
   React.useEffect(() => {
-    setQuota(getQuota(session));
+    let alive = true;
+    fetchQuota().then((q) => {
+      if (alive) setQuota(q);
+    });
+    return () => {
+      alive = false;
+    };
   }, [session]);
 
   const canStart =
     ((mode === "upload" && !!file) || (mode === "url" && url.trim().length > 0)) &&
     refType.length > 0;
 
-  // 免费用户当天配额用尽 → 拦截（匿名可体验、会员不限）
+  // 免费 / 匿名用户当天配额用尽 → 拦截（会员不限）
   const quotaBlocked =
-    !!session && !session.isPro && !!quota && quota.remaining === 0;
+    !!quota && quota.limit !== null && quota.remaining === 0;
 
   async function start() {
     if (quotaBlocked || !canStart || loading) return;
@@ -94,23 +99,66 @@ export default function AnalyzePage() {
       await new Promise((r) => setTimeout(r, 750));
     }
     try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: mode === "url" ? url : file?.name,
-          title: title.trim() || undefined,
-          profile,
-          refType,
-        }),
-      });
+      const res =
+        mode === "upload" && file
+          ? await (async () => {
+              // 优先走服务器化直传（Vercel Blob）：先拿预签名票据
+              const ticket = await fetch("/api/analyze/upload-url", {
+                method: "POST",
+              })
+                .then((r) => r.json())
+                .catch(() => ({ blobMode: false }));
+              if (ticket.blobMode && ticket.pathname && ticket.token) {
+                const blob = await put(ticket.pathname, file, {
+                  access: "public",
+                  token: ticket.token,
+                  contentType: file.type || "video/mp4",
+                  multipart: file.size > 8 * 1024 * 1024,
+                });
+                return fetch("/api/analyze/url", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    videoUrl: blob.url,
+                    title: title.trim(),
+                    refType,
+                    profile,
+                  }),
+                });
+              }
+              // 本机模式（未配置 Blob）：直接 multipart 上传
+              const fd = new FormData();
+              fd.append("video", file);
+              fd.append("title", title.trim());
+              fd.append("refType", refType);
+              fd.append("profile", profile ? JSON.stringify(profile) : "");
+              return fetch("/api/analyze/upload", { method: "POST", body: fd });
+            })()
+          : await fetch("/api/analyze", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                source: url,
+                title: title.trim() || undefined,
+                profile,
+                refType,
+              }),
+            });
       const report = await res.json();
-      saveReport(report);
-      // 登录态下的免费用户消耗一次当日配额（匿名不计、会员不限）
-      if (session && !session.isPro) {
-        consumeQuota(session);
-        setQuota(getQuota(session));
+      if (!res.ok) {
+        if (report?.code === "QUOTA_EXCEEDED") {
+          setLoading(false);
+          setStep(-1);
+          setQuota({ limit: report.quota?.limit ?? 1, used: 1, remaining: 0, isPro: false });
+          return;
+        }
+        throw new Error(report.error || "分析失败，请重试");
       }
+      saveReport(report);
+      // 服务端已消耗配额，刷新剩余次数
+      fetchQuota().then((q) => {
+        if (q) setQuota(q);
+      });
       router.push(`/report?id=${report.id}`);
     } catch {
       setLoading(false);
@@ -200,15 +248,15 @@ export default function AnalyzePage() {
         </div>
       )}
 
-      {session && !session.isPro && quota && (
+      {quota && quota.limit !== null && quota.remaining !== null && (
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
           {quota.remaining === 0 ? (
             <>
-              <Lock className="h-3.5 w-3.5 text-warning" /> 今日免费分析已用完，升级会员可无限次分析
+              <Lock className="h-3.5 w-3.5 text-warning" /> 今日分析次数已用完，升级会员可无限次分析
             </>
           ) : (
             <>
-              <Crown className="h-3.5 w-3.5 text-primary" /> 免费会员：今日还剩 {quota.remaining} 次分析
+              <Crown className="h-3.5 w-3.5 text-primary" /> 今日还可分析 {quota.remaining} 次（每日 {quota.limit} 次，升级解锁更多）
             </>
           )}
         </div>
@@ -250,7 +298,7 @@ export default function AnalyzePage() {
                 {file ? file.name : "点击选择 MP4 视频文件"}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                支持 .mp4 / .mov，演示模式下不会真实上传
+                支持 .mp4 / .mov / .webm · 视频将直传云端，由 AI 直接观看画面并转写语音
               </p>
               <input
                 type="file"
@@ -354,7 +402,7 @@ export default function AnalyzePage() {
             )}
           </Button>
           <p className="mt-3 text-center text-xs text-muted-foreground">
-            演示模式：分析结果为模拟数据，用于展示产品流程（含特效拆解与节奏分析）。
+            当前免费公测：AI 会结合标题与类型生成拆解报告；上传 / 链接的真实视频理解（转写 + 画面识别）正在建设中。
           </p>
         </CardContent>
       </Card>
@@ -505,15 +553,14 @@ function QuotaExhaustedCard({ onUpgrade }: { onUpgrade: () => void }) {
         <div>
           <p className="text-lg font-semibold">今日免费分析已用完</p>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            免费会员每天可看 1 次「分析 + 具体做法建议」。升级会员后无限次分析，
-            并解锁开头吸引力深度分析、标题优化器、选题推荐等高级模块。
+            免费版每天可分析 1 次（匿名按 IP 限次）。升级会员后无限次分析。
           </p>
         </div>
         <Button onClick={onUpgrade} variant="gradient" size="lg" className="gap-2">
           <Crown className="h-4 w-4" /> 升级解锁无限次
         </Button>
         <p className="text-xs text-muted-foreground">
-          演示模式：升级不会真实扣费，仅用于展示解锁效果。
+          会员功能：当前免费公测，升级流程为演示（不真实扣费）；正式收费前全站内容免费开放。
         </p>
       </CardContent>
     </Card>

@@ -1,19 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getHotspots, getDetail } from "@/lib/hotspots-server";
 import type { HotspotCat, HotspotTitle } from "@/lib/hotspots";
+import { guardAiRequest } from "@/lib/ai-guard";
 
-// 需要 Node 运行时（用到 fs 写历史/详情）且每次动态执行（不走静态缓存）
+// 需要 Node 运行时且每次动态执行（不走静态缓存）
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const g = await guardAiRequest(req as NextRequest, "hotspots");
+  if (!g.ok) return g.res;
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("mode") || "timeline";
 
-  // 懒详情：仅被点击时生成并落盘
+  // 懒详情：仅被点击时生成并写入 KV 存储
   if (mode === "detail") {
     const id = searchParams.get("id") || "";
-    const d = getDetail(id);
+    const d = await getDetail(id);
     if (!d) return NextResponse.json({ error: "not_found" }, { status: 404 });
     return NextResponse.json(d);
   }

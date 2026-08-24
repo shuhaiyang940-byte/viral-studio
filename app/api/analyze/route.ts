@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeVideo } from "@/lib/ai";
 import { SAMPLE_REPORT } from "@/lib/mock-data";
+import { guardAiRequest } from "@/lib/ai-guard";
+import { checkAnalyzeQuota } from "@/lib/quota-server";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
+  const g = await guardAiRequest(req, "analyze");
+  if (!g.ok) return g.res;
+  const quota = await checkAnalyzeQuota(req);
+  if (!quota.ok) {
+    return NextResponse.json(
+      {
+        error: "今日免费分析次数已用完，升级会员可无限次分析。",
+        code: "QUOTA_EXCEEDED",
+        quota: { limit: quota.limit, remaining: quota.remaining },
+      },
+      { status: 429 }
+    );
+  }
   const body = await req.json().catch(() => ({}));
   const report = await analyzeVideo({
     source: typeof body.source === "string" ? body.source : undefined,

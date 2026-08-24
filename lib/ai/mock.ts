@@ -1,4 +1,6 @@
 import type {
+  AdaptedPlan,
+  AdaptedShot,
   AnalysisReport,
   Category,
   EffectDifficulty,
@@ -13,6 +15,7 @@ import type {
   ReproPlan,
   ScoreBreakdown,
   ScoreTarget,
+  ShotBlueprint,
   VideoMeta,
   ViralFormula,
 } from "@/lib/types";
@@ -300,6 +303,136 @@ function generateScoreTarget(score: ScoreBreakdown): ScoreTarget {
   return { current: overall, target, band, gaps, advice };
 }
 
+/* ════════ 手把手分镜：逐镜头拆解 + 换成你的主题怎么拍 ════════ */
+
+interface ShotTemplate {
+  phase: string;
+  scene: string;
+  visual: string;
+  line: string;
+  camera: string;
+  sfx: string;
+  why: string;
+  difficulty: "易" | "中" | "难";
+}
+
+const SHOT_BLUEPRINTS: Record<string, ShotTemplate[]> = {
+  "生活记录 / 情感向": [
+    { phase: "钩子", scene: "熟悉的生活场景 · 日外/日内", visual: "一个具体物件特写（门牌 / 钥匙 / 旧照片）", line: "「我在 XX 住了十年，今天终于要离开了。」", camera: "固定机位特写，画面干净", sfx: "环境音开场，不加音乐", why: "前 3 秒用「具体物件 + 强冲突」制造悬念，让人本能想往下看", difficulty: "易" },
+    { phase: "铺垫", scene: "老地方全景", visual: "第一视角环顾熟悉的环境，交代「这是哪里」", line: "「这里的一砖一瓦，都记得我。」", camera: "手持缓慢扫过，带真实晃动感", sfx: "环境音延续", why: "建立真实感与代入感，让观众觉得「这就是我生活的地方」", difficulty: "易" },
+    { phase: "展开①", scene: "生活细节场景", visual: "三个具体细节依次出现（老物件 / 邻居 / 味道）", line: "「楼下大爷还记得我爱吃的早点。」", camera: "每个细节一个 2-3 秒特写，硬切", sfx: "轻钢琴铺底", why: "具体细节 = 信息密度，观众信以为真，情绪开始积累", difficulty: "中" },
+    { phase: "展开②", scene: "变化中的场景", visual: "对比画面：旧样子 vs 现在的变化", line: "「可是这里，真的要拆了。」", camera: "前后对比各一个镜头，中间加叠化转场", sfx: "音乐音量微升", why: "对比制造冲突感，把「个人故事」推向「时代变化」", difficulty: "中" },
+    { phase: "高潮", scene: "情绪最高点场景", visual: "主角背影 / 空镜，配合最强的一句台词", line: "「舍不得的不是房子，是这三十年。」", camera: "慢镜头 + 缓慢推近", sfx: "弦乐 / 人声吟唱推情绪", why: "情绪峰值点：给用户一个共鸣和转发的理由", difficulty: "中" },
+    { phase: "收尾", scene: "结束场景", visual: "一个留白空镜，画面缓缓变暗", line: "「你会不会也想起，某个回不去的地方？」", camera: "固定机位，留 2 秒黑场", sfx: "音乐渐弱，环境音收尾", why: "开放式提问引导评论区，留白让情绪发酵", difficulty: "易" },
+  ],
+  "知识科普": [
+    { phase: "钩子", scene: "书房 / 白板前 · 室内", visual: "反常识结论直接砸出来（大字幕 + 特写）", line: "「99% 的人都理解错了这件事。」", camera: "固定机位中景 + 花字放大", sfx: "强调音（叮）", why: "反常识开场制造认知缺口，让人必须听下去", difficulty: "易" },
+    { phase: "铺垫", scene: "讲解场景", visual: "提出一个大家都会犯的错误 / 误区", line: "「你是不是也这么做过？」", camera: "中景，手指比划引导视线", sfx: "轻快 BGM", why: "用「你也有过」建立连接，降低理解门槛", difficulty: "易" },
+    { phase: "展开①", scene: "讲解场景", visual: "第一层原理：用比喻讲清楚底层逻辑", line: "「它其实就像……一样简单。」", camera: "特写 + 关键帧放大关键词", sfx: "卡点音效", why: "比喻降低理解成本，观众觉得「学到了」", difficulty: "中" },
+    { phase: "展开②", scene: "讲解场景", visual: "第二层：一个具体案例 / 数字验证", line: "「我举个例子，你马上明白。」", camera: "画面分屏：左边原理右边案例", sfx: "强调音", why: "案例 + 数字让结论可信，收藏欲上升", difficulty: "中" },
+    { phase: "高潮", scene: "讲解场景", visual: "把前面所有点串成一张图 / 一条结论", line: "「所以记住一句话就够了。」", camera: "固定机位，手写板 / 屏幕录屏", sfx: "音乐到峰值", why: "收束成一句话，方便观众截图收藏", difficulty: "中" },
+    { phase: "收尾", scene: "结束场景", visual: "抛一个延伸问题 + 下期预告", line: "「评论区告诉我你的看法，下期讲透它的兄弟概念。」", camera: "固定机位收尾", sfx: "片尾音效", why: "互动钩子 + 追更钩子，把单条流量导向账号", difficulty: "易" },
+  ],
+  "好物种草": [
+    { phase: "钩子", scene: "产品使用场景 · 室内", visual: "痛点特写：产品解决前的问题画面", line: "「用了三个月，我才敢推荐它。」", camera: "固定机位特写", sfx: "环境音", why: "「用了三个月」降低广告感，「才敢推荐」制造信任钩子", difficulty: "易" },
+    { phase: "铺垫", scene: "产品展示", visual: "产品全貌 + 价格 / 品牌信息", line: "「先说结论：它确实值得。」", camera: "360° 展示，转桌或手持环绕", sfx: "轻快 BGM", why: "开头给结论，符合种草类「先给答案再给理由」", difficulty: "易" },
+    { phase: "展开①", scene: "使用过程", visual: "真实使用过程：开箱 / 上手 / 第一感受", line: "「第一感受是：比想象中轻。」", camera: "第一视角手持跟拍", sfx: "生活音效增强真实感", why: "过程真实感 = 种草可信度，比口播强十倍", difficulty: "中" },
+    { phase: "展开②", scene: "对比场景", visual: "对比：和同类产品 / 使用前后的差别", line: "「和旧款放一起，差距一眼就看出来了。」", camera: "同机位左右对比", sfx: "强调音", why: "对比让「值不值」一目了然，减少决策成本", difficulty: "中" },
+    { phase: "高潮", scene: "效果展示", visual: "最强使用效果 / 惊喜时刻", line: "「用完之后我只想说：值了。」", camera: "慢镜头 + 特写效果", sfx: "音乐峰值 + 哇音效", why: "效果峰值让观众产生「我也想要」的冲动", difficulty: "中" },
+    { phase: "收尾", scene: "结束场景", visual: "价格信息 + 购买建议 + 互动问题", line: "「这个价位闭眼入，你还有什么想让我测的？」", camera: "固定机位收尾", sfx: "片尾音效", why: "明确行动号召 + 互动钩子，转化和评论一起抓", difficulty: "易" },
+  ],
+  "剧情短片": [
+    { phase: "钩子", scene: "冲突发生地 · 室内/街头", visual: "冲突画面直接开场：争吵 / 摔倒 / 悬念动作", line: "「你再说一遍？」", camera: "手持近景，画面轻微晃动制造紧张", sfx: "紧张氛围音", why: "剧情类 3 秒必须有冲突或悬念，否则划走", difficulty: "中" },
+    { phase: "铺垫", scene: "人物关系场景", visual: "交代人物关系与背景，节奏放缓", line: "「我们认识三年了，今天是第一次吵架。」", camera: "双人正反打", sfx: "环境音", why: "让观众先「站队」，后面反转才有冲击力", difficulty: "中" },
+    { phase: "展开①", scene: "事件发展", visual: "误会 / 铺垫逐层展开，埋反转伏笔", line: "「其实那天，我看到的是……」", camera: "特写表情变化", sfx: "音乐渐起", why: "伏笔 + 信息差是反转的前提", difficulty: "中" },
+    { phase: "展开②", scene: "转折点", visual: "关键道具 / 真相线索出现", line: "「直到我打开那个抽屉。」", camera: "道具特写 + 快切", sfx: "心跳 / 咚音效", why: "转折点制造「原来如此」，是完播率的核心", difficulty: "难" },
+    { phase: "高潮", scene: "真相揭晓", visual: "反转揭晓：表情 / 台词 / 画面三者同步", line: "「对不起，是我错怪你了。」", camera: "慢镜头 + 推近面部", sfx: "音乐峰值", why: "反转 + 情绪爆发点，触发点赞和转发", difficulty: "难" },
+    { phase: "收尾", scene: "结局场景", visual: "结局定格 + 悬念钩子（续集预告）", line: "「如果时间重来，我还会做同样的选择。」", camera: "固定机位定格", sfx: "音乐渐弱", why: "开放式结局 + 讨论钩子，评论区自然炸开", difficulty: "易" },
+  ],
+  "测评对比": [
+    { phase: "钩子", scene: "测评台 · 室内", visual: "冲突结论开场：直接说谁赢谁输", line: "「测完这三款，我只推荐一个。」", camera: "固定机位 + 三产品同框", sfx: "强调音", why: "「只推荐一个」制造好奇 + 立场，观众想验证", difficulty: "易" },
+    { phase: "铺垫", scene: "测评台", visual: "参测产品集体亮相 + 测评维度说明", line: "「从五个维度，全部实测。」", camera: "全景展示", sfx: "轻快 BGM", why: "先给框架，让观众知道测评「公平」", difficulty: "易" },
+    { phase: "展开①", scene: "单项测试", visual: "第一项测试：画面 / 声音 / 手感逐项来", line: "「第一项，画质对比——注意看暗部。」", camera: "同机位 A/B 切换，画面尽量一致", sfx: "测试音效", why: "同机位对比才有说服力，观众自己就能看出差别", difficulty: "中" },
+    { phase: "展开②", scene: "专项测试", visual: "第二项测试：极限场景（暗光 / 防抖 / 续航）", line: "「这个场景，只有它能扛住。」", camera: "特写 + 慢镜头", sfx: "强调音", why: "极限场景拉高「专业感」，是测评的信任分水岭", difficulty: "中" },
+    { phase: "高潮", scene: "总结台", visual: "打分汇总：五维雷达 / 得分表", line: "「综合下来，第一名是它，没有悬念。」", camera: "固定机位 + 大字幕", sfx: "音乐峰值", why: "结论明确 = 收藏理由，观众拿去当选购依据", difficulty: "中" },
+    { phase: "收尾", scene: "结束场景", visual: "购买建议 + 人群匹配建议", line: "「预算有限选它，要极致选它。评论区告诉我你选哪个。」", camera: "固定机位收尾", sfx: "片尾音效", why: "按人群给建议，评论区互动 + 收藏双拉满", difficulty: "易" },
+  ],
+};
+
+const DEFAULT_BLUEPRINT = SHOT_BLUEPRINTS["生活记录 / 情感向"];
+
+function generateShotBlueprint(refType: string | undefined, title: string): ShotBlueprint[] {
+  const tpls = SHOT_BLUEPRINTS[refType || "生活记录 / 情感向"] || DEFAULT_BLUEPRINT;
+  const head = title.slice(0, 16) || "这个选题";
+  return tpls.map((t, i) => ({
+    index: i + 1,
+    time: ["0-3 秒", "3-10 秒", "10-25 秒", "25-40 秒", "40-55 秒", "55 秒以后"][i],
+    phase: t.phase,
+    scene: t.scene,
+    visual: t.visual,
+    line: t.line.includes("XX") ? t.line.replace("XX", head) : t.line,
+    camera: t.camera,
+    sfx: t.sfx,
+    why: t.why,
+    difficulty: t.difficulty,
+  }));
+}
+
+/** 每个段落的「换成你的主题」改造句式 */
+const ADAPT_PHASE_POOL: Record<string, { version: (topic: string) => string; steps: string[] }> = {
+  钩子: {
+    version: (t) => `换成「${t}」：找你的场景里最有冲突的一个瞬间，做成 3 秒特写开场。`,
+    steps: ["选一个具体物件当钩子（产品 / 招牌 / 道具），别用空泛开头。", "第一句台词先给冲突或悬念，再给答案。", "固定机位拍 3 秒特写，画面只放一件事。"],
+  },
+  铺垫: {
+    version: (t) => `换成「${t}」：用第一视角带观众进入你的场景，交代「这是哪、我是谁」。`,
+    steps: ["手持手机缓慢扫过场景，带一点真实晃动。", "补一句身份信息：你是谁、为什么在这里。", "环境音录进去，别急着上音乐。"],
+  },
+  "展开①": {
+    version: (t) => `换成「${t}」：准备 3 个具体细节（物件 / 数字 / 过程），每 10 秒丢一个。`,
+    steps: ["列出和主题相关的 3 个细节，按「惊喜感」排序。", "每个细节单独拍一个 2-3 秒特写。", "硬切就行，别加花哨转场。"],
+  },
+  "展开②": {
+    version: (t) => `换成「${t}」：放一个对比或转折，让内容产生「变化感」。`,
+    steps: ["找一个前后对比（旧 vs 新 / 用前 vs 用后 / 误解 vs 真相）。", "同机位各拍一条，剪辑时叠化切换。", "转折处音乐音量微微升一点。"],
+  },
+  高潮: {
+    version: (t) => `换成「${t}」：把你最想表达的一句话放在这里，情绪推到最高。`,
+    steps: ["把全片核心观点浓缩成一句话。", "这句话单独拍一条特写 / 空镜。", "剪辑时加慢动作或缓慢推近，配合音乐峰值。"],
+  },
+  收尾: {
+    version: (t) => `换成「${t}」：留一个开放式提问收尾，引导评论。`,
+    steps: ["问一个和主题相关、观众想回答的问题。", "结尾留 1-2 秒空镜 / 黑场，别急着切。", "把提问做成字幕花字，放大记忆点。"],
+  },
+};
+
+function generateAdaptedPlan(
+  profile: OnboardingProfile | undefined,
+  refType: string | undefined,
+  shots: ShotBlueprint[]
+): AdaptedPlan {
+  const userTopic =
+    profile?.contentTypes[0]?.replace(/ /g, "") ||
+    profile?.audience ||
+    "你的主题";
+  const adapted: AdaptedShot[] = shots.map((s) => {
+    const pool = ADAPT_PHASE_POOL[s.phase] || ADAPT_PHASE_POOL["展开①"];
+    return {
+      index: s.index,
+      phase: s.phase,
+      reference: s.visual + "｜" + s.line,
+      yourVersion: pool.version(userTopic),
+      howToFilm: pool.steps.slice(),
+      difficulty: s.difficulty,
+    };
+  });
+  const note =
+    profile?.level === "novice"
+      ? "你是新手，先把「钩子 → 收尾」这 6 个镜头照抄下来拍，别追求原创；每个镜头按步骤执行，先跑通一条 60 秒的视频再说。"
+      : "这 6 个镜头是参考视频的骨架。你不需要逐帧复刻，按「你的版本」替换内容，保留节奏和运镜，就能做出结构相似但属于你的视频。";
+  return { userTopic, note, shots: adapted };
+}
+
 export function generateMockReport(input: {
   source?: string;
   title?: string;
@@ -347,6 +480,7 @@ export function generateMockReport(input: {
     views: rand(80, 520) * 10000,
   };
   const durationSec = parseDurationToSec(meta.duration);
+  const storyboard = generateShotBlueprint(meta.type, userTitle);
 
   return {
     id: randomId(),
@@ -364,16 +498,46 @@ export function generateMockReport(input: {
     repro: generateRepro(input.profile),
     signal: mockReferenceSignal(input.source, meta.type),
     scoreTarget: generateScoreTarget(score),
+    storyboard,
+    adaptedPlan: generateAdaptedPlan(input.profile, meta.type, storyboard),
     createdAt: new Date().toISOString(),
   };
 }
 
 /** 给真实模型使用的提示词：要求返回结构化 JSON */
-export function buildPrompt(input: { source?: string; title?: string }): string {
+export function buildPrompt(input: {
+  source?: string;
+  title?: string;
+  profile?: OnboardingProfile;
+  refType?: string;
+  visualSummary?: string;
+  transcript?: string;
+}): string {
   const title = input.title?.trim() || "（未提供标题，请根据内容推断）";
+  const userTopic =
+    input.profile?.contentTypes?.slice(0, 2).join("、") ||
+    input.profile?.audience ||
+    "用户未填写主题";
+  const refType = input.refType?.trim() || "（未指定，请按视频内容判断）";
+  const visual = input.visualSummary?.trim();
+  const transcript = input.transcript?.trim();
   return `请分析以下短视频并生成「爆款拆解报告」。
 视频来源：${input.source || "（用户上传的视频文件）"}
 视频标题：${title}
+参考视频类型：${refType}
+用户想做的内容方向：${userTopic}
+${
+  visual
+    ? `真实画面理解（由视觉模型逐帧提取，是你判断「画面」的唯一依据，务必结合它分析镜头、运镜、视觉节奏）：
+${visual}`
+    : "（本次没有画面理解数据：画面相关分析请基于类型与常识合理推断，并诚实标注不确定性）"
+}
+${
+  transcript
+    ? `真实语音转写（由 Qwen-Audio 提取，是你判断「文案/台词/口播」的唯一依据，务必引用其中的关键台词）：
+${transcript}`
+    : "（本次没有语音转写数据：文案相关分析请基于类型与常识合理推断）"
+}
 
 请严格只返回一个 JSON 对象，结构如下（不要包含任何解释文字）：
 {
@@ -408,6 +572,12 @@ export function buildPrompt(input: { source?: string; title?: string }): string 
     "beatSync": boolean,
     "segments": [ { "time": string, "label": string, "durationSec": number } ],
     "suggestion": string
+  },
+  "storyboard": [ { "index": number, "time": string, "phase": "钩子"|"铺垫"|"展开"|"高潮"|"收尾", "scene": string, "visual": string, "line": string, "camera": string, "sfx": string, "why": string, "difficulty": "易"|"中"|"难" } ]（6-8 个镜头：把这条视频拆成一镜一镜怎么拍，line 为可直接照念的台词，why 说明这一镜的目的）,
+  "adaptedPlan": {
+    "userTopic": string（用户想做的内容方向）,
+    "note": string（整体改造说明，40-80 字）,
+    "shots": [ { "index": number, "phase": string, "reference": string, "yourVersion": string（换成用户主题后这一镜拍什么）, "howToFilm": string[2-3]（手把手步骤：具体到机位/动作/文案）, "difficulty": "易"|"中"|"难" } ]
   }
 }
 评分均为 0-100 的整数，overall 为其余四项的平均值（四舍五入）。golden3s / emotionCurve / formula 为《爆款导演拆解报告》的核心三段（黄金3秒 / 情绪曲线 / 爆款公式提炼）。`;

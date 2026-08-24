@@ -169,6 +169,9 @@ export default function LibraryPage() {
         <p className="mt-3 text-muted-foreground">
           精选各品类爆款，AI 拆解其结构与可复制方法。登录后可收藏案例、或贡献你见过的爆款。
         </p>
+        <p className="mx-auto mt-3 max-w-xl rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+          当前案例库中的示例案例为演示数据（用于展示功能），不代表真实爆款视频；你投稿的案例会如实展示来源。
+        </p>
       </div>
 
       {/* 分类筛选 + 贡献 */}

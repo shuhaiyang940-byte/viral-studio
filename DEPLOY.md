@@ -1,5 +1,44 @@
 # 爆款研究所 · 部署速查卡（照抄即用）
 
+> **项目维护：由 Codex 接管（2026-08 起）。** 本卡用于把代码部署到 Vercel + Neon；
+> 视频分析已服务器化（Blob 直传 + Qwen-VL 视频 URL 理解 + Qwen-Audio 转写），
+> 不依赖本机 ffmpeg / 文件系统。
+
+---
+
+## 当前实际状态（2026-08-24 已由 Codex 直接部署）
+
+**生产地址（稳定别名，每次部署自动指向最新版）：https://viral-studio-ai-shymax-8351.vercel.app**
+
+| 项目 | 状态 |
+|------|------|
+| Vercel 部署 | ✅ 已完成（构建 56s，状态 Ready，生产环境） |
+| Vercel 项目 ID | `prj_E2DlXeNSKKoy56CGC9X8VcOi1Awr` |
+| 最新部署 ID | `dpl_4rwk1iiA5h5Xsna8QRReiXmRmDe9`（每次 deploy 会更新） |
+| 环境变量 | ✅ 已配置（JWT/SEED/ADMIN/Qwen/DeepSeek/配额/SITE_URL 等） |
+| Vercel Blob 存储 | ✅ 已创建 `store_61EvkMjcNPUj2GcD`（新加坡 sin1，公共读），`BLOB_READ_WRITE_TOKEN` 已自动注入 |
+| Neon 数据库 | ✅ 已配置 `DATABASE_URL`（生产环境，加密存储），10 张表已建好 |
+| 种子数据 | ✅ 已导入（12 案例 + 14 对标），用 `scripts/seed-neon.ts` 本地直连执行 |
+| 邮件（Resend） | ⏳ 用户已决定上线前再注册，当前未配置（线上验证邮件会走降级提示） |
+
+> 本地直连 Neon 灌种子（被墙环境下替代 `/api/seed`）：
+> ```bash
+> cd /Users/maxshy/WorkBuddy/2026-08-05-12-16-11
+> DATABASE_URL="postgresql://你的连接串" npx tsx scripts/seed-neon.ts
+> ```
+
+重新部署命令（本机）：
+```bash
+cd /Users/maxshy/WorkBuddy/2026-08-05-12-16-11
+vercel deploy --prod --yes --token "$VERCEL_TOKEN"
+```
+
+> ⚠️ 本机（国内网络）无法直连 `*.vercel.app` 域名（TLS 被重置）。
+> 线上验证请用浏览器/手机流量打开，或到 Vercel Dashboard 看部署与日志。
+> 若面向国内用户，建议后续绑自有域名并评估线路（Vercel 默认域名在国内不可达）。
+
+---
+
 > 在你自己电脑的 **Terminal.app** 里依次执行以下命令。
 > 每条命令都是完整的，复制粘贴回车即可。
 

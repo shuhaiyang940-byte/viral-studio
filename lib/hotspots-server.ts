@@ -5,10 +5,9 @@
 //     网站内只持久化「标题级」轻量记录；用户点击进入后才按需生成并落盘「详情」。
 //  3) 懒详情：GET /api/hotspots?mode=detail&id= 仅在被点击时生成结构化创作参考，并写入 data/hotspot-details.json。
 
-import fs from "node:fs";
-import path from "node:path";
 import type { Hotspot, HotspotCat, HotspotTitle, HotspotDetail } from "@/lib/hotspots";
 import { reasoningChat, isConfigured } from "@/lib/llm";
+import { kvGet, kvSet } from "@/lib/kv";
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
@@ -16,10 +15,10 @@ const UA =
 const DAYS_KEEP = 30;
 const PER_DAY_CAP = 60;
 
-const HISTORY_PATH = path.join(process.cwd(), "data", "hotspots-history.json");
-const DETAILS_PATH = path.join(process.cwd(), "data", "hotspot-details.json");
-const CACHE_PATH = path.join(process.cwd(), "data", "hotspots-cache.json");
 const TTL_MS = 10 * 60 * 1000;
+const K_HISTORY = "hotspots:history";
+const K_DETAILS = "hotspots:details";
+const K_CACHE = "hotspots:cache";
 
 interface RawHot {
   title: string;
@@ -330,17 +329,18 @@ interface HistoryFile {
   days: Record<string, HotspotTitle[]>;
 }
 
-function loadHistory(): HistoryFile {
+async function loadHistory(): Promise<HistoryFile> {
+  const raw = await kvGet(K_HISTORY);
+  if (!raw) return { version: 1, days: {} };
   try {
-    return JSON.parse(fs.readFileSync(HISTORY_PATH, "utf8")) as HistoryFile;
+    return JSON.parse(raw) as HistoryFile;
   } catch {
     return { version: 1, days: {} };
   }
 }
 
-function saveHistory(h: HistoryFile) {
-  fs.mkdirSync(path.dirname(HISTORY_PATH), { recursive: true });
-  fs.writeFileSync(HISTORY_PATH, JSON.stringify(h));
+function saveHistory(h: HistoryFile): Promise<void> {
+  return kvSet(K_HISTORY, JSON.stringify(h));
 }
 
 function todayKey(): string {
@@ -362,8 +362,8 @@ function toTitle(it: Hotspot, day: string): HotspotTitle {
 }
 
 // 把「今日」快照并入历史，并裁剪超过 30 天的旧数据。
-function mergeToday(items: Hotspot[]): HistoryFile {
-  const h = loadHistory();
+async function mergeToday(items: Hotspot[]): Promise<HistoryFile> {
+  const h = await loadHistory();
   const day = todayKey();
   const existing = new Map((h.days[day] || []).map((t) => [t.id, t]));
   for (const it of items) {
@@ -374,7 +374,7 @@ function mergeToday(items: Hotspot[]): HistoryFile {
   const cutoff = new Date(Date.now() - DAYS_KEEP * 86400000).toISOString().slice(0, 10);
   for (const k of Object.keys(h.days)) if (k < cutoff) delete h.days[k];
 
-  saveHistory(h);
+  await saveHistory(h);
   return h;
 }
 
@@ -429,8 +429,8 @@ const SEED_POOL: { title: string; category: HotspotCat }[] = [
   { title: "医保异地结算怎么操作", category: "社会" },
 ];
 
-function ensureSeed() {
-  const h = loadHistory();
+async function ensureSeed() {
+  const h = await loadHistory();
   const has = Object.values(h.days).some((arr) => arr.length > 0);
   if (has) return;
 
@@ -455,13 +455,13 @@ function ensureSeed() {
       } as HotspotTitle;
     });
   }
-  saveHistory(h);
+  await saveHistory(h);
 }
 
 /* ----------------------------- 懒详情 ----------------------------- */
 
-function findTitle(id: string): HotspotTitle | undefined {
-  const h = loadHistory();
+async function findTitle(id: string): Promise<HotspotTitle | undefined> {
+  const h = await loadHistory();
   for (const day of Object.keys(h.days)) {
     const f = h.days[day].find((t) => t.id === id);
     if (f) return f;
@@ -469,17 +469,18 @@ function findTitle(id: string): HotspotTitle | undefined {
   return undefined;
 }
 
-function loadDetails(): Record<string, HotspotDetail> {
+async function loadDetails(): Promise<Record<string, HotspotDetail>> {
+  const raw = await kvGet(K_DETAILS);
+  if (!raw) return {};
   try {
-    return JSON.parse(fs.readFileSync(DETAILS_PATH, "utf8")) as Record<string, HotspotDetail>;
+    return JSON.parse(raw) as Record<string, HotspotDetail>;
   } catch {
     return {};
   }
 }
 
-function saveDetails(d: Record<string, HotspotDetail>) {
-  fs.mkdirSync(path.dirname(DETAILS_PATH), { recursive: true });
-  fs.writeFileSync(DETAILS_PATH, JSON.stringify(d));
+function saveDetails(d: Record<string, HotspotDetail>): Promise<void> {
+  return kvSet(K_DETAILS, JSON.stringify(d));
 }
 
 const ANGLES: Record<HotspotCat, string[]> = {
@@ -542,18 +543,18 @@ function buildDetail(r: HotspotTitle): HotspotDetail {
  * 懒加载热点详情：仅在被点击时调用。命中已有详情则累加点击数直接返回；
  * 否则生成结构化创作参考并落盘（data/hotspot-details.json）后返回。
  */
-export function getDetail(id: string): HotspotDetail | null {
-  const title = findTitle(id);
+export async function getDetail(id: string): Promise<HotspotDetail | null> {
+  const title = await findTitle(id);
   if (!title) return null;
-  const details = loadDetails();
+  const details = await loadDetails();
   if (details[id]) {
     details[id].clicks = (details[id].clicks || 0) + 1;
-    saveDetails(details);
+    await saveDetails(details);
     return details[id];
   }
   const d = buildDetail(title);
   details[id] = d;
-  saveDetails(details);
+  await saveDetails(details);
   return d;
 }
 
@@ -567,7 +568,7 @@ export interface HotspotsPayload {
 }
 
 export async function getHotspots(force = false): Promise<HotspotsPayload> {
-  ensureSeed();
+  await ensureSeed();
 
   let items: Hotspot[] = [];
   let sources: Record<string, "ok" | "fail"> = {};
@@ -576,7 +577,8 @@ export async function getHotspots(force = false): Promise<HotspotsPayload> {
 
   if (!force) {
     try {
-      const f = JSON.parse(fs.readFileSync(CACHE_PATH, "utf8"));
+      const raw = await kvGet(K_CACHE);
+      const f = raw ? JSON.parse(raw) : null;
       if (Date.now() - new Date(f.updatedAt).getTime() < TTL_MS && Array.isArray(f.items)) {
         items = f.items as Hotspot[];
         sources = f.sources || {};
@@ -593,16 +595,11 @@ export async function getHotspots(force = false): Promise<HotspotsPayload> {
     items = c.items;
     sources = c.sources;
     const payload = { updatedAt: new Date().toISOString(), items, sources };
-    try {
-      fs.mkdirSync(path.dirname(CACHE_PATH), { recursive: true });
-      fs.writeFileSync(CACHE_PATH, JSON.stringify(payload));
-    } catch {
-      /* 写缓存失败不致命 */
-    }
+    await kvSet(K_CACHE, JSON.stringify(payload));
   }
 
   // 无论是否命中缓存，都把今日快照并入历史（保持时间轴新鲜）
-  const history = mergeToday(items);
+  const history = await mergeToday(items);
 
   return {
     updatedAt: cacheHit ? cachedUpdatedAt : new Date().toISOString(),

@@ -12,6 +12,7 @@ npm-debug.log*
 !.env.example
 .vercel
 next-env.d.ts
+tsconfig.tsbuildinfo
 
 # 运行时生成的爬虫历史 / 详情 / 缓存（非源码）
 /data/hotspots-*.json
@@ -27,3 +28,4 @@ next-env.d.ts
 # 会话产物（Artifacts 报告，非源码）
 overview.md
 *-overview.md
+.env*

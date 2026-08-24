@@ -5,6 +5,10 @@ import { analyzeWithProvider } from "./providers";
 export interface AnalyzeInput {
   source?: string;
   title?: string;
+  /** 真实视频理解产出的视觉摘要（上传模式），无则忽略 */
+  visualSummary?: string;
+  /** 语音转写文本（Qwen-Audio），无则忽略 */
+  transcript?: string;
   /** 新手摸底档案，用于个性化建议；真实模型路径也会透传 */
   profile?: OnboardingProfile;
   /** 参考视频类型（演示模式由用户指定，让方向匹配判定确定可控；真实模型可由视频识别覆盖） */

@@ -6,6 +6,7 @@ import {
   type GeneratedCopy,
 } from "@/lib/copywrite";
 import { reasoningChat, isConfigured } from "@/lib/llm";
+import { guardAiRequest } from "@/lib/ai-guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +50,8 @@ function buildSystemPrompt(b: CopyBrief): string {
 }
 
 export async function POST(req: NextRequest) {
+  const g = await guardAiRequest(req, "copy");
+  if (!g.ok) return g.res;
   const b = (await req.json().catch(() => ({}))) as CopyBrief;
 
   // 无 DeepSeek Key → 直接走本地模板，保证永远可生成。
