@@ -103,7 +103,9 @@ function templateBlueprint(text: string): Blueprint {
   return {
     hook_type: "反常识 / 悬念前置",
     hook_analysis: "开头先抛一个让用户觉得「咦？跟我想的不一样」的点，制造好奇，把人留住。",
-    core_pain_points: ["做这件事没有效果", "不知道怎么下手"],
+    core_pain_points: t
+      ? [`从「${t}」看，核心是没把它讲透、也没给可操作步骤`, "用户看完不知道该怎么做"]
+      : ["做这件事没有效果", "不知道怎么下手"],
     narrative_structure: [
       { stage: "前3秒吸引", key_content: "痛点 / 悬念", emotion: "好奇" },
       { stage: "中段信任搭建", key_content: "干货 / 真实案例", emotion: "认可" },
