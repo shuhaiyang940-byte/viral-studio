@@ -26,6 +26,55 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TeleprompterButton } from "@/components/teleprompter-modal";
 
+/**
+ * 展示层归一化：兼容两种生成结果结构。
+ *  - /api/viral-engine（粘贴文案三段流水线）返回 { blueprint, script, storyboard, ... }
+ *  - /api/flow/start（从分析继续创作）返回 { hook, title, body, cta, shots, tips, ... }（RepurposeResult）
+ * 页面统一按 { blueprint, script, storyboard } 渲染；这里只做视图适配，不改变已保存的 asset。
+ */
+function normalizeEngine(r: any): any {
+  if (r && r.blueprint && Array.isArray(r.script)) return r; // viral-engine 原生结构
+  const body = Array.isArray(r?.body) ? (r.body as string[]) : [];
+  const shots = Array.isArray(r?.shots) ? r.shots : [];
+  const script = [
+    ...(r?.hook ? [{ text: r.hook, mood: "开场" }] : []),
+    ...body.map((t) => ({ text: t, mood: "" })),
+    ...(r?.cta ? [{ text: r.cta, mood: "收尾" }] : []),
+  ];
+  const rows = shots.map((s: any, i: number) => ({
+    no: String(i + 1).padStart(2, "0"),
+    shot: s.visual || "",
+    line: s.line || "",
+    cue: s.visual || "",
+    sfx: s.sfx || "",
+  }));
+  const blueprint = {
+    hook_type: "黄金3秒 · 爆款基因组重组",
+    hook_analysis: r?.hook || "基于对标爆款的结构，替换成你的主题。",
+    core_pain_points: [] as string[],
+    narrative_structure: shots.map((s: any) => ({
+      stage: s.phase || "段落",
+      key_content: s.visual || s.line || "",
+      emotion: s.tone || "自然，像聊天",
+    })),
+    replaceable_slots: {
+      product_slot: "",
+      target_audience_slot: "",
+      problem_slot: "",
+    },
+  };
+  return {
+    ...r,
+    blueprint,
+    script,
+    storyboard: {
+      rows,
+      notes: shots.map((s: any) => s.pitfall).filter(Boolean),
+      bgm: shots[0]?.sfx,
+    },
+  };
+}
+
 function ReengineerInner() {
   const sp = useSearchParams();
   const [form, setForm] = React.useState({
@@ -70,7 +119,7 @@ function ReengineerInner() {
         setError(data.error || "生成失败，请稍后重试");
         return;
       }
-      setResult(data);
+      setResult(normalizeEngine(data));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
       setError("网络异常，请检查连接后重试");
@@ -437,10 +486,27 @@ function EngineResult({
                     <span>
                       <span className="font-medium">{c.phase}</span> · {c.visual}
                       {c.line ? ` · ${c.line}` : ""}
+                      {c.camera ? ` · 机位：${c.camera}` : ""}
                     </span>
                   </div>
                 ))}
               </div>
+              {plan.order && plan.order.length > 0 && (
+                <p className="mt-3 rounded-md bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  <span className="font-semibold text-foreground">拍摄顺序：</span>
+                  {plan.order.join(" → ")}
+                </p>
+              )}
+              {plan.postTips && plan.postTips.length > 0 && (
+                <div className="mt-3 space-y-1">
+                  <p className="text-xs font-semibold text-foreground">后期与拍摄注意</p>
+                  <ul className="list-disc space-y-0.5 pl-5 text-xs text-muted-foreground">
+                    {plan.postTips.map((t: string, i: number) => (
+                      <li key={i}>{t}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

@@ -37,17 +37,31 @@ export async function POST(req: NextRequest) {
       if (!sb || sb.type !== "storyboard") {
         return NextResponse.json({ error: "分镜资产不存在" }, { status: 404 });
       }
-      const shots: any[] = Array.isArray((sb.payload as any)?.shots) ? (sb.payload as any).shots : [];
+      // 兼容两种分镜资产结构：flow 链路存 { shots: RepurposeShot[] }，viral-engine 链路存 { rows: StoryboardRow[] }
+      const raw = (sb.payload as any) || {};
+      const rawShots: any[] = Array.isArray(raw.shots) ? raw.shots : [];
+      const rawRows: any[] = Array.isArray(raw.rows) ? raw.rows : [];
+      const shots: any[] = rawShots.length ? rawShots : rawRows;
+      const clips = shots.map((s, i) => ({
+        id: `clip-${Date.now()}-${i}`,
+        no: String(i + 1).padStart(2, "0"),
+        phase: s.phase || s.shot || `镜头 ${i + 1}`,
+        durationSec: s.durationSec || 8,
+        visual: s.visual || s.cue || s.shot || "中景，对着镜头讲",
+        line: s.line || "",
+        sfx: s.sfx || "",
+        camera: s.camera || (typeof s.shot === "string" ? s.shot : "手机固定机位"),
+        note: s.pitfall || s.note || "",
+      }));
       const plan = {
         meta: { title: sb.title || "拍摄计划", source: "storyboard" },
-        clips: shots.map((s, i) => ({
-          id: `clip-${Date.now()}-${i}`,
-          phase: s.phase,
-          durationSec: s.durationSec || 8,
-          visual: s.visual,
-          line: s.line,
-          sfx: s.sfx,
-        })),
+        order: clips.map((c) => `${c.no}. ${c.phase}`),
+        clips,
+        postTips: [
+          "先拍重头镜，保证情绪连贯，别按剧本顺序硬拍。",
+          "成片建议 15~30 秒节奏，前 3 秒务必给足钩子。",
+          "竖屏与平台一致（抖音/小红书建议 9:16），口播音量统一。",
+        ],
         parentAssetId: storyboardAssetId,
         assetId: `plan:${user.id}`,
       };
