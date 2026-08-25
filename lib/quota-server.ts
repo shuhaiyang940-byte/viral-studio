@@ -163,3 +163,34 @@ export async function logUsage(entry: {
     console.warn("[quota] log 失败（不影响主流程）：", e);
   }
 }
+
+/* ─────────── 生成类（脚本/分镜/文案等 AI 成本）配额 ───────────
+ * 临时测试额度（非最终商业额度）：FREE=20 / CREATOR=50 / PRO=200 次每日。
+ * 通过环境变量覆盖：FREE_GENERATE_DAILY_LIMIT / CREATOR_GENERATE_DAILY_LIMIT / PRO_GENERATE_DAILY_LIMIT。
+ */
+export function generateLimitFor(tier: string | undefined | null): number {
+  if (tier === "pro" || tier === "studio") return intEnv("PRO_GENERATE_DAILY_LIMIT", 200);
+  if (tier === "creator") return intEnv("CREATOR_GENERATE_DAILY_LIMIT", 50);
+  return intEnv("FREE_GENERATE_DAILY_LIMIT", 20);
+}
+
+/** 原子消耗一次生成配额（按 operation 区分）；超限回退并返回失败 */
+export async function consumeGenerationQuota(
+  userId: string,
+  operation: string,
+  tier: string | undefined | null
+): Promise<{ ok: boolean; remaining: number; limit: number }> {
+  const limit = generateLimitFor(tier);
+  const key = `gen:${operation}:user:${userId}:`;
+  const count = await consumeQuota(key);
+  if (count > limit) {
+    await refundQuota(key);
+    return { ok: false, remaining: 0, limit };
+  }
+  return { ok: true, remaining: limit - count, limit };
+}
+
+/** AI 失败时回退一次生成配额 */
+export async function refundGenerationQuota(userId: string, operation: string): Promise<void> {
+  await refundQuota(`gen:${operation}:user:${userId}:`);
+}

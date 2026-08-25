@@ -31,6 +31,7 @@ function ReengineerInner() {
     product: sp.get("product") || "",
     persona: sp.get("persona") || "",
     platform: sp.get("platform") || "抖音",
+    parentAssetId: sp.get("parentAssetId") || "",
   });
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -41,6 +42,10 @@ function ReengineerInner() {
     setBusy(true);
     setError(null);
     try {
+      const requestId =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const res = await fetch("/api/viral-engine", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -49,6 +54,8 @@ function ReengineerInner() {
           product: form.product.trim(),
           persona: form.persona.trim() || undefined,
           platform: form.platform.trim() || undefined,
+          requestId,
+          parentAssetId: form.parentAssetId.trim() || undefined,
         }),
       });
       const data = await res.json();

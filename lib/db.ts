@@ -135,6 +135,7 @@ CREATE TABLE IF NOT EXISTS assets (
   user_id TEXT NOT NULL,
   type TEXT NOT NULL,
   asset_id TEXT NOT NULL,
+  parent_asset_id TEXT,
   title TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'completed',
   payload JSONB NOT NULL DEFAULT '{}',
@@ -144,6 +145,15 @@ CREATE TABLE IF NOT EXISTS assets (
 );
 CREATE INDEX IF NOT EXISTS idx_assets_user ON assets(user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_assets_user_type ON assets(user_id, type, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assets_parent ON assets(parent_asset_id);
+ALTER TABLE assets ADD COLUMN IF NOT EXISTS parent_asset_id TEXT;
+CREATE TABLE IF NOT EXISTS gen_dedupe (
+  request_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'processing',
+  asset_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 -- 旧库兼容：engagement_rate 从 INTEGER 升级为 DOUBLE PRECISION（种子数据为 6.4~11.2 的百分数）
 ALTER TABLE benchmarks ALTER COLUMN engagement_rate TYPE DOUBLE PRECISION;
 `;

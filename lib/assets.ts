@@ -5,13 +5,14 @@
 
 import { q, hasDatabase } from "./db";
 
-export type AssetType = "analysis" | "storyboard" | "edit_plan" | "replica" | "copywriting" | "director";
+export type AssetType = "analysis" | "script" | "storyboard" | "edit_plan" | "replica" | "copywriting" | "director";
 
 export interface AssetRecord {
   id: string;
   userId: string;
   type: AssetType;
   assetId: string;
+  parentAssetId: string | null;
   title: string;
   status: "completed" | "processing" | "failed" | "deleted";
   createdAt: string;
@@ -25,6 +26,7 @@ function rowToAsset(r: any): AssetRecord {
     userId: r.user_id,
     type: r.type,
     assetId: r.asset_id,
+    parentAssetId: r.parent_asset_id ?? null,
     title: r.title,
     status: r.status,
     createdAt: r.created_at,
@@ -38,6 +40,7 @@ export async function saveAsset(input: {
   userId: string;
   type: AssetType;
   assetId: string;
+  parentAssetId?: string | null;
   title?: string;
   status?: "completed" | "processing" | "failed" | "deleted";
   payload?: unknown;
@@ -45,11 +48,11 @@ export async function saveAsset(input: {
   if (!hasDatabase()) return;
   const id = input.assetId; // 复用 assetId 作为行 id，保持稳定可关联
   await q(
-    `INSERT INTO assets (id, user_id, type, asset_id, title, status, payload)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO assets (id, user_id, type, asset_id, parent_asset_id, title, status, payload)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (user_id, type, asset_id) DO UPDATE SET
-       title = EXCLUDED.title, status = EXCLUDED.status, payload = EXCLUDED.payload, updated_at = now()`,
-    [id, input.userId, input.type, input.assetId, input.title ?? "", input.status ?? "completed", JSON.stringify(input.payload ?? {})]
+       parent_asset_id = EXCLUDED.parent_asset_id, title = EXCLUDED.title, status = EXCLUDED.status, payload = EXCLUDED.payload, updated_at = now()`,
+    [id, input.userId, input.type, input.assetId, input.parentAssetId ?? null, input.title ?? "", input.status ?? "completed", JSON.stringify(input.payload ?? {})]
   );
 }
 
@@ -74,7 +77,7 @@ export async function listAssets(opts: {
   }
   params.push(limit);
   const rows = await q(
-    `SELECT id, user_id, type, asset_id, title, status, payload, created_at, updated_at
+    `SELECT id, user_id, type, asset_id, parent_asset_id, title, status, payload, created_at, updated_at
      FROM assets WHERE ${where} ORDER BY updated_at DESC LIMIT $${params.length}`,
     params
   );
@@ -87,7 +90,7 @@ export async function listAssets(opts: {
 export async function getAsset(userId: string, assetId: string): Promise<AssetRecord | null> {
   if (!hasDatabase()) return null;
   const rows = await q(
-    `SELECT id, user_id, type, asset_id, title, status, payload, created_at, updated_at
+    `SELECT id, user_id, type, asset_id, parent_asset_id, title, status, payload, created_at, updated_at
      FROM assets WHERE asset_id = $1 AND user_id = $2 LIMIT 1`,
     [assetId, userId]
   );
