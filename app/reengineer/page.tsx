@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   Sparkles,
   FileText,
@@ -21,12 +23,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-export default function ReengineerPage() {
+function ReengineerInner() {
+  const sp = useSearchParams();
   const [form, setForm] = React.useState({
-    text: "",
-    product: "",
-    persona: "",
-    platform: "抖音",
+    text: sp.get("text") || "",
+    product: sp.get("product") || "",
+    persona: sp.get("persona") || "",
+    platform: sp.get("platform") || "抖音",
   });
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -153,6 +156,14 @@ export default function ReengineerPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function ReengineerPage() {
+  return (
+    <Suspense fallback={null}>
+      <ReengineerInner />
+    </Suspense>
   );
 }
 

@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
       niche,
       contentType: body.contentType as "sell" | "talk",
       platform: body.platform ? String(body.platform).trim() : undefined,
+      account: body.account ? String(body.account).trim().slice(0, 200) : undefined,
       followers: num(body.followers),
       engagementRate: num(body.engagementRate),
       avgPlays: num(body.avgPlays),

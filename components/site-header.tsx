@@ -28,18 +28,9 @@ export function SiteHeader() {
         <Logo />
         <nav className="hidden items-center gap-8 md:flex">
           {[
-            { label: "首页", href: "/" },
-            { label: "爆款拆解", href: "/analyze" },
-            { label: "找对标", href: "/find-peer" },
-            { label: "对标画布", href: "/studio" },
-            { label: "账号诊所", href: "/clinic" },
-            { label: "爆款搬运", href: "/reengineer" },
-            { label: "AI写文案", href: "/copywriting" },
-            { label: "案例库", href: "/library" },
-            { label: "公式库", href: "/formulas" },
-            { label: "复刻助手", href: "/replicate" },
-            { label: "定价", href: "/pricing" },
-            { label: "帮助中心", href: "/help" },
+            { label: "拆爆款复刻", href: "/studio" },
+            { label: "找对标黑马", href: "/find-peer" },
+            { label: "账号诊断所", href: "/clinic" },
           ].map((n) => (
             <Link
               key={n.label}
@@ -89,7 +80,7 @@ export function SiteHeader() {
                 <Link href="/login">登录</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href="/demo">免费体验</Link>
+                <Link href="/studio">开始创作</Link>
               </Button>
             </>
           )}

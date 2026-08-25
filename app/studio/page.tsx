@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import {
   Search,
-  Flame,
   Crown,
   Wand2,
   Type,
@@ -17,60 +18,47 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { BENCHMARKS, blackHorseIndex } from "@/lib/benchmarks";
+import { PLAYBOOKS, type Playbook } from "@/lib/benchmarks";
 import { SideBySideScriptEditor, type EditorMine, type EditorSkeleton } from "@/components/side-by-side-editor";
 import { BlurredVipUnlockCard } from "@/components/blurred-vip-unlock";
 
 const PILLS = ["知识口播", "美妆种草", "数码带货", "创业干货"];
 
-function skeletonFrom(a: (typeof BENCHMARKS)[number]): EditorSkeleton {
+function skeletonFrom(p: Playbook): EditorSkeleton {
   return {
-    hook: `（开场）「${a.sampleTitle || a.reason}」——关于${a.name}，跟你说点不一样的。`,
-    structure: [
-      { phase: "前3秒 Hook", detail: "直球反常识，戳中「做了没用」", secs: 3 },
-      { phase: "痛点插槽", detail: a.reason, secs: 8 },
-      { phase: "信任搭建", detail: "给出可操作的三步", secs: 12 },
-      { phase: "CTA", detail: "行动号召，引导互动", secs: 7 },
-    ],
+    hook: p.hook,
+    structure: p.structure.map((seg) => ({ phase: seg.phase, detail: seg.detail, secs: seg.secs })),
   };
 }
 
-export default function StudioPage() {
+function StudioInner() {
+  const sp = useSearchParams();
   const [query, setQuery] = React.useState("");
-  const [selected, setSelected] = React.useState<(typeof BENCHMARKS)[number]>(BENCHMARKS[0]);
+  const [selected, setSelected] = React.useState<Playbook>(PLAYBOOKS[0]);
   const [pill, setPill] = React.useState(PILLS[0]);
-  const [product, setProduct] = React.useState("");
-  const [platform, setPlatform] = React.useState("抖音");
+  const [product, setProduct] = React.useState(sp.get("product") || "");
+  const [platform, setPlatform] = React.useState(sp.get("platform") || "抖音");
   const [sliders, setSliders] = React.useState({ casual: 70, emotion: 60, duration: 45 });
   const [busy, setBusy] = React.useState(false);
   const [mine, setMine] = React.useState<any>(null);
   const [error, setError] = React.useState<string | null>(null);
 
-  const list = BENCHMARKS.filter(
-    (a) => !query || a.name.includes(query) || (a.styles || []).some((s) => s.includes(query))
+  const list = PLAYBOOKS.filter(
+    (i) => !query || i.title.includes(query) || i.categories.some((c) => c.includes(query))
   );
   const skeleton = React.useMemo(() => skeletonFrom(selected), [selected]);
 
   async function regenerate() {
-    if (!product.trim() && !selected.sampleTitle.trim()) return;
+    if (!product.trim() && !selected.title.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      const playbook = {
-        id: selected.id,
-        title: `${selected.name}·${selected.sampleTitle || "爆款"}`,
-        hook: skeleton.hook,
-        structure: skeleton.structure.map((s) => ({ phase: s.phase, secs: s.secs || 8, detail: s.detail })),
-        cameraTips: ["特写", "中景", "手部演示", "近景收尾"],
-        music: ["轻快 BGM"],
-        shots: ["开场", "素材", "步骤", "成品"],
-      };
       const res = await fetch("/api/repurpose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          playbook,
-          myTopic: product.trim() || selected.sampleTitle,
+          playbook: selected,
+          myTopic: product.trim() || selected.title,
           myPersona: "普通创作者",
           platform,
           casual: sliders.casual,
@@ -143,37 +131,29 @@ export default function StudioPage() {
 
       {/* 三栏主体 */}
       <div className="flex flex-1 overflow-hidden">
-        {/* 左栏：对标雷达 */}
+        {/* 左栏：爆款公式库 */}
         <aside className="w-72 shrink-0 overflow-y-auto border-r border-border/60 p-3">
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="搜对标账号 / 关键词"
-              className="pl-8"
-            />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜爆款公式 / 赛道" className="pl-8" />
           </div>
-          <p className="mb-2 px-1 text-xs font-medium text-muted-foreground">对标雷达</p>
+          <p className="mb-2 px-1 text-xs font-medium text-muted-foreground">爆款公式库</p>
           <div className="space-y-2">
-            {list.slice(0, 8).map((a) => (
+            {list.slice(0, 8).map((i) => (
               <motion.button
-                key={a.id}
+                key={i.id}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setSelected(a)}
+                onClick={() => setSelected(i)}
                 className={`w-full rounded-xl border p-3 text-left transition-colors ${
-                  selected.id === a.id ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card/40 hover:border-foreground/30"
+                  selected.id === i.id ? "border-primary/60 bg-primary/10" : "border-border/60 bg-card/40 hover:border-foreground/30"
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">{a.name}</span>
-                  <span className="text-[11px] text-muted-foreground">{a.followers}万粉</span>
-                </div>
-                <div className="mt-1 flex items-center gap-1.5">
-                  <Badge className="bg-orange-500/15 text-orange-600 dark:text-orange-300 text-[10px]">
-                    <Flame className="mr-0.5 h-3 w-3" /> 黑马 {blackHorseIndex(a)}x
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground">互动 {a.engagementRate}%</span>
+                <span className="text-sm font-semibold">{i.title}</span>
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{i.hook}</p>
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {i.categories.slice(0, 2).map((c) => (
+                    <Badge key={c} variant="secondary" className="text-[10px]">{c}</Badge>
+                  ))}
                 </div>
               </motion.button>
             ))}
@@ -258,5 +238,13 @@ export default function StudioPage() {
         </aside>
       </div>
     </div>
+  );
+}
+
+export default function StudioPage() {
+  return (
+    <Suspense fallback={null}>
+      <StudioInner />
+    </Suspense>
   );
 }

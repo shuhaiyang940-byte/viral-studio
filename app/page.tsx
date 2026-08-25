@@ -17,6 +17,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { UniversalConverter } from "@/components/universal-converter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadarChart } from "@/components/radar-chart";
@@ -254,42 +255,7 @@ export default function HomePage() {
         <div className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-16 sm:px-6 lg:grid-cols-2 lg:py-24 lg:gap-16">
           {/* 左侧文案 */}
           <div>
-            <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-[52px]">
-              把别人的爆款，
-              <br />
-              <span className="bg-gradient-to-r from-violet-600 to-purple-500 bg-clip-text text-transparent">
-                拆成你的镜头脚本
-              </span>
-            </h1>
-            <p className="mt-5 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-              上传一个爆款视频，AI 爆款导演帮你拆成一份能照着拍的分镜：
-              它为什么火、每一镜怎么拍、换成你的主题怎么改。
-              不追求一百分，先把你的三十分做到七十分。
-            </p>
-
-            <div className="mt-8 flex flex-wrap gap-4">
-              <Button asChild size="lg" className="gap-2 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700">
-                <Link href="/analyze">
-                  <CloudUpload className="h-4 w-4" /> 立即分析爆款视频
-                </Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/formulas">查看爆款公式库</Link>
-              </Button>
-            </div>
-
-            {/* 新手摸底入口（首页醒目位置） */}
-            <OnboardingCTA />
-
-            {/* 公测状态行 */}
-            <div className="mt-8 flex items-center gap-3">
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-medium text-primary">
-                <Sparkles className="h-3.5 w-3.5" /> 公测中 · 全站免费
-              </span>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
-                会员功能建设中
-              </span>
-            </div>
+            <UniversalConverter />
           </div>
 
           {/* 右侧报告预览 */}

@@ -30,6 +30,7 @@ export default function ClinicPage() {
     niche: "生活",
     contentType: "talk" as "sell" | "talk",
     platform: "",
+    account: "",
     followers: "",
     engagementRate: "",
     description: "",
@@ -53,6 +54,7 @@ export default function ClinicPage() {
           niche: form.niche,
           contentType: form.contentType,
           platform: form.platform.trim() || undefined,
+          account: form.account.trim() || undefined,
           followers: form.followers.trim() ? Number(form.followers) : undefined,
           engagementRate: form.engagementRate.trim() ? Number(form.engagementRate) : undefined,
           avgPlays: form.avgPlays.trim() ? Number(form.avgPlays) : undefined,
@@ -93,33 +95,29 @@ export default function ClinicPage() {
           <CardContent className="space-y-5 p-6">
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
+                <label className="mb-1 block text-xs font-medium">平台</label>
+                <select value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                  {["抖音", "小红书", "视频号", "B站", "TikTok"].map((pt) => (<option key={pt} value={pt}>{pt}</option>))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">账号名称 / 主页链接</label>
+                <Input value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} placeholder="如：@我的美食账号 或 主页链接" />
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
                 <label className="mb-1 block text-xs font-medium">赛道</label>
-                <select
-                  value={form.niche}
-                  onChange={(e) => setForm({ ...form, niche: e.target.value })}
-                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                >
-                  {NICHES.map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
+                <select value={form.niche} onChange={(e) => setForm({ ...form, niche: e.target.value })} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                  {NICHES.map((n) => (<option key={n} value={n}>{n}</option>))}
                 </select>
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium">内容类型</label>
                 <div className="flex gap-2">
                   {TYPES.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setForm({ ...form, contentType: t.id })}
-                      className={`flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${
-                        form.contentType === t.id
-                          ? "border-primary bg-primary/10 text-primary"
-                          : "border-border text-muted-foreground hover:border-foreground/30"
-                      }`}
-                    >
+                    <button key={t.id} type="button" onClick={() => setForm({ ...form, contentType: t.id })} className={`flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${form.contentType === t.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30"}`}>
                       {t.label}
                     </button>
                   ))}
@@ -127,83 +125,30 @@ export default function ClinicPage() {
               </div>
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium">发布平台（可选）</label>
-                <Input
-                  value={form.platform}
-                  onChange={(e) => setForm({ ...form, platform: e.target.value })}
-                  placeholder="如：抖音"
-                />
+            <details className="rounded-lg border border-border/70 bg-muted/20 p-3">
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">补充你的账号数据（可选，让诊断更准）</summary>
+              <div className="mt-3 space-y-3">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div><label className="mb-1 block text-xs font-medium">粉丝量·万</label><Input value={form.followers} onChange={(e) => setForm({ ...form, followers: e.target.value })} placeholder="如：12" inputMode="numeric" /></div>
+                  <div><label className="mb-1 block text-xs font-medium">互动率·%</label><Input value={form.engagementRate} onChange={(e) => setForm({ ...form, engagementRate: e.target.value })} placeholder="如：3.2" inputMode="decimal" /></div>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div><label className="mb-1 block text-xs font-medium">平均播放</label><Input value={form.avgPlays} onChange={(e) => setForm({ ...form, avgPlays: e.target.value })} placeholder="如：4200" inputMode="numeric" /></div>
+                  <div><label className="mb-1 block text-xs font-medium">平均点赞</label><Input value={form.avgLikes} onChange={(e) => setForm({ ...form, avgLikes: e.target.value })} placeholder="如：95" inputMode="numeric" /></div>
+                  <div><label className="mb-1 block text-xs font-medium">平均评论</label><Input value={form.avgComments} onChange={(e) => setForm({ ...form, avgComments: e.target.value })} placeholder="如：12" inputMode="numeric" /></div>
+                </div>
+                <div><label className="mb-1 block text-xs font-medium">账号近况</label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="做了 2 个月美食号，基本没人看…" rows={2} /></div>
+                <div><label className="mb-1 block text-xs font-medium">文案采样</label><Textarea value={form.sampleText} onChange={(e) => setForm({ ...form, sampleText: e.target.value })} placeholder="粘贴你最近一条视频的口播文案…" rows={2} /></div>
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium">粉丝量·万（可选）</label>
-                <Input
-                  value={form.followers}
-                  onChange={(e) => setForm({ ...form, followers: e.target.value })}
-                  placeholder="如：12"
-                  inputMode="numeric"
-                />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium">互动率·%（可选）</label>
-                <Input
-                  value={form.engagementRate}
-                  onChange={(e) => setForm({ ...form, engagementRate: e.target.value })}
-                  placeholder="如：3.2"
-                  inputMode="decimal"
-                />
-              </div>
-            </div>
+            </details>
 
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div>
-                <label className="mb-1 block text-xs font-medium">近20条·平均播放（可选）</label>
-                <Input value={form.avgPlays} onChange={(e) => setForm({ ...form, avgPlays: e.target.value })} placeholder="如：4200" inputMode="numeric" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium">近20条·平均点赞（可选）</label>
-                <Input value={form.avgLikes} onChange={(e) => setForm({ ...form, avgLikes: e.target.value })} placeholder="如：95" inputMode="numeric" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium">近20条·平均评论（可选）</label>
-                <Input value={form.avgComments} onChange={(e) => setForm({ ...form, avgComments: e.target.value })} placeholder="如：12" inputMode="numeric" />
-              </div>
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-medium">我最近的账号 / 选题情况（可选）</label>
-              <Textarea
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="例如：做了 2 个月美食号，基本没人看，剪了但不涨粉，想卖自制酱料…"
-                rows={3}
-              />
-            </div>
-
-            <div>
-              <label className="mb-1 block text-xs font-medium">文案采样（近 1~3 条真实文案，可选，越准越毒辣）</label>
-              <Textarea
-                value={form.sampleText}
-                onChange={(e) => setForm({ ...form, sampleText: e.target.value })}
-                placeholder="粘贴你最近一条视频的口播文案…"
-                rows={3}
-              />
-            </div>
-
-            {error && (
-              <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                {error}
-              </p>
-            )}
+            {error && (<p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>)}
 
             <Button onClick={run} disabled={loading} className="w-full gap-1.5">
               <Sparkles className="h-4 w-4" />
-              {loading ? "诊断中…" : "开始诊断"}
+              {loading ? "深度诊断中…" : "🔍 开始深度诊断"}
             </Button>
-            <p className="text-center text-[11px] text-muted-foreground">
-              填得越全，诊断越准；只填赛道也能先出初判。
-            </p>
+            <p className="text-center text-[11px] text-muted-foreground">只填账号/赛道就能先出初判；补充数据越全，诊断越毒辣。</p>
           </CardContent>
         </Card>
       ) : (

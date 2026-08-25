@@ -14,6 +14,8 @@ export interface ClinicInput {
   contentType: "sell" | "talk";
   /** 发布平台（可选） */
   platform?: string;
+  /** 账号名称 / 主页链接（极简入口，可选） */
+  account?: string;
   /** 粉丝量（万，可选） */
   followers?: number;
   /** 互动率（%，可选） */
@@ -227,7 +229,7 @@ export async function generateClinic(input: ClinicInput): Promise<ClinicResult> 
         "\"todoList\":[\"下周第1件事\",\"第2件事\",\"第3件事\"],\"actions\":[\"按优先级的动作\"]," +
         "\"dimensions\":[{\"key\":\"interaction\",\"label\":\"互动率\",\"yourValue\":\"你的值\",\"benchValue\":\"对标值\",\"status\":\"ok|gap|danger\",\"advice\":\"建议\"}],\"gaps\":[{\"title\":\"差距\",\"why\":\"为什么\",\"how\":\"怎么改\"}]}";
       const user =
-        `【我的账号】\n赛道：${input.niche}，类型：${input.contentType === "sell" ? "卖货" : "口播"}，平台：${input.platform || "未填"}\n粉丝：${input.followers ?? "未填"}万，互动率：${input.engagementRate ?? "未填"}%\n近20条：平均播放 ${input.avgPlays ?? "未填"}，平均点赞 ${input.avgLikes ?? "未填"}，平均评论 ${input.avgComments ?? "未填"}\n近况：${input.description || "未填"}\n文案采样：${input.sampleText || "未填"}\n\n【对标黑马】\n${benchText}`;
+        `【我的账号】\n赛道：${input.niche}，类型：${input.contentType === "sell" ? "卖货" : "口播"}，平台：${input.platform || "未填"}\n账号名/链接：${input.account || "未填"}\n粉丝：${input.followers ?? "未填"}万，互动率：${input.engagementRate ?? "未填"}%\n近20条：平均播放 ${input.avgPlays ?? "未填"}，平均点赞 ${input.avgLikes ?? "未填"}，平均评论 ${input.avgComments ?? "未填"}\n近况：${input.description || "未填"}\n文案采样：${input.sampleText || "未填"}\n\n【对标黑马】\n${benchText}`;
       const raw = await chat("deepseek", [
         { role: "system", content: system },
         { role: "user", content: user },
