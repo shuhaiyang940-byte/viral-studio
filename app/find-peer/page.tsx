@@ -610,6 +610,12 @@ export default function FindPeerPage() {
                       <Clapperboard className="h-4 w-4 text-primary" />
                       <h2 className="text-lg font-semibold">给你匹配的爆款套路</h2>
                       <Badge variant="secondary" className="text-[10px]">照着拍就能复刻</Badge>
+                      <Link
+                        href="/reengineer"
+                        className="ml-auto inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                      >
+                        没套路？粘贴文案三步拆解 <ChevronRight className="h-3 w-3" />
+                      </Link>
                     </div>
                     <div className="grid gap-4 sm:grid-cols-2">
                       {playbooks.map((p, idx) => (

@@ -1,0 +1,340 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import {
+  Sparkles,
+  FileText,
+  Table,
+  Copy,
+  Wand2,
+  AlertTriangle,
+  Music,
+  ChevronRight,
+  Layers,
+  Type,
+  Clapperboard,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+
+export default function ReengineerPage() {
+  const [form, setForm] = React.useState({
+    text: "",
+    product: "",
+    persona: "",
+    platform: "抖音",
+  });
+  const [busy, setBusy] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
+  const [result, setResult] = React.useState<any>(null);
+
+  async function run() {
+    if (!form.text.trim() || !form.product.trim()) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/viral-engine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: form.text.trim(),
+          product: form.product.trim(),
+          persona: form.persona.trim() || undefined,
+          platform: form.platform.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "生成失败，请稍后重试");
+        return;
+      }
+      setResult(data);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      setError("网络异常，请检查连接后重试");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function doExport(type: "txt" | "csv") {
+    if (!result) return;
+    const payload = {
+      title: form.product.trim() || "爆款复刻",
+      lines: (result.script || []).map((l: any) => ({ text: l.text, mood: l.mood })),
+      rows: (result.storyboard?.rows || []).map((r: any) => ({
+        no: r.no,
+        shot: r.shot,
+        line: r.line,
+        cue: r.cue,
+        sfx: r.sfx,
+      })),
+      notes: result.storyboard?.notes || [],
+      bgm: result.storyboard?.bgm,
+    };
+    const res = await fetch("/api/viral-engine/export", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ type, payload }),
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${payload.title}-${type === "txt" ? "提词器" : "分镜表"}.${type}`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
+      <div className="mb-8 text-center">
+        <Badge className="mb-3 gap-1.5">
+          <Layers className="h-3.5 w-3.5" /> 三段流水线 · 对标文案 → 拆解 → 复刻 → 分镜
+        </Badge>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">爆款搬运工</h1>
+        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+          粘贴任意一条对标视频的文案 / 字幕，AI 先拆出它的爆款基因，再换成你的产品做成原创脚本，
+          最后生成新手也能照着拍的分镜表。一键导出，拿起就能拍。
+        </p>
+      </div>
+
+      {!result ? (
+        <Card>
+          <CardContent className="space-y-5 p-6">
+            <div>
+              <label className="mb-1 block text-xs font-medium">对标视频文案 / 字幕（必填）</label>
+              <Textarea
+                value={form.text}
+                onChange={(e) => setForm({ ...form, text: e.target.value })}
+                placeholder={"粘贴对标视频的口播文案或字幕，例如：\n“千万别再乱买护肤品了！很多人用了半年，皮肤反而更差。今天教你三步，看懂成分表……”"}
+                rows={5}
+              />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium">你的产品 / 服务（必填）</label>
+                <Input value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} placeholder="如：我卖的手工辣酱" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">我的人设（可选）</label>
+                <Input value={form.persona} onChange={(e) => setForm({ ...form, persona: e.target.value })} placeholder="如：毒舌创业者 / 温柔种草阿姨" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">发布平台（可选）</label>
+                <Input value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} placeholder="如：抖音" />
+              </div>
+            </div>
+
+            {error && (
+              <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>
+            )}
+
+            <Button onClick={run} disabled={busy || !form.text.trim() || !form.product.trim()} className="w-full gap-1.5">
+              <Sparkles className="h-4 w-4" />
+              {busy ? "三段流水线生成中…" : "一键拆解 + 复刻 + 出分镜"}
+            </Button>
+            <p className="text-center text-[11px] text-muted-foreground">
+              需要先填「对标文案」和「你的产品」；人设/平台可后填。生成后可导出提词器或分镜表。
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <EngineResult
+          r={result}
+          title={form.product.trim() || "爆款复刻"}
+          onReset={() => setResult(null)}
+          onExport={doExport}
+        />
+      )}
+    </div>
+  );
+}
+
+function EngineResult({
+  r,
+  title,
+  onReset,
+  onExport,
+}: {
+  r: any;
+  title: string;
+  onReset: () => void;
+  onExport: (type: "txt" | "csv") => void;
+}) {
+  const [copied, setCopied] = React.useState(false);
+  const bp = r.blueprint || {};
+  const lines = r.script || [];
+  const sb = r.storyboard || {};
+
+  function copyLines() {
+    const txt = lines.map((l: any) => `${l.mood ? `[${l.mood}] ` : ""}${l.text}`).join("\n");
+    navigator.clipboard?.writeText(txt).then(() => setCopied(true)).catch(() => {});
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* ① 爆款基因拆解 */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
+          爆款基因拆解
+          <Badge className="bg-red-500/15 text-red-600 dark:text-red-300 text-[10px]">黄金 3 秒：{bp.hook_type}</Badge>
+        </h2>
+        <Card>
+          <CardContent className="space-y-3 p-5">
+            <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">
+              <span className="font-medium">钩子剖析：</span>{bp.hook_analysis}
+            </p>
+            {(bp.core_pain_points || []).length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {(bp.core_pain_points as string[]).map((p, i) => (
+                  <Badge key={i} variant="secondary" className="text-[10px]">痛点：{p}</Badge>
+                ))}
+              </div>
+            )}
+            {(bp.narrative_structure || []).length > 0 && (
+              <ol className="space-y-1.5 text-sm">
+                {(bp.narrative_structure as any[]).map((s, i) => (
+                  <li key={i} className="flex gap-2">
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">{(i + 1).toString().padStart(2, "0")}</span>
+                    <span>
+                      <span className="font-medium">{s.stage}</span> · {s.key_content}
+                      <span className="ml-1 text-xs text-muted-foreground">（情绪：{s.emotion}）</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+            )}
+            {bp.replaceable_slots && (
+              <div className="grid gap-2 rounded-lg bg-muted/40 p-3 text-xs sm:grid-cols-3">
+                <p><span className="font-medium">可替换槽位：</span></p>
+                <p>产品 → {bp.replaceable_slots.product_slot}</p>
+                <p>人群 → {bp.replaceable_slots.target_audience_slot}</p>
+                <p>问题 → {bp.replaceable_slots.problem_slot}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ② 复刻脚本 */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">2</span>
+          你的原创口播脚本
+          <span className="text-xs font-normal text-muted-foreground">短句、口语、去 AI 味</span>
+        </h2>
+        <Card>
+          <CardContent className="space-y-2 p-5">
+            {(lines as any[]).map((l, i) => (
+              <p key={i} className="flex gap-2 text-[15px] leading-relaxed">
+                <span className="shrink-0 font-mono text-xs text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
+                <span>
+                  {l.mood && <Badge variant="secondary" className="mr-1.5 align-middle text-[10px]">{l.mood}</Badge>}
+                  {l.text}
+                </span>
+              </p>
+            ))}
+            <Button variant="outline" size="sm" onClick={copyLines} className="mt-2 gap-1.5">
+              <Copy className="h-4 w-4" /> {copied ? "已复制" : "复制口播"}
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ③ 导演分镜 */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">3</span>
+          导演分镜表
+          <span className="text-xs font-normal text-muted-foreground">照着一拍就成</span>
+        </h2>
+        <Card>
+          <CardContent className="overflow-x-auto p-5">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
+                  <th className="py-2 pr-3">镜号</th>
+                  <th className="py-2 pr-3">景别 / 镜头动作</th>
+                  <th className="py-2 pr-3">口播（含语气）</th>
+                  <th className="py-2 pr-3">画面 / 道具</th>
+                  <th className="py-2">音效 / BGM</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(sb.rows || []).map((row: any, i: number) => (
+                  <tr key={i} className="border-b border-border/60 align-top">
+                    <td className="py-2 pr-3 font-mono text-xs text-muted-foreground">{row.no || i + 1}</td>
+                    <td className="py-2 pr-3">{row.shot}</td>
+                    <td className="py-2 pr-3">{row.line}</td>
+                    <td className="py-2 pr-3 text-muted-foreground">{row.cue}</td>
+                    <td className="py-2 text-muted-foreground">{row.sfx}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {(sb.notes || []).length > 0 && (
+              <div className="mt-4 space-y-1.5">
+                {(sb.notes as string[]).map((n, i) => (
+                  <p key={i} className="flex gap-1.5 text-xs text-amber-600 dark:text-amber-300">
+                    <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {n}
+                  </p>
+                ))}
+              </div>
+            )}
+            {sb.bgm && (
+              <p className="mt-3 flex items-center gap-1.5 text-xs text-primary">
+                <Music className="h-3.5 w-3.5" /> 推荐 BGM：{sb.bgm}
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* ④ 一键导出 */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">4</span>
+          一键导出，拿起就拍
+        </h2>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            onClick={() => onExport("txt")}
+            className="group flex items-center gap-3 rounded-xl border border-border p-4 text-left transition-colors hover:border-primary/50 hover:shadow-sm"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Type className="h-5 w-5" /></div>
+            <div>
+              <p className="font-semibold">提词器（.txt）</p>
+              <p className="text-xs text-muted-foreground">每句带顺序，放到提词器里照念</p>
+            </div>
+            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary" />
+          </button>
+          <button
+            onClick={() => onExport("csv")}
+            className="group flex items-center gap-3 rounded-xl border border-border p-4 text-left transition-colors hover:border-primary/50 hover:shadow-sm"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10 text-primary"><Table className="h-5 w-5" /></div>
+            <div>
+              <p className="font-semibold">分镜表（.csv）</p>
+              <p className="text-xs text-muted-foreground">Excel 打开，能打印的拍摄表格</p>
+            </div>
+            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary" />
+          </button>
+        </div>
+      </section>
+
+      <div className="mt-8 flex justify-between">
+        <Button variant="ghost" onClick={onReset}>换一条文案再来</Button>
+        <Button asChild variant="outline" className="gap-1.5">
+          <Link href="/clinic"><Clapperboard className="h-4 w-4" /> 去账号诊所做对比</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
