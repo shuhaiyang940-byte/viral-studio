@@ -3,50 +3,50 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: 0 0% 100%;
-  --foreground: 222 47% 11%;
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 47%;
-  --primary: 262 83% 58%;
+  --background: 222 33% 6%;
+  --foreground: 210 40% 98%;
+  --card: 221 33% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 221 33% 10%;
+  --popover-foreground: 210 40% 98%;
+  --muted: 217 30% 15%;
+  --muted-foreground: 218 18% 65%;
+  --primary: 239 84% 67%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-  --accent: 199 89% 48%;
+  --secondary: 217 28% 15%;
+  --secondary-foreground: 210 40% 98%;
+  --accent: 330 81% 61%;
   --accent-foreground: 0 0% 100%;
-  --success: 142 71% 45%;
-  --warning: 38 92% 50%;
-  --destructive: 0 84% 60%;
-  --border: 214 32% 91%;
-  --input: 214 32% 91%;
-  --ring: 262 83% 58%;
+  --success: 160 84% 39%;
+  --warning: 38 92% 55%;
+  --destructive: 0 72% 58%;
+  --border: 218 30% 22%;
+  --input: 218 30% 22%;
+  --ring: 239 84% 67%;
   --radius: 0.75rem;
 }
 
 .dark {
-  --background: 224 71% 4%;
+  --background: 222 33% 6%;
   --foreground: 210 40% 98%;
-  --card: 224 47% 7%;
+  --card: 221 33% 11%;
   --card-foreground: 210 40% 98%;
-  --popover: 224 47% 7%;
+  --popover: 221 33% 10%;
   --popover-foreground: 210 40% 98%;
-  --muted: 215 28% 14%;
-  --muted-foreground: 217 11% 65%;
-  --primary: 263 70% 66%;
+  --muted: 217 30% 15%;
+  --muted-foreground: 218 18% 65%;
+  --primary: 239 84% 67%;
   --primary-foreground: 0 0% 100%;
-  --secondary: 215 28% 14%;
+  --secondary: 217 28% 15%;
   --secondary-foreground: 210 40% 98%;
-  --accent: 199 89% 55%;
-  --accent-foreground: 224 71% 4%;
-  --success: 142 64% 48%;
+  --accent: 330 81% 61%;
+  --accent-foreground: 0 0% 100%;
+  --success: 160 84% 39%;
   --warning: 38 92% 55%;
   --destructive: 0 72% 58%;
-  --border: 215 28% 16%;
-  --input: 215 28% 16%;
-  --ring: 263 70% 66%;
+  --border: 218 30% 22%;
+  --input: 218 30% 22%;
+  --ring: 239 84% 67%;
 }
 
 @theme inline {
@@ -101,4 +101,41 @@
     linear-gradient(to right, hsl(var(--border) / 0.4) 1px, transparent 1px),
     linear-gradient(to bottom, hsl(var(--border) / 0.4) 1px, transparent 1px);
   background-size: 40px 40px;
+}
+
+/* ── 科技暗黑风工具类 ─────────────────────────────── */
+/* 黑马高亮绿发光 */
+.glow-green {
+  box-shadow: 0 0 15px rgba(16, 185, 129, 0.3);
+}
+/* 品牌紫光 */
+.glow-purple {
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+}
+/* 玻璃拟态卡片 */
+.glass {
+  background: rgba(18, 24, 36, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+/* 品牌紫粉渐变（用于主 CTA / 高亮标题） */
+.gradient-brand {
+  background-image: linear-gradient(135deg, #6366f1, #ec4899);
+}
+/* 渐变 + 发光边框：用于高价值卡片 */
+.card-glow-border {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.card-glow-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.6), rgba(236, 72, 153, 0.6));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
 }

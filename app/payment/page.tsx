@@ -44,7 +44,7 @@ function FakeQR({ brand }: { brand: PayMethod }) {
     );
 
   return (
-    <div className="relative mx-auto w-[180px] rounded-lg bg-white p-3 shadow-sm">
+    <div className="relative mx-auto w-[180px] rounded-lg bg-card p-3 shadow-sm">
       <div
         className="grid gap-0.5"
         style={{ gridTemplateColumns: `repeat(${cells}, 1fr)` }}
@@ -52,7 +52,7 @@ function FakeQR({ brand }: { brand: PayMethod }) {
         {dots.map((on, i) => (
           <div
             key={i}
-            className={on ? "bg-neutral-900" : "bg-white"}
+            className={on ? "bg-neutral-900" : "bg-card"}
             style={{ aspectRatio: "1 / 1" }}
           />
         ))}
