@@ -36,7 +36,11 @@ export async function POST(req: NextRequest) {
       platform: body.platform ? String(body.platform).trim() : undefined,
       followers: num(body.followers),
       engagementRate: num(body.engagementRate),
+      avgPlays: num(body.avgPlays),
+      avgLikes: num(body.avgLikes),
+      avgComments: num(body.avgComments),
       description: body.description ? String(body.description).trim().slice(0, 500) : undefined,
+      sampleText: body.sampleText ? String(body.sampleText).trim().slice(0, 800) : undefined,
     });
     return NextResponse.json(result);
   } catch (e: any) {

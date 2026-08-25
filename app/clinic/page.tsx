@@ -33,6 +33,10 @@ export default function ClinicPage() {
     followers: "",
     engagementRate: "",
     description: "",
+    avgPlays: "",
+    avgLikes: "",
+    avgComments: "",
+    sampleText: "",
   });
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -51,7 +55,11 @@ export default function ClinicPage() {
           platform: form.platform.trim() || undefined,
           followers: form.followers.trim() ? Number(form.followers) : undefined,
           engagementRate: form.engagementRate.trim() ? Number(form.engagementRate) : undefined,
+          avgPlays: form.avgPlays.trim() ? Number(form.avgPlays) : undefined,
+          avgLikes: form.avgLikes.trim() ? Number(form.avgLikes) : undefined,
+          avgComments: form.avgComments.trim() ? Number(form.avgComments) : undefined,
           description: form.description.trim() || undefined,
+          sampleText: form.sampleText.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -148,12 +156,37 @@ export default function ClinicPage() {
               </div>
             </div>
 
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium">近20条·平均播放（可选）</label>
+                <Input value={form.avgPlays} onChange={(e) => setForm({ ...form, avgPlays: e.target.value })} placeholder="如：4200" inputMode="numeric" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">近20条·平均点赞（可选）</label>
+                <Input value={form.avgLikes} onChange={(e) => setForm({ ...form, avgLikes: e.target.value })} placeholder="如：95" inputMode="numeric" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">近20条·平均评论（可选）</label>
+                <Input value={form.avgComments} onChange={(e) => setForm({ ...form, avgComments: e.target.value })} placeholder="如：12" inputMode="numeric" />
+              </div>
+            </div>
+
             <div>
               <label className="mb-1 block text-xs font-medium">我最近的账号 / 选题情况（可选）</label>
               <Textarea
                 value={form.description}
                 onChange={(e) => setForm({ ...form, description: e.target.value })}
                 placeholder="例如：做了 2 个月美食号，基本没人看，剪了但不涨粉，想卖自制酱料…"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs font-medium">文案采样（近 1~3 条真实文案，可选，越准越毒辣）</label>
+              <Textarea
+                value={form.sampleText}
+                onChange={(e) => setForm({ ...form, sampleText: e.target.value })}
+                placeholder="粘贴你最近一条视频的口播文案…"
                 rows={3}
               />
             </div>
@@ -201,6 +234,89 @@ function ClinicResult({ r, onReset }: { r: any; onReset: () => void }) {
           <Progress value={r.score} className="mt-4" />
         </CardContent>
       </Card>
+
+      {/* 全局战略观 */}
+      {(r.redOcean || r.homogen || r.differentiation) && (
+        <div>
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+            <TrendingUp className="h-5 w-5 text-primary" /> 全局战略观
+          </h2>
+          <Card>
+            <CardContent className="space-y-3 p-4">
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-border p-3">
+                  <p className="text-xs font-medium">赛道红海度</p>
+                  <Badge className="mt-1 bg-primary/15 text-primary text-[10px]">{r.redOcean?.level}</Badge>
+                  <p className="mt-1 text-xs text-muted-foreground">{r.redOcean?.detail}</p>
+                </div>
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+                  <p className="text-xs font-medium text-amber-600 dark:text-amber-300">同质化预警</p>
+                  <p className="mt-1 text-sm">{r.homogen?.alert}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{r.homogen?.consequence}</p>
+                </div>
+              </div>
+              {(r.differentiation || []).length > 0 && (
+                <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3">
+                  <p className="text-xs font-medium text-emerald-600 dark:text-emerald-300">差异化破局出路</p>
+                  {(r.differentiation as string[]).map((d, i) => (
+                    <p key={i} className="mt-1 flex gap-1.5 text-sm">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" /> {d}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* 微观执行诊断 */}
+      {(r.topics || r.hookDiag || r.schedule) && (
+        <div>
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+            <Target className="h-5 w-5 text-primary" /> 微观执行诊断
+          </h2>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <Card>
+              <CardContent className="space-y-1.5 p-4">
+                <p className="text-xs font-medium text-muted-foreground">选题与热点</p>
+                <p className="text-sm">{r.topics}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-red-500/30">
+              <CardContent className="space-y-1.5 p-4">
+                <p className="text-xs font-medium text-red-500/80">黄金 3 秒钩子</p>
+                <p className="text-sm">{r.hookDiag}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="space-y-1.5 p-4">
+                <p className="text-xs font-medium text-muted-foreground">更新频率与时段</p>
+                <p className="text-sm">{r.schedule}</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {/* 下周行动清单 */}
+      {(r.todoList || []).length > 0 && (
+        <div>
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+            <ListChecks className="h-5 w-5 text-primary" /> 下周改版行动清单
+          </h2>
+          <Card>
+            <CardContent className="space-y-2.5 p-5">
+              {(r.todoList as string[]).map((a, i) => (
+                <p key={i} className="flex gap-2 text-sm">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">{i + 1}</span>
+                  <span>{a}</span>
+                </p>
+              ))}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* 维度对比 */}
       {(r.dimensions || []).length > 0 && (
