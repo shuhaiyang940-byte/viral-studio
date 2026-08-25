@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { TeleprompterButton } from "@/components/teleprompter-modal";
 
 function ReengineerInner() {
   const sp = useSearchParams();
@@ -338,6 +339,12 @@ function EngineResult({
             <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground group-hover:text-primary" />
           </button>
         </div>
+        <TeleprompterButton
+          className="w-full"
+          variant="default"
+          title={title}
+          lines={((r.script || []).map((l: any) => l.text)).filter(Boolean)}
+        />
       </section>
 
       <div className="mt-8 flex justify-between">

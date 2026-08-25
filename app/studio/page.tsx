@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { PLAYBOOKS, type Playbook } from "@/lib/benchmarks";
 import { SideBySideScriptEditor, type EditorMine, type EditorSkeleton } from "@/components/side-by-side-editor";
 import { BlurredVipUnlockCard } from "@/components/blurred-vip-unlock";
+import { TeleprompterButton } from "@/components/teleprompter-modal";
 
 const PILLS = ["知识口播", "美妆种草", "数码带货", "创业干货"];
 
@@ -228,9 +229,11 @@ function StudioInner() {
 
           {/* 底部固定操作栏 */}
           <div className="sticky bottom-0 mt-4 flex gap-2 border-t border-border/60 bg-background/80 p-2 backdrop-blur">
-            <Button size="sm" variant="outline" className="flex-1 gap-1" onClick={() => doExport("txt")} disabled={!mine}>
-              <Type className="h-3.5 w-3.5" /> 提词器
-            </Button>
+            <TeleprompterButton
+              className="flex-1"
+              title={product.trim() || "爆款复刻"}
+              lines={mine ? [mine.hook, ...(mine.body || []), mine.cta].filter(Boolean) : []}
+            />
             <Button size="sm" className="flex-1 gap-1" onClick={() => doExport("csv")} disabled={!mine}>
               <Table className="h-3.5 w-3.5" /> 分镜表
             </Button>
