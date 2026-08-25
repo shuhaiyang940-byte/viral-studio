@@ -194,3 +194,19 @@ export async function consumeGenerationQuota(
 export async function refundGenerationQuota(userId: string, operation: string): Promise<void> {
   await refundQuota(`gen:${operation}:user:${userId}:`);
 }
+
+/** 匿名用户（无 userId）的每日生成上限：按 IP + operation 计数，防换 IP 前也限制单 IP 每日量 */
+export function anonymousGenerateLimit(): number {
+  return intEnv("ANON_GENERATE_DAILY_LIMIT", 10);
+}
+
+export async function consumeAnonymousGenerate(ip: string, operation: string): Promise<{ ok: boolean; limit: number }> {
+  const limit = anonymousGenerateLimit();
+  const key = `gen:anon:${operation}:ip:${ip}:`;
+  const count = await consumeQuota(key);
+  if (count > limit) {
+    await refundQuota(key);
+    return { ok: false, limit };
+  }
+  return { ok: true, limit };
+}

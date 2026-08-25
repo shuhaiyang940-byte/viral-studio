@@ -32,6 +32,7 @@ function ReengineerInner() {
     persona: sp.get("persona") || "",
     platform: sp.get("platform") || "抖音",
     parentAssetId: sp.get("parentAssetId") || "",
+    analysisAssetId: sp.get("analysisAssetId") || "",
   });
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -46,17 +47,21 @@ function ReengineerInner() {
         typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      const res = await fetch("/api/viral-engine", {
+      const endpoint = form.analysisAssetId ? "/api/flow/start" : "/api/viral-engine";
+      const body = form.analysisAssetId
+        ? { analysisAssetId: form.analysisAssetId, myTopic: form.product.trim(), requestId }
+        : {
+            text: form.text.trim(),
+            product: form.product.trim(),
+            persona: form.persona.trim() || undefined,
+            platform: form.platform.trim() || undefined,
+            requestId,
+            parentAssetId: form.parentAssetId.trim() || undefined,
+          };
+      const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          text: form.text.trim(),
-          product: form.product.trim(),
-          persona: form.persona.trim() || undefined,
-          platform: form.platform.trim() || undefined,
-          requestId,
-          parentAssetId: form.parentAssetId.trim() || undefined,
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -118,15 +123,22 @@ function ReengineerInner() {
       {!result ? (
         <Card>
           <CardContent className="space-y-5 p-6">
-            <div>
-              <label className="mb-1 block text-xs font-medium">对标视频文案 / 字幕（必填）</label>
-              <Textarea
-                value={form.text}
-                onChange={(e) => setForm({ ...form, text: e.target.value })}
-                placeholder={"粘贴对标视频的口播文案或字幕，例如：\n“千万别再乱买护肤品了！很多人用了半年，皮肤反而更差。今天教你三步，看懂成分表……”"}
-                rows={5}
-              />
-            </div>
+            {form.analysisAssetId ? (
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm">
+                <span className="font-medium text-emerald-600 dark:text-emerald-300">✓ 已从你的分析继续</span>
+                <span className="text-muted-foreground">—— 使用刚才那份爆款拆解的结构，帮你生成原创脚本。</span>
+              </div>
+            ) : (
+              <div>
+                <label className="mb-1 block text-xs font-medium">对标视频文案 / 字幕（必填）</label>
+                <Textarea
+                  value={form.text}
+                  onChange={(e) => setForm({ ...form, text: e.target.value })}
+                  placeholder={"粘贴对标视频的口播文案或字幕，例如：\n“千万别再乱买护肤品了！很多人用了半年，皮肤反而更差。今天教你三步，看懂成分表……”"}
+                  rows={5}
+                />
+              </div>
+            )}
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
                 <label className="mb-1 block text-xs font-medium">你的产品 / 服务（必填）</label>

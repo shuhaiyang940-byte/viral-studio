@@ -201,6 +201,20 @@ export function ReportView({ id }: { id?: string }) {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      {/* 一键创作：从分析结果直接进入「复刻/创作」工作流 */}
+      {report && (
+        <div className="mb-6 flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold">已经完成爆款分析 ✓</p>
+            <p className="text-xs text-muted-foreground">下一步：把这个爆款结构，换成属于你的原创脚本与分镜。</p>
+          </div>
+          <Button asChild variant="gradient" className="gap-1.5">
+            <Link href={`/reengineer?analysisAssetId=${report.id}`}>
+              <Wand2 className="h-4 w-4" /> 开始创作
+            </Link>
+          </Button>
+        </div>
+      )}
       {/* 头部 */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>

@@ -8,6 +8,10 @@ import {
 import { reasoningChat, isConfigured } from "@/lib/llm";
 import { guardAiRequest } from "@/lib/ai-guard";
 import { allowMockFallback, codeOf } from "@/lib/ai-fallback";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getUserEntitlements } from "@/lib/permissions";
+import { consumeGenerationQuota, refundGenerationQuota, consumeAnonymousGenerate, refundQuota } from "@/lib/quota-server";
+import { clientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -59,6 +63,25 @@ export async function POST(req: NextRequest) {
   if (!isConfigured("deepseek")) {
     const tpl = generateCopy(b);
     return NextResponse.json({ ...tpl, source: "template" as const });
+  }
+
+  // —— 服务端生成配额（登录 per-user；未登录 匿名 IP 每日）——
+  let quotaConsumed = false;
+  let anonKey: string | null = null;
+  let quotaUser: Awaited<ReturnType<typeof getCurrentUser>> = null;
+  if (isConfigured("deepseek")) {
+    quotaUser = await getCurrentUser();
+    const ent = await getUserEntitlements(quotaUser?.id ?? "");
+    if (quotaUser) {
+      const q = await consumeGenerationQuota(quotaUser.id, "copy", ent.tier);
+      if (!q.ok) return NextResponse.json({ error: "今日生成次数已用完，升级会员可继续。", code: "QUOTA_EXCEEDED" }, { status: 429 });
+    } else {
+      const ip = clientIp(req);
+      anonKey = `gen:anon:copy:ip:${ip}:`;
+      const an = await consumeAnonymousGenerate(ip, "copy");
+      if (!an.ok) return NextResponse.json({ error: "免费体验次数已用完，请明日再来或登录升级。", code: "ANON_QUOTA_EXCEEDED" }, { status: 429 });
+    }
+    quotaConsumed = true;
   }
 
   try {
@@ -125,6 +148,10 @@ export async function POST(req: NextRequest) {
     };
     return NextResponse.json(out);
   } catch (err) {
+    if (quotaConsumed) {
+      if (quotaUser) await refundGenerationQuota(quotaUser.id, "copy");
+      else if (anonKey) await refundQuota(anonKey);
+    }
     if (!allowMockFallback()) {
       console.error("[api/copy] DeepSeek 真实生成失败（生产，不回退模板）：", err);
       return NextResponse.json(

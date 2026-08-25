@@ -7,7 +7,8 @@ import { getUserEntitlements, PRO_GATE_INFO } from "@/lib/permissions";
 import { capabilitiesFor } from "@/lib/entitlements";
 import { saveAsset, getAsset } from "@/lib/assets";
 import { beginGenerate, markGenerateDone, markGenerateFailed } from "@/lib/generate-guard";
-import { consumeGenerationQuota, refundGenerationQuota } from "@/lib/quota-server";
+import { consumeGenerationQuota, refundGenerationQuota, consumeAnonymousGenerate, refundQuota } from "@/lib/quota-server";
+import { clientIp } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,6 +58,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "今日生成次数已用完，升级会员可继续。", code: "QUOTA_EXCEEDED" }, { status: 429 });
     }
   }
+  let anonKey: string | null = null;
+  if (!user) {
+    const ip = clientIp(req);
+    anonKey = `gen:anon:script:ip:${ip}:`;
+    const an = await consumeAnonymousGenerate(ip, "script");
+    if (!an.ok) {
+      await markGenerateFailed(requestId);
+      return NextResponse.json({ error: "免费体验次数已用完，请明日再来或登录升级。", code: "ANON_QUOTA_EXCEEDED" }, { status: 429 });
+    }
+  }
 
   try {
     const result = await runViralEngine({
@@ -80,6 +91,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(applyView(result));
   } catch (e: any) {
     if (user) await refundGenerationQuota(user.id, "script");
+    else if (anonKey) await refundQuota(anonKey);
     await markGenerateFailed(requestId);
     return NextResponse.json({ error: e?.message || "生成失败，请稍后重试" }, { status: 500 });
   }
