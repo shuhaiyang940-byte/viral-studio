@@ -34,6 +34,7 @@ function Progress({ steps }: { steps: { label: string; done: boolean }[] }) {
 export default function HistoryPage() {
   const [items, setItems] = React.useState<HItem[] | null>(null);
   const [error, setError] = React.useState(false);
+  const [genId, setGenId] = React.useState<string | null>(null);
 
   async function load() {
     setError(false);
@@ -52,6 +53,20 @@ export default function HistoryPage() {
     }
   }
   React.useEffect(() => { load(); }, []);
+
+  async function generatePlan(storyboardAssetId: string, projectId: string) {
+    setGenId(projectId);
+    try {
+      await fetch("/api/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyboardAssetId }),
+      });
+      await load();
+    } finally {
+      setGenId(null);
+    }
+  }
 
   // 以 Analysis 为根组织创作链
   const analyses = (items || []).filter((i) => i.type === "analysis");
@@ -119,11 +134,23 @@ export default function HistoryPage() {
                   {p.plan && <span className="inline-flex items-center gap-1"><Hammer className="h-3 w-3" /> 拍摄计划</span>}
                 </div>
                 <div className="flex gap-2">
-                  <Button asChild size="sm" variant="gradient" className="gap-1.5">
-                    <Link href={`/reengineer?analysisAssetId=${encodeURIComponent(p.analysis.assetId)}`}>
-                      {p.plan ? <><Film className="h-3.5 w-3.5" /> 继续 / 导出</> : <><ArrowRight className="h-3.5 w-3.5" /> 继续创作</>}
-                    </Link>
-                  </Button>
+                  {!p.script ? (
+                    <Button asChild size="sm" variant="gradient" className="gap-1.5">
+                      <Link href={`/reengineer?analysisAssetId=${encodeURIComponent(p.analysis.assetId)}`}>
+                        <ArrowRight className="h-3.5 w-3.5" /> 开始创作
+                      </Link>
+                    </Button>
+                  ) : p.storyboard && !p.plan ? (
+                    <Button size="sm" variant="gradient" className="gap-1.5" onClick={() => generatePlan(p.storyboard!.assetId, p.analysis.assetId)} disabled={genId === p.analysis.assetId}>
+                      <Hammer className="h-3.5 w-3.5" /> {genId === p.analysis.assetId ? "生成中…" : "生成拍摄计划"}
+                    </Button>
+                  ) : (
+                    <Button asChild size="sm" variant="gradient" className="gap-1.5">
+                      <Link href={`/reengineer?analysisAssetId=${encodeURIComponent(p.analysis.assetId)}`}>
+                        <Film className="h-3.5 w-3.5" /> 继续 / 导出
+                      </Link>
+                    </Button>
+                  )}
                   <Button asChild size="sm" variant="outline">
                     <Link href={`/report?id=${encodeURIComponent(p.analysis.assetId)}`}>查看分析</Link>
                   </Button>

@@ -359,9 +359,17 @@ function EngineResult({
           拍摄计划
         </h2>
         {!plan ? (
-          <Button variant="gradient" className="gap-1.5" onClick={genPlan} disabled={planBusy || !r.storyboardAssetId}>
-            <Hammer className="h-4 w-4" /> {planBusy ? "生成中…" : "继续生成拍摄计划"}
-          </Button>
+          <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+            <p className="text-sm">
+              脚本和分镜都有了，下一步是把它变成一份能直接开拍的<strong className="text-primary">拍摄计划</strong>。
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              到现场你只要照着镜头顺序拍，不用再临时想"下一个镜头拍什么、怎么摆机位、配什么音"——把心放在表演上就行。
+            </p>
+            <Button variant="gradient" className="mt-3 gap-1.5" onClick={genPlan} disabled={planBusy || !r.storyboardAssetId}>
+              <Hammer className="h-4 w-4" /> {planBusy ? "生成中…" : "继续生成拍摄计划"}
+            </Button>
+          </div>
         ) : (
           <Card>
             <CardContent className="space-y-2 p-4">
