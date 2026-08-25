@@ -1,15 +1,45 @@
-import { NextResponse } from "next/server";
-import type { HistoryItem } from "@/lib/types";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth/session";
+import { listAssets, type AssetType } from "@/lib/assets";
 
 export const dynamic = "force-dynamic";
 
-const SAMPLE_HISTORY: HistoryItem[] = [
-  { id: "h-1", title: "我在北京胡同住了三十年，今天终于要搬走了", createdAt: "2026-03-18", score: 87, status: "done" },
-  { id: "h-2", title: "10 块钱在菜市场能吃到什么？挑战全网最低预算", createdAt: "2026-03-15", score: 89, status: "done" },
-  { id: "h-3", title: "普通人如何用 AI 每天省下 2 小时", createdAt: "2026-03-12", score: 88, status: "done" },
-];
+const VALID_TYPES = new Set<string>(["analysis", "storyboard", "edit_plan", "replica", "copywriting", "director"]);
 
-// Mock 历史记录接口（真实场景应基于数据库 + 当前登录用户）
-export async function GET() {
-  return NextResponse.json({ items: SAMPLE_HISTORY });
+/**
+ * 真实用户历史记录：只返回当前登录用户自己的创作资产（按更新时间倒序）。
+ * 身份只来自服务端 Session，不接受客户端 userId；未登录 401。
+ * 仅返回轻量元数据（不含 payload），用户点击详情再拉资产。
+ */
+export async function GET(req: NextRequest) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "未登录" }, { status: 401 });
+
+  const sp = new URL(req.url).searchParams;
+  const typeRaw = sp.get("type") || undefined;
+  if (typeRaw && !VALID_TYPES.has(typeRaw)) {
+    return NextResponse.json({ error: "无效的历史类型" }, { status: 400 });
+  }
+  const limit = Math.min(Math.max(Number(sp.get("limit") ?? 20) || 20, 1), 100);
+  const cursor = sp.get("cursor") || undefined;
+
+  const { items, nextCursor } = await listAssets({
+    userId: user.id,
+    type: typeRaw as AssetType | undefined,
+    limit,
+    cursor,
+  });
+
+  return NextResponse.json({
+    items: items.map((a) => ({
+      id: a.assetId,
+      type: a.type,
+      assetId: a.assetId,
+      title: a.title,
+      status: a.status,
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt,
+    })),
+    nextCursor,
+  });
 }

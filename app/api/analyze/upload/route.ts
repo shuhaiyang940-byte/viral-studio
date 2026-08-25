@@ -8,6 +8,7 @@ import { guardAiRequest } from "@/lib/ai-guard";
 import { getQuotaForReq, consumeQuota, refundQuota, logUsage } from "@/lib/quota-server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { codeOf } from "@/lib/ai-fallback";
+import { saveAsset } from "@/lib/assets";
 import type { OnboardingProfile } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -114,6 +115,17 @@ export async function POST(req: NextRequest) {
             ? `已提取 ${frameCount} 帧画面，但当前为演示模式（未调用视觉模型）`
             : "未能提取画面帧（请确认运行环境已安装 ffmpeg）",
     };
+    // 分析成功：落库为正式创作资产（失败不写 completed）
+    if (user) {
+      await saveAsset({
+        userId: user.id,
+        type: "analysis",
+        assetId: report.id,
+        title: (report as any).meta?.title || title || "视频爆款分析",
+        status: "completed",
+        payload: report,
+      });
+    }
     return NextResponse.json(report);
   } catch (e: any) {
     console.warn("[api/analyze/upload] 分析失败：", e);

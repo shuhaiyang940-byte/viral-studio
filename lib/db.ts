@@ -130,6 +130,20 @@ CREATE INDEX IF NOT EXISTS idx_email_tokens_user ON email_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_email_tokens_type ON email_tokens(type);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_user ON usage_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_created ON usage_logs(created_at);
+CREATE TABLE IF NOT EXISTS assets (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  type TEXT NOT NULL,
+  asset_id TEXT NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'completed',
+  payload JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, type, asset_id)
+);
+CREATE INDEX IF NOT EXISTS idx_assets_user ON assets(user_id, updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_assets_user_type ON assets(user_id, type, updated_at DESC);
 -- 旧库兼容：engagement_rate 从 INTEGER 升级为 DOUBLE PRECISION（种子数据为 6.4~11.2 的百分数）
 ALTER TABLE benchmarks ALTER COLUMN engagement_rate TYPE DOUBLE PRECISION;
 `;

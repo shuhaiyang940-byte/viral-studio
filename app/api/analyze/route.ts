@@ -6,6 +6,7 @@ import { getQuotaForReq, consumeQuota, refundQuota, logUsage } from "@/lib/quota
 import { getCurrentUser } from "@/lib/auth/session";
 import { kvGet, kvSet, kvDel } from "@/lib/kv";
 import { codeOf } from "@/lib/ai-fallback";
+import { saveAsset } from "@/lib/assets";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +66,17 @@ export async function POST(req: NextRequest) {
         body.profile && typeof body.profile === "object" ? body.profile : undefined,
       refType: typeof body.refType === "string" ? body.refType : undefined,
     });
+    // 分析成功：落库为正式创作资产（失败不写 completed，绝不伪装成功）
+    if (user) {
+      await saveAsset({
+        userId: user.id,
+        type: "analysis",
+        assetId: report.id,
+        title: (report as any).meta?.title || body.title || "视频爆款分析",
+        status: "completed",
+        payload: report,
+      });
+    }
     await logUsage({ userId: user?.id, quotaType: "video_analysis", amount: 0, action: "success", status: "ok", requestId });
     if (reqKey) await kvDel(reqKey);
     return NextResponse.json(report);
