@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { requireCapability } from "@/lib/permissions";
+import { logEvent, EVENTS } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,6 +54,7 @@ export async function POST(req: NextRequest) {
       p.bgm ? `BGM：${p.bgm}` : "",
     ].filter(Boolean);
     const txt = lines.join("\n");
+    await logEvent({ userId: user?.id, event: EVENTS.export_completed, meta: { type: "txt" } });
     return new Response(new Blob([txt], { type: "text/plain;charset=utf-8" }), {
       headers: {
         "Content-Type": "text/plain; charset=utf-8",
@@ -69,6 +71,7 @@ export async function POST(req: NextRequest) {
     );
     // 加 UTF-8 BOM，避免 Excel 打开乱码
     const csv = "\uFEFF" + [head.map((h) => esc(h)).join(","), ...rows].join("\n");
+    await logEvent({ userId: user?.id, event: EVENTS.export_completed, meta: { type: "csv" } });
     return new Response(new Blob([csv], { type: "text/csv;charset=utf-8" }), {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",

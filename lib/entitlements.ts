@@ -167,6 +167,8 @@ const PRO_CAPS: CapabilitySet = {
 
 /** 档位 → 能力集（free/creator 走 Free 边界；pro/studio 走 Pro 边界） */
 export function capabilitiesFor(tier: string | undefined | null): CapabilitySet {
+  // Beta 免费开放：暂时完整解锁（不删除 Pro Gate 代码；未来 BETA_MODE=false 即恢复商业边界）
+  if (process.env.BETA_MODE === "1") return PRO_CAPS;
   if (tier === "pro" || tier === "studio") return PRO_CAPS;
   return FREE_CAPS;
 }

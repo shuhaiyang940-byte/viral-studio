@@ -154,6 +154,16 @@ CREATE TABLE IF NOT EXISTS gen_dedupe (
   asset_id TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS events (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT,
+  event TEXT NOT NULL,
+  asset_id TEXT,
+  meta JSONB NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at);
+CREATE INDEX IF NOT EXISTS idx_events_user ON events(user_id);
 -- 旧库兼容：engagement_rate 从 INTEGER 升级为 DOUBLE PRECISION（种子数据为 6.4~11.2 的百分数）
 ALTER TABLE benchmarks ALTER COLUMN engagement_rate TYPE DOUBLE PRECISION;
 `;

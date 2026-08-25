@@ -9,6 +9,7 @@ import { saveAsset, getAsset } from "@/lib/assets";
 import { beginGenerate, markGenerateDone, markGenerateFailed } from "@/lib/generate-guard";
 import { consumeGenerationQuota, refundGenerationQuota, consumeAnonymousGenerate, refundQuota } from "@/lib/quota-server";
 import { clientIp } from "@/lib/rate-limit";
+import { logEvent, EVENTS } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -106,6 +107,8 @@ export async function POST(req: NextRequest) {
       });
       if (requestId) await markGenerateDone(requestId, user.id, scriptId);
       respAsset = { assetId: scriptId, storyboardAssetId: sbId };
+      await logEvent({ userId: user.id, event: EVENTS.script_generated, assetId: scriptId });
+      await logEvent({ userId: user.id, event: EVENTS.storyboard_generated, assetId: sbId });
     }
     return NextResponse.json({ ...applyView(result), ...respAsset });
   } catch (e: any) {

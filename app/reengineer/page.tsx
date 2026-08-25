@@ -17,6 +17,7 @@ import {
   Layers,
   Type,
   Clapperboard,
+  Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -185,6 +186,59 @@ export default function ReengineerPage() {
     <Suspense fallback={null}>
       <ReengineerInner />
     </Suspense>
+  );
+}
+
+/** 最小反馈条：只有 👍/👎，👎 可补充一句话（不强制） */
+function FeedbackBar({ assetId }: { assetId?: string }) {
+  const [fb, setFb] = React.useState<"positive" | "negative" | null>(null);
+  const [showNote, setShowNote] = React.useState(false);
+  const [note, setNote] = React.useState("");
+  const [sent, setSent] = React.useState(false);
+
+  async function send(v: "positive" | "negative") {
+    setFb(v);
+    if (v === "negative") return setShowNote(true);
+    await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "feedback_positive", assetId }),
+    }).catch(() => {});
+    setSent(true);
+  }
+
+  async function sendNegative() {
+    await fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "feedback_negative", assetId, meta: { note: note || null } }),
+    }).catch(() => {});
+    setSent(true);
+  }
+
+  if (sent) {
+    return <p className="text-center text-xs text-muted-foreground">感谢反馈，我们会持续优化 👌</p>;
+  }
+  return (
+    <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
+      <p className="text-sm">这个结果对你有帮助吗？</p>
+      <div className="mt-2 flex gap-2">
+        <Button size="sm" variant={fb === "positive" ? "default" : "outline"} onClick={() => send("positive")}>👍 有帮助</Button>
+        <Button size="sm" variant={showNote ? "default" : "outline"} onClick={() => send("negative")}>👎 不太有用</Button>
+      </div>
+      {showNote && (
+        <div className="mt-3 space-y-2">
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="哪里不满意？（可选）"
+            rows={2}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          />
+          <Button size="sm" onClick={sendNegative}>提交反馈</Button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -360,12 +414,13 @@ function EngineResult({
         </h2>
         {!plan ? (
           <div className="rounded-xl border border-border/70 bg-muted/20 p-4">
-            <p className="text-sm">
-              脚本和分镜都有了，下一步是把它变成一份能直接开拍的<strong className="text-primary">拍摄计划</strong>。
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              到现场你只要照着镜头顺序拍，不用再临时想"下一个镜头拍什么、怎么摆机位、配什么音"——把心放在表演上就行。
-            </p>
+            <p className="text-sm">分镜已经完成，下一步：把分镜变成可以直接执行的<strong className="text-primary">拍摄计划</strong>。</p>
+            <ul className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+              {["每个镜头拍什么", "怎么拍 · 景别 / 机位", "台词 / 旁白", "拍摄顺序", "后期需要注意什么"].map((x) => (
+                <li key={x} className="flex items-center gap-1.5"><Check className="h-3.5 w-3.5 text-success" /> {x}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground">分镜决定"怎么剪"，拍摄计划决定"怎么拍"——两种价值不一样，别混在一起。</p>
             <Button variant="gradient" className="mt-3 gap-1.5" onClick={genPlan} disabled={planBusy || !r.storyboardAssetId}>
               <Hammer className="h-4 w-4" /> {planBusy ? "生成中…" : "继续生成拍摄计划"}
             </Button>
@@ -374,6 +429,7 @@ function EngineResult({
           <Card>
             <CardContent className="space-y-2 p-4">
               <p className="text-sm font-semibold">{plan.meta?.title}</p>
+              <p className="text-xs text-muted-foreground">你的拍摄计划已完成。照着下面的镜头顺序拍，拍完即可进入后期剪辑。</p>
               <div className="space-y-1.5 text-sm">
                 {(plan.clips || []).map((c: any, i: number) => (
                   <div key={i} className="flex gap-2 border-b border-border/50 pb-1.5">
@@ -428,6 +484,9 @@ function EngineResult({
           lines={((r.script || []).map((l: any) => l.text)).filter(Boolean)}
         />
       </section>
+
+      {/* 反馈（最小）：帮我们判断这些能力是否真的有用 */}
+      <FeedbackBar assetId={r.assetId} />
 
       <div className="mt-8 flex justify-between">
         <Button variant="ghost" onClick={onReset}>换一条文案再来</Button>

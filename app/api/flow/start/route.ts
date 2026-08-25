@@ -8,6 +8,7 @@ import { capabilitiesFor } from "@/lib/entitlements";
 import { getAsset, saveAsset, type AssetRecord } from "@/lib/assets";
 import { beginGenerate, markGenerateDone, markGenerateFailed } from "@/lib/generate-guard";
 import { consumeGenerationQuota, refundGenerationQuota } from "@/lib/quota-server";
+import { logEvent, EVENTS } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -100,7 +101,9 @@ export async function POST(req: NextRequest) {
     await saveAsset({ userId: user.id, type: "script", assetId: scriptId, parentAssetId: analysisAssetId, title: result.title || myTopic, status: "completed", payload: result });
     const sbId = requestId ? `storyboard:${user.id}:${requestId}` : `storyboard:${user.id}:${randomUUID()}`;
     await saveAsset({ userId: user.id, type: "storyboard", assetId: sbId, parentAssetId: scriptId, title: `${result.title || myTopic} · 分镜`, status: "completed", payload: { shots: result.shots || [] } });
-    if (requestId) await markGenerateDone(requestId, user.id, scriptId);
+      if (requestId) await markGenerateDone(requestId, user.id, scriptId);
+      await logEvent({ userId: user.id, event: EVENTS.script_generated, assetId: scriptId });
+      await logEvent({ userId: user.id, event: EVENTS.storyboard_generated, assetId: sbId });
     return NextResponse.json({ ...applyView(result), assetId: scriptId, storyboardAssetId: sbId });
   } catch (e: any) {
     await refundGenerationQuota(user.id, "script");

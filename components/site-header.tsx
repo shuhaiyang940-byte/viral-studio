@@ -28,9 +28,16 @@ export function SiteHeader() {
     if (typeof window !== "undefined") window.location.href = "/";
   }
 
+  const BETA = process.env.NEXT_PUBLIC_BETA_MODE === "1";
+
   return (
     <>
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
+      {BETA && (
+        <div className="bg-primary/5 px-3 py-1 text-center text-[11px] text-muted-foreground">
+          Beta 免费体验中 · 核心创作功能暂时开放，后续功能与价格可能调整
+        </div>
+      )}
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Logo />
         <nav className="hidden items-center gap-8 md:flex">

@@ -68,6 +68,14 @@ export default function HistoryPage() {
     }
   }
 
+  function trackContinue(assetId: string) {
+    fetch("/api/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ event: "continue_creation_clicked", assetId }),
+    }).catch(() => {});
+  }
+
   // 以 Analysis 为根组织创作链
   const analyses = (items || []).filter((i) => i.type === "analysis");
   const byParent: Record<string, HItem[]> = {};
@@ -135,7 +143,7 @@ export default function HistoryPage() {
                 </div>
                 <div className="flex gap-2">
                   {!p.script ? (
-                    <Button asChild size="sm" variant="gradient" className="gap-1.5">
+                    <Button asChild size="sm" variant="gradient" className="gap-1.5" onClick={() => trackContinue(p.analysis.assetId)}>
                       <Link href={`/reengineer?analysisAssetId=${encodeURIComponent(p.analysis.assetId)}`}>
                         <ArrowRight className="h-3.5 w-3.5" /> 开始创作
                       </Link>
@@ -145,7 +153,7 @@ export default function HistoryPage() {
                       <Hammer className="h-3.5 w-3.5" /> {genId === p.analysis.assetId ? "生成中…" : "生成拍摄计划"}
                     </Button>
                   ) : (
-                    <Button asChild size="sm" variant="gradient" className="gap-1.5">
+                    <Button asChild size="sm" variant="gradient" className="gap-1.5" onClick={() => trackContinue(p.analysis.assetId)}>
                       <Link href={`/reengineer?analysisAssetId=${encodeURIComponent(p.analysis.assetId)}`}>
                         <Film className="h-3.5 w-3.5" /> 继续 / 导出
                       </Link>

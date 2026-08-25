@@ -3,6 +3,7 @@ import { kvGet, kvSet } from "@/lib/kv";
 import { guardAiRequest } from "@/lib/ai-guard";
 import { getCurrentUser } from "@/lib/auth/session";
 import { saveAsset, getAsset } from "@/lib/assets";
+import { logEvent, EVENTS } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -55,6 +56,7 @@ export async function POST(req: NextRequest) {
         userId: user.id, type: "edit_plan", assetId: `plan:${user.id}`,
         parentAssetId: storyboardAssetId, title: plan.meta.title, status: "completed", payload: plan,
       });
+      await logEvent({ userId: user.id, event: EVENTS.plan_generated, assetId: `plan:${user.id}` });
       return NextResponse.json({ ok: true, plan, planAssetId: `plan:${user.id}` });
     }
 

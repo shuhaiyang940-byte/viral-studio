@@ -77,6 +77,16 @@ export function ReportView({ id }: { id?: string }) {
 
   const router = useRouter();
 
+  React.useEffect(() => {
+    if (report) {
+      fetch("/api/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "report_viewed", assetId: report.id }),
+      }).catch(() => {});
+    }
+  }, [report]);
+
   // 行动入口：从分析结果一键生成导演分镜 / 写文案
   function goStoryboard() {
     if (!report) return;

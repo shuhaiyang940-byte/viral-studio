@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { listAssets, type AssetType } from "@/lib/assets";
+import { logEvent, EVENTS } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ const VALID_TYPES = new Set<string>(["analysis", "storyboard", "edit_plan", "rep
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "未登录" }, { status: 401 });
+  await logEvent({ userId: user.id, event: EVENTS.history_viewed });
 
   const sp = new URL(req.url).searchParams;
   const typeRaw = sp.get("type") || undefined;

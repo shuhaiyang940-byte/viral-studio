@@ -7,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { kvGet, kvSet, kvDel } from "@/lib/kv";
 import { codeOf } from "@/lib/ai-fallback";
 import { saveAsset } from "@/lib/assets";
+import { logEvent, EVENTS } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,7 @@ export async function POST(req: NextRequest) {
         status: "completed",
         payload: report,
       });
+      await logEvent({ userId: user.id, event: EVENTS.analyze_completed, assetId: report.id });
     }
     await logUsage({ userId: user?.id, quotaType: "video_analysis", amount: 0, action: "success", status: "ok", requestId });
     if (reqKey) await kvDel(reqKey);
@@ -89,6 +91,7 @@ export async function POST(req: NextRequest) {
       await logUsage({ userId: user?.id, quotaType: "video_analysis", amount: 0, action: "failed", status: "failed", requestId });
     }
     if (reqKey) await kvDel(reqKey);
+    await logEvent({ userId: user?.id, event: EVENTS.analyze_failed });
     const msg = err instanceof Error ? err.message : "AI 分析失败";
     return NextResponse.json({ error: msg, code: codeOf(err) }, { status: 502 });
   }
