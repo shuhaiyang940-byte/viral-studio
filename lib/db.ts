@@ -113,11 +113,23 @@ CREATE TABLE IF NOT EXISTS quota_usage (
   count INTEGER NOT NULL DEFAULT 0,
   day TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS usage_logs (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT,
+  quota_type TEXT NOT NULL,
+  amount INTEGER NOT NULL DEFAULT 0,
+  action TEXT NOT NULL,
+  status TEXT,
+  request_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE INDEX IF NOT EXISTS idx_cases_category ON cases(category);
 CREATE INDEX IF NOT EXISTS idx_benchmarks_platform ON benchmarks(platform);
 CREATE INDEX IF NOT EXISTS idx_benchmarks_ideatype ON benchmarks(idea_type);
 CREATE INDEX IF NOT EXISTS idx_email_tokens_user ON email_tokens(user_id);
 CREATE INDEX IF NOT EXISTS idx_email_tokens_type ON email_tokens(type);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_user ON usage_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_created ON usage_logs(created_at);
 -- 旧库兼容：engagement_rate 从 INTEGER 升级为 DOUBLE PRECISION（种子数据为 6.4~11.2 的百分数）
 ALTER TABLE benchmarks ALTER COLUMN engagement_rate TYPE DOUBLE PRECISION;
 `;

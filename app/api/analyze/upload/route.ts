@@ -5,7 +5,9 @@ import path from "path";
 import { analyzeVideo } from "@/lib/ai";
 import { extractFrames, describeFrames } from "@/lib/vision";
 import { guardAiRequest } from "@/lib/ai-guard";
-import { checkAnalyzeQuota } from "@/lib/quota-server";
+import { getQuotaForReq, consumeQuota, refundQuota, logUsage } from "@/lib/quota-server";
+import { getCurrentUser } from "@/lib/auth/session";
+import { codeOf } from "@/lib/ai-fallback";
 import type { OnboardingProfile } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -25,17 +27,6 @@ const ALLOWED_EXT = [".mp4", ".mov", ".webm", ".m4v"];
 export async function POST(req: NextRequest) {
   const g = await guardAiRequest(req, "analyze");
   if (!g.ok) return g.res;
-  const quota = await checkAnalyzeQuota(req);
-  if (!quota.ok) {
-    return NextResponse.json(
-      {
-        error: "今日免费分析次数已用完，升级会员可无限次分析。",
-        code: "QUOTA_EXCEEDED",
-        quota: { limit: quota.limit, remaining: quota.remaining },
-      },
-      { status: 429 }
-    );
-  }
 
   let form: FormData;
   try {
@@ -59,12 +50,31 @@ export async function POST(req: NextRequest) {
 
   const title = String(form.get("title") ?? "").trim().slice(0, 120);
   const refType = String(form.get("refType") ?? "").trim();
+  const requestId = typeof form.get("requestId") === "string" ? String(form.get("requestId")) : undefined;
   let profile: OnboardingProfile | undefined;
   try {
     const raw = String(form.get("profile") ?? "");
     if (raw) profile = JSON.parse(raw) as OnboardingProfile;
   } catch {
     profile = undefined;
+  }
+
+  // —— 预扣（原子）：校验全通过后才消耗，超限回退并 429，AI 失败再回退 ——
+  const user = await getCurrentUser();
+  const q = await getQuotaForReq(req);
+  let quotaKey: string | null = null;
+  if (q.limit !== null) {
+    quotaKey = q.userKey ?? q.ipKey;
+    const count = await consumeQuota(quotaKey);
+    await logUsage({ userId: user?.id, quotaType: "video_analysis", amount: 1, action: "consume", status: "ok", requestId });
+    if (count > q.limit) {
+      await refundQuota(quotaKey);
+      await logUsage({ userId: user?.id, quotaType: "video_analysis", amount: 1, action: "refund", status: "failed", requestId });
+      return NextResponse.json(
+        { error: "今日免费分析次数已用完，升级会员可无限次分析。", code: "QUOTA_EXCEEDED", quota: { limit: q.limit, remaining: 0 } },
+        { status: 429 }
+      );
+    }
   }
 
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "vsa-upload-"));
@@ -107,7 +117,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(report);
   } catch (e: any) {
     console.warn("[api/analyze/upload] 分析失败：", e);
-    return NextResponse.json({ error: e?.message || "分析失败，请重试" }, { status: 500 });
+    if (quotaKey) {
+      await refundQuota(quotaKey);
+      await logUsage({ userId: user?.id, quotaType: "video_analysis", amount: 1, action: "refund", status: "failed", requestId });
+    }
+    return NextResponse.json({ error: e?.message || "分析失败，请重试", code: codeOf(e) }, { status: 502 });
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

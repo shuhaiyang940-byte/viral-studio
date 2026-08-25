@@ -119,3 +119,47 @@ export async function checkAnalyzeQuota(req: NextRequest): Promise<QuotaCheck> {
   if (count <= limit) return { ok: true, remaining: limit - count, limit };
   return { ok: false, remaining: 0, limit };
 }
+
+/**
+ * 原子消耗一次配额：+1 并返回最新计数。
+ * 并发安全：单条 INSERT ... ON CONFLICT DO UPDATE，count 单调递增，
+ * 调用方在 count > limit 时可 refund 回退（超出的那次），保证并发不会刷穿。
+ */
+export async function consumeQuota(key: string): Promise<number> {
+  return increment(key);
+}
+
+/** 原子回退一次配额（-1，最低到 0，且仅限当天），用于 AI 失败后退还额度 */
+export async function refundQuota(key: string): Promise<void> {
+  if (!hasDatabase()) return;
+  const day = today();
+  try {
+    await q(
+      `UPDATE quota_usage SET count = GREATEST(0, count - 1) WHERE key = $1 AND day = $2`,
+      [key, day]
+    );
+  } catch (e) {
+    console.warn("[quota] refund 失败：", e);
+  }
+}
+
+/** 额度使用日志（consume / refund / success / failed），便于回答「为什么少了一次额度」 */
+export async function logUsage(entry: {
+  userId?: string | null;
+  quotaType: string;
+  amount: number;
+  action: "consume" | "refund" | "success" | "failed";
+  status?: "ok" | "failed";
+  requestId?: string | null;
+}): Promise<void> {
+  if (!hasDatabase()) return;
+  try {
+    await q(
+      `INSERT INTO usage_logs (user_id, quota_type, amount, action, status, request_id)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [entry.userId ?? null, entry.quotaType, entry.amount, entry.action, entry.status ?? null, entry.requestId ?? null]
+    );
+  } catch (e) {
+    console.warn("[quota] log 失败（不影响主流程）：", e);
+  }
+}

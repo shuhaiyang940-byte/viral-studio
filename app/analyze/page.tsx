@@ -94,6 +94,10 @@ export default function AnalyzePage() {
   async function start() {
     if (quotaBlocked || !canStart || loading) return;
     setLoading(true);
+    const requestId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     for (let i = 0; i < PIPELINE.length; i++) {
       setStep(i);
       await new Promise((r) => setTimeout(r, 750));
@@ -132,6 +136,7 @@ export default function AnalyzePage() {
               fd.append("title", title.trim());
               fd.append("refType", refType);
               fd.append("profile", profile ? JSON.stringify(profile) : "");
+              fd.append("requestId", requestId);
               return fetch("/api/analyze/upload", { method: "POST", body: fd });
             })()
           : await fetch("/api/analyze", {
@@ -142,6 +147,7 @@ export default function AnalyzePage() {
                 title: title.trim() || undefined,
                 profile,
                 refType,
+                requestId,
               }),
             });
       const report = await res.json();
