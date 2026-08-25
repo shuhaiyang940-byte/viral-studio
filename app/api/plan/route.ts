@@ -63,15 +63,16 @@ export async function POST(req: NextRequest) {
           "竖屏与平台一致（抖音/小红书建议 9:16），口播音量统一。",
         ],
         parentAssetId: storyboardAssetId,
-        assetId: `plan:${user.id}`,
+        // 按分镜版本来标识，避免不同 Storyboard 的计划互相覆盖（版本链不污染）
+        assetId: `plan:${user.id}:${storyboardAssetId}`,
       };
       await kvSet(`edit_plan:${user.id}`, JSON.stringify(plan));
       await saveAsset({
-        userId: user.id, type: "edit_plan", assetId: `plan:${user.id}`,
+        userId: user.id, type: "edit_plan", assetId: plan.assetId,
         parentAssetId: storyboardAssetId, title: plan.meta.title, status: "completed", payload: plan,
       });
-      await logEvent({ userId: user.id, event: EVENTS.plan_generated, assetId: `plan:${user.id}` });
-      return NextResponse.json({ ok: true, plan, planAssetId: `plan:${user.id}` });
+      await logEvent({ userId: user.id, event: EVENTS.plan_generated, assetId: plan.assetId });
+      return NextResponse.json({ ok: true, plan, planAssetId: plan.assetId });
     }
 
     const plan = body;
