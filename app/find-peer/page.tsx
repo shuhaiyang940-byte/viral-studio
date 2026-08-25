@@ -17,6 +17,10 @@ import {
   Clapperboard,
   Lock,
   Plus,
+  Flame,
+  Wand2,
+  Copy,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +42,8 @@ import {
   CATEGORY_OPTIONS,
   GOAL_OPTIONS,
   findPlaybooks,
+  blackHorseIndex,
+  isBlackHorse,
   type IdeaType,
   type BenchmarkItem,
   type Playbook,
@@ -121,6 +127,13 @@ export default function FindPeerPage() {
   const [addLoading, setAddLoading] = React.useState(false);
   const [addError, setAddError] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<BenchForm>(EMPTY_FORM);
+  // ── 爆款基因重组（一键变成我的视频）──
+  const [repOpen, setRepOpen] = React.useState(false);
+  const [repTarget, setRepTarget] = React.useState<Playbook | null>(null);
+  const [repForm, setRepForm] = React.useState({ myTopic: "", myPersona: "", platform: "" });
+  const [repBusy, setRepBusy] = React.useState(false);
+  const [repResult, setRepResult] = React.useState<any>(null);
+  const [repError, setRepError] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
@@ -164,6 +177,44 @@ export default function FindPeerPage() {
     setTitle("");
     setResults([]);
     setPlaybooks([]);
+  }
+
+  /** 打开「一键变成我的视频」弹窗，带上选中的爆款套路 */
+  function openRepurpose(p: Playbook) {
+    setRepTarget(p);
+    setRepResult(null);
+    setRepError(null);
+    setRepForm({ myTopic: "", myPersona: "", platform: "" });
+    setRepOpen(true);
+  }
+
+  /** 套用该套路的骨架，换成本人素材，生成可照拍脚本 */
+  async function submitRepurpose() {
+    if (!repTarget || !repForm.myTopic.trim()) return;
+    setRepBusy(true);
+    setRepError(null);
+    try {
+      const res = await fetch("/api/repurpose", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playbook: repTarget,
+          myTopic: repForm.myTopic.trim(),
+          myPersona: repForm.myPersona.trim() || undefined,
+          platform: repForm.platform.trim() || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRepError(data.error || "生成失败，请稍后重试");
+        return;
+      }
+      setRepResult(data);
+    } catch {
+      setRepError("网络异常，请检查连接后重试");
+    } finally {
+      setRepBusy(false);
+    }
   }
 
   async function toggleTrack(a: BenchmarkItem) {
@@ -518,6 +569,15 @@ export default function FindPeerPage() {
                             <Badge variant="warning" className="text-[10px]">
                               互动 {a.engagementRate}%
                             </Badge>
+                            {isBlackHorse(a) ? (
+                              <Badge className="bg-orange-500/15 text-orange-600 dark:text-orange-300 text-[10px]" title="互动率高 + 粉丝量相对小 = 小号大爆款，性价比最高，优先照抄">
+                                <Flame className="mr-0.5 h-3 w-3" /> 黑马指数 {blackHorseIndex(a)}
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px]" title="互动率 / 粉丝量估算，示例库参考">
+                                黑马指数 {blackHorseIndex(a)}
+                              </Badge>
+                            )}
                           </div>
 
                           <p className="mt-3 truncate text-xs text-muted-foreground">
@@ -583,6 +643,13 @@ export default function FindPeerPage() {
                               ))}
                             </ol>
                             <p className="text-xs text-muted-foreground">{p.note}</p>
+                            <Button
+                              size="sm"
+                              className="mt-3 w-full gap-1.5"
+                              onClick={() => openRepurpose(p)}
+                            >
+                              <Wand2 className="h-4 w-4" /> 一键变成我的视频
+                            </Button>
                           </CardContent>
                         </Card>
                       ))}
@@ -734,6 +801,176 @@ export default function FindPeerPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* 一键变成我的视频 */}
+      <Dialog open={repOpen} onOpenChange={setRepOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>一键变成我的视频</DialogTitle>
+            <DialogDescription>
+              套用「{repTarget?.title}」的爆款骨架，把内容换成你自己的，3 秒拿到一份能直接开拍的脚本。
+            </DialogDescription>
+          </DialogHeader>
+
+          {!repResult ? (
+            <>
+              <div className="space-y-3">
+                <div>
+                  <label className="mb-1 block text-xs font-medium">你的主题 / 产品（必填）</label>
+                  <Input
+                    value={repForm.myTopic}
+                    onChange={(e) => setRepForm({ ...repForm, myTopic: e.target.value })}
+                    placeholder="如：我卖的无糖茶饮 / 我是教人学做饭的"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium">我的人设（可选）</label>
+                  <Input
+                    value={repForm.myPersona}
+                    onChange={(e) => setRepForm({ ...repForm, myPersona: e.target.value })}
+                    placeholder="如：十年小吃店主 / 理性测评号"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium">发布平台（可选）</label>
+                  <Input
+                    value={repForm.platform}
+                    onChange={(e) => setRepForm({ ...repForm, platform: e.target.value })}
+                    placeholder="如：抖音"
+                  />
+                </div>
+              </div>
+
+              {repError && (
+                <p role="alert" className="mt-3 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                  {repError}
+                </p>
+              )}
+
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="ghost" onClick={() => setRepOpen(false)}>
+                  取消
+                </Button>
+                <Button onClick={submitRepurpose} disabled={repBusy || !repForm.myTopic.trim()}>
+                  {repBusy ? "生成中…" : "生成我的脚本"}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <RepurposeResultView
+              r={repResult}
+              onRegen={() => setRepResult(null)}
+              onClose={() => setRepOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/** 结果展示：可照念的脚本 + 分镜（含画面 / 语调 / 避坑），支持一键复制 */
+function RepurposeResultView({
+  r,
+  onRegen,
+  onClose,
+}: {
+  r: any;
+  onRegen: () => void;
+  onClose: () => void;
+}) {
+  const [copied, setCopied] = React.useState(false);
+
+  function copyAll() {
+    const lines = [
+      `【标题】${r.title}`,
+      `【钩子】${r.hook}`,
+      ...(r.body || []).map((b: string) => `· ${b}`),
+      `【结尾】${r.cta}`,
+      "",
+      "【分镜表】",
+      ...(r.shots || []).map(
+        (s: any, i: number) =>
+          `${i + 1}. ${s.phase}（${s.durationSec}s）\n   画面：${s.visual}\n   台词：${s.line}\n   语调：${s.tone}\n   避坑：${s.pitfall}\n   音效：${s.sfx}`
+      ),
+      "",
+      "【落地建议】",
+      ...(r.tips || []).map((t: string) => `· ${t}`),
+    ].join("\n");
+    navigator.clipboard?.writeText(lines).then(() => setCopied(true)).catch(() => {});
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border p-3">
+        <p className="text-lg font-semibold">{r.title}</p>
+        <p className="mt-1 text-sm text-primary">
+          <span className="font-medium">黄金 3 秒：</span>
+          {r.hook}
+        </p>
+      </div>
+
+      {(r.body || []).length > 0 && (
+        <ul className="space-y-1.5 text-sm">
+          {(r.body as string[]).map((b, i) => (
+            <li key={i} className="flex gap-2">
+              <span className="shrink-0 font-mono text-xs text-muted-foreground">{(i + 1).toString().padStart(2, "0")}</span>
+              <span>{b}</span>
+            </li>
+          ))}
+          <li className="flex gap-2">
+            <span className="shrink-0 font-mono text-xs text-muted-foreground">CTA</span>
+            <span className="text-primary">{r.cta}</span>
+          </li>
+        </ul>
+      )}
+
+      {(r.shots || []).length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-semibold text-muted-foreground">分镜表（照着拍）</p>
+          <div className="space-y-2">
+            {(r.shots as any[]).map((s, i) => (
+              <div key={i} className="rounded-lg border border-border p-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold">
+                    {i + 1}. {s.phase}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">{s.durationSec}s</span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">画面：{s.visual}</p>
+                <p className="mt-1 text-sm">{s.line}</p>
+                <div className="mt-1 flex flex-wrap gap-1.5">
+                  <Badge variant="secondary" className="text-[10px]">语调：{s.tone}</Badge>
+                  <Badge variant="outline" className="text-[10px]">音效：{s.sfx}</Badge>
+                  <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-300 text-[10px]">避坑：{s.pitfall}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(r.tips || []).length > 0 && (
+        <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
+          {(r.tips as string[]).map((t, i) => (
+            <p key={i} className="mb-1 flex gap-1.5">
+              <ChevronRight className="mt-0.5 h-3 w-3 shrink-0" /> {t}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <div className="flex justify-end gap-2">
+        <Button variant="ghost" onClick={onClose}>
+          关闭
+        </Button>
+        <Button variant="outline" onClick={onRegen} className="gap-1.5">
+          <Wand2 className="h-4 w-4" /> 再来一次
+        </Button>
+        <Button onClick={copyAll} className="gap-1.5">
+          <Copy className="h-4 w-4" /> {copied ? "已复制" : "复制全文"}
+        </Button>
+      </div>
     </div>
   );
 }

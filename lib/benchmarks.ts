@@ -633,3 +633,20 @@ export function findPeers(q: PeerQuery, limit = 6): BenchmarkAccount[] {
 
   return scored.slice(0, limit).map((x) => x.a);
 }
+
+/**
+ * 黑马指数（0~100）：衡量「这条对标是否属于小号大爆款」。
+ * 核心逻辑：互动率越高、粉丝量越低，越像「高回报黑马」，越值得优先抄。
+ * 数据来自「我们的示例库」，是近似估算（非真实播放数据），仅供排序参考。
+ */
+export function blackHorseIndex(a: Pick<BenchmarkAccount, "followers" | "engagementRate">): number {
+  const engagement = a.engagementRate * 8; // 互动率权重高
+  const followerPenalty = a.followers / 25; // 粉丝越多越"稳"，黑马属性下降
+  const v = Math.round(engagement - followerPenalty + 20);
+  return Math.max(0, Math.min(100, v));
+}
+
+/** 是否命中「黑马高回报」：指数>=80 */
+export function isBlackHorse(a: Pick<BenchmarkAccount, "followers" | "engagementRate">): boolean {
+  return blackHorseIndex(a) >= 80;
+}
