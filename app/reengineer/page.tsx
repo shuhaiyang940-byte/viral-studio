@@ -25,6 +25,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { TeleprompterButton } from "@/components/teleprompter-modal";
+import { friendlyError } from "@/lib/ui-error";
 
 /**
  * 展示层归一化：兼容两种生成结果结构。
@@ -88,16 +89,22 @@ function ReengineerInner() {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<any>(null);
+  // 同一次用户操作复用同一个 requestId（服务端幂等锁依赖它），完成后才允许新建。
+  // 避免「快速连点 → 多个不同 requestId → 多次 AI 调用」。useRef 稳定，不随 re-render 改变。
+  const requestIdRef = React.useRef<string | null>(null);
 
   async function run() {
     if (!form.text.trim() || !form.product.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      const requestId =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      if (!requestIdRef.current) {
+        requestIdRef.current =
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      }
+      const requestId = requestIdRef.current;
       const endpoint = form.analysisAssetId ? "/api/flow/start" : "/api/viral-engine";
       const body = form.analysisAssetId
         ? { analysisAssetId: form.analysisAssetId, myTopic: form.product.trim(), requestId }
@@ -116,7 +123,7 @@ function ReengineerInner() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "生成失败，请稍后重试");
+        setError(friendlyError(data.error, data.code));
         return;
       }
       setResult(normalizeEngine(data));
@@ -125,6 +132,7 @@ function ReengineerInner() {
       setError("网络异常，请检查连接后重试");
     } finally {
       setBusy(false);
+      requestIdRef.current = null;
     }
   }
 
@@ -326,7 +334,7 @@ function EngineResult({
         body: JSON.stringify({ storyboardAssetId: r.storyboardAssetId }),
       });
       const d = await res.json();
-      if (!res.ok) { setPlanError(d.error || "生成失败"); return; }
+      if (!res.ok) { setPlanError(friendlyError(d.error, d.code)); return; }
       setPlan(d.plan);
     } catch {
       setPlanError("网络异常，请重试");

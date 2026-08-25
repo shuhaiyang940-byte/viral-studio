@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BETA_OPEN } from "@/lib/beta";
+import { friendlyError } from "@/lib/ui-error";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -72,6 +73,9 @@ export default function AnalyzePage() {
   const [showLinkHelp, setShowLinkHelp] = React.useState(false);
   const { session } = useSession();
   const [quota, setQuota] = React.useState<ClientQuota | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
+  // 同一次用户操作复用同一个 requestId（服务端做 5 分钟重复提交保护），完成后才允许新建。
+  const requestIdRef = React.useRef<string | null>(null);
 
   // 配额来自服务端：登录 / 升级后要立刻重算
   React.useEffect(() => {
@@ -95,10 +99,14 @@ export default function AnalyzePage() {
   async function start() {
     if (quotaBlocked || !canStart || loading) return;
     setLoading(true);
-    const requestId =
-      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-        ? crypto.randomUUID()
-        : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setError(null);
+    if (!requestIdRef.current) {
+      requestIdRef.current =
+        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    }
+    const requestId = requestIdRef.current;
     for (let i = 0; i < PIPELINE.length; i++) {
       setStep(i);
       await new Promise((r) => setTimeout(r, 750));
@@ -166,10 +174,13 @@ export default function AnalyzePage() {
       fetchQuota().then((q) => {
         if (q) setQuota(q);
       });
+      requestIdRef.current = null;
       router.push(`/report?id=${report.id}`);
-    } catch {
+    } catch (e) {
       setLoading(false);
       setStep(-1);
+      requestIdRef.current = null;
+      setError(friendlyError(e instanceof Error ? e.message : undefined));
     }
   }
 
@@ -414,6 +425,11 @@ export default function AnalyzePage() {
               "开始分析"
             )}
           </Button>
+          {error && (
+            <p role="alert" className="mt-3 text-center text-xs text-destructive">
+              {error}
+            </p>
+          )}
           <p className="mt-3 text-center text-xs text-muted-foreground">
             当前免费公测：AI 会结合标题与类型生成拆解报告；上传 / 链接的真实视频理解（转写 + 画面识别）正在建设中。
           </p>

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { friendlyError } from "@/lib/ui-error";
 
 /** 内置体验爆款：一条「美食卖货」通用爆款，用来 0 门槛演示全流程 */
 const DEMO_PLAYBOOK = {
@@ -48,7 +49,7 @@ export default function DemoPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        setError(data.error || "生成失败，请稍后重试");
+        setError(friendlyError(data.error, data.code));
         return;
       }
       setResult(data);
