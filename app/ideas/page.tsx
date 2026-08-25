@@ -35,7 +35,9 @@ export default function IdeasPage() {
       const data = await res.json();
       const arr = Array.isArray(data.items) ? data.items : [];
       setItems(arr.length ? arr : FALLBACK);
-      setLive(!!arr.length);
+      // 只要任一来源实时成功，即为「全网实时热榜」；否则视为「实时暂不可用」
+      const sources = data.sources || {};
+      setLive(Object.values(sources).some((v) => v === "ok"));
       setUpdatedAt(data.updatedAt || null);
     } catch {
       setItems(FALLBACK);
@@ -132,7 +134,9 @@ export default function IdeasPage() {
       )}
 
       <p className="mt-8 text-center text-xs text-muted-foreground">
-        {live ? `题材来自微博 / 百度 / 抖音 / 头条 / 知乎趋势等公开热榜。` : "当前为内置精选选题；联网后将自动并入全网实时热榜。"}
+      {live
+        ? `题材来自微博 / 百度 / 抖音 / 头条 / 知乎趋势等公开热榜（实时更新）。`
+        : "当前实时热点暂不可用，以下为精选灵感库；联网后将自动并入全网实时热榜。"}
         点击任意题材，可一键带入「爆款搬运」生成你的脚本。
       </p>
     </div>

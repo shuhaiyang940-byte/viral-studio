@@ -3,6 +3,7 @@ import { analyzeVideo } from "@/lib/ai";
 import { SAMPLE_REPORT } from "@/lib/mock-data";
 import { guardAiRequest } from "@/lib/ai-guard";
 import { checkAnalyzeQuota } from "@/lib/quota-server";
+import { codeOf } from "@/lib/ai-fallback";
 
 export const dynamic = "force-dynamic";
 
@@ -21,14 +22,20 @@ export async function POST(req: NextRequest) {
     );
   }
   const body = await req.json().catch(() => ({}));
-  const report = await analyzeVideo({
-    source: typeof body.source === "string" ? body.source : undefined,
-    title: typeof body.title === "string" ? body.title : undefined,
-    profile:
-      body.profile && typeof body.profile === "object" ? body.profile : undefined,
-    refType: typeof body.refType === "string" ? body.refType : undefined,
-  });
-  return NextResponse.json(report);
+  try {
+    const report = await analyzeVideo({
+      source: typeof body.source === "string" ? body.source : undefined,
+      title: typeof body.title === "string" ? body.title : undefined,
+      profile:
+        body.profile && typeof body.profile === "object" ? body.profile : undefined,
+      refType: typeof body.refType === "string" ? body.refType : undefined,
+    });
+    return NextResponse.json(report);
+  } catch (err) {
+    // 真实 AI 失败（生产）：明确失败，绝不返回 Mock 报告
+    const msg = err instanceof Error ? err.message : "AI 分析失败";
+    return NextResponse.json({ error: msg, code: codeOf(err) }, { status: 502 });
+  }
 }
 
 export async function GET(req: NextRequest) {

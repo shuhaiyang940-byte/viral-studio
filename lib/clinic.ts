@@ -6,6 +6,7 @@
 
 import { BENCHMARKS, blackHorseIndex, type IdeaType } from "@/lib/benchmarks";
 import { chat, isConfigured } from "@/lib/llm";
+import { allowMockFallback, aiFailure, AI_ANALYSIS_FAILED } from "@/lib/ai-fallback";
 
 export interface ClinicInput {
   /** 赛道：生活 / 旅游 / 美食 / 情感 / 知识 / 商业 */
@@ -236,8 +237,12 @@ export async function generateClinic(input: ClinicInput): Promise<ClinicResult> 
       ], { json: true, temperature: 0.75, maxTokens: 2000 });
       const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
       return normalize(parsed, input, benchmarks);
-    } catch {
-      // LLM 失败回落模板
+    } catch (err) {
+      if (!allowMockFallback()) {
+        console.error("[clinic] 真实诊断失败（生产，不回退模板）：", err);
+        throw aiFailure(AI_ANALYSIS_FAILED, err instanceof Error ? err.message : undefined);
+      }
+      // 开发/测试：回落模板，保证可演示
     }
   }
   return buildTemplateResult(input, benchmarks);

@@ -7,6 +7,7 @@ import {
 } from "@/lib/copywrite";
 import { reasoningChat, isConfigured } from "@/lib/llm";
 import { guardAiRequest } from "@/lib/ai-guard";
+import { allowMockFallback, codeOf } from "@/lib/ai-fallback";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -124,7 +125,14 @@ export async function POST(req: NextRequest) {
     };
     return NextResponse.json(out);
   } catch (err) {
-    console.warn("[api/copy] DeepSeek 调用失败，回退本地模板：", err);
+    if (!allowMockFallback()) {
+      console.error("[api/copy] DeepSeek 真实生成失败（生产，不回退模板）：", err);
+      return NextResponse.json(
+        { error: "AI 生成失败，请稍后重试", code: codeOf(err) },
+        { status: 502 }
+      );
+    }
+    console.warn("[api/copy] DeepSeek 调用失败（开发回退本地模板）：", err);
     const tpl = generateCopy(b);
     return NextResponse.json({ ...tpl, source: "template" as const });
   }

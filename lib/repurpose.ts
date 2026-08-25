@@ -6,6 +6,7 @@
 
 import type { Playbook } from "@/lib/benchmarks";
 import { chat, isConfigured } from "@/lib/llm";
+import { allowMockFallback, aiFailure, AI_ANALYSIS_FAILED } from "@/lib/ai-fallback";
 
 export interface RepurposeShot {
   index: number;
@@ -191,8 +192,12 @@ export async function generateRepurpose(input: RepurposeInput): Promise<Repurpos
       ], { json: true, temperature: 0.8, maxTokens: 1600 });
       const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
       return normalize(parsed, input);
-    } catch {
-      // LLM 失败则回退本地模板，保证功能可用
+    } catch (err) {
+      if (!allowMockFallback()) {
+        console.error("[repurpose] 真实生成失败（生产，不回退模板）：", err);
+        throw aiFailure(AI_ANALYSIS_FAILED, err instanceof Error ? err.message : undefined);
+      }
+      // 开发/测试：回退本地模板，保证可演示
     }
   }
 

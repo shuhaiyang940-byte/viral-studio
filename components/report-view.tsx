@@ -383,6 +383,9 @@ export function ReportView({ id }: { id?: string }) {
               ))}
             </div>
           </div>
+          <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+            评分是 AI 基于结构、开头、情绪、互动、可复制性等维度的估算，用于提示优化方向，并非实际播放量 / 点赞量的预测。
+          </p>
         </CardContent>
       </Card>
 

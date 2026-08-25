@@ -1,6 +1,7 @@
 import type { AnalysisReport, OnboardingProfile } from "@/lib/types";
 import { generateMockReport } from "./mock";
 import { analyzeWithProvider } from "./providers";
+import { isProd, allowMockFallback, aiFailure, AI_NOT_CONFIGURED, AI_ANALYSIS_FAILED } from "@/lib/ai-fallback";
 
 export interface AnalyzeInput {
   source?: string;
@@ -31,13 +32,20 @@ export async function analyzeVideo(input: AnalyzeInput): Promise<AnalysisReport>
   const provider = (process.env.AI_PROVIDER || "mock").toLowerCase();
 
   if (provider === "mock") {
+    if (isProd() && !allowMockFallback()) {
+      throw aiFailure(AI_NOT_CONFIGURED, "AI_PROVIDER=mock 不能用于生产");
+    }
     return generateMockReport(input);
   }
 
   try {
     return await analyzeWithProvider(provider, input);
   } catch (err) {
-    console.warn(`[ai] ${provider} 调用失败，回退 Mock：`, err);
+    if (!allowMockFallback()) {
+      console.error(`[ai] ${provider} 真实分析失败（生产，不回退 mock）：`, err);
+      throw aiFailure(AI_ANALYSIS_FAILED, err instanceof Error ? err.message : "AI 分析失败");
+    }
+    console.warn(`[ai] ${provider} 分析失败（开发回退 mock）：`, err);
     return generateMockReport(input);
   }
 }

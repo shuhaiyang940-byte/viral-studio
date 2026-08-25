@@ -8,6 +8,7 @@
 // 仅服务端引用（/api/viral-engine），切勿在 'use client' 中 import。
 
 import { chat, isConfigured, type LlmProvider } from "@/lib/llm";
+import { allowMockFallback, aiFailure, AI_ANALYSIS_FAILED } from "@/lib/ai-fallback";
 
 /* ─────────── 类型 ─────────── */
 
@@ -143,6 +144,7 @@ export async function analyzeBlueprint(text: string): Promise<Blueprint> {
     1200
   );
   if (!raw) {
+    if (!allowMockFallback()) throw aiFailure(AI_ANALYSIS_FAILED, "无法获得真实 AI 拆解结果");
     const bp = templateBlueprint(text);
     bp.hook_type = guessHookType(text);
     return bp;
@@ -211,7 +213,10 @@ export async function rewriteFromBlueprint(
     user,
     1400
   );
-  if (!raw || !Array.isArray(raw.lines)) return templateScript(bp, input.product, input.persona);
+  if (!raw || !Array.isArray(raw.lines)) {
+    if (!allowMockFallback()) throw aiFailure(AI_ANALYSIS_FAILED, "无法获得真实 AI 复刻结果");
+    return templateScript(bp, input.product, input.persona);
+  }
   const lines: ScriptLine[] = raw.lines.map((l: any) => ({
     text: String(l.text || ""),
     mood: l.mood ? String(l.mood) : undefined,
@@ -257,7 +262,10 @@ export async function buildStoryboard(
     `请把下面口播脚本转成小白能看懂的分镜表：\n\n${scriptText}`,
     1500
   );
-  if (!raw || !Array.isArray(raw.rows)) return templateStoryboard(sc, input.product);
+  if (!raw || !Array.isArray(raw.rows)) {
+    if (!allowMockFallback()) throw aiFailure(AI_ANALYSIS_FAILED, "无法获得真实 AI 分镜结果");
+    return templateStoryboard(sc, input.product);
+  }
   const rows: StoryboardRow[] = raw.rows.map((r: any) => ({
     no: String(r.no || ""),
     shot: String(r.shot || ""),
