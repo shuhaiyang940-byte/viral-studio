@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
     const sbId = requestId ? `storyboard:${user.id}:${requestId}` : `storyboard:${user.id}:${randomUUID()}`;
     await saveAsset({ userId: user.id, type: "storyboard", assetId: sbId, parentAssetId: scriptId, title: `${result.title || myTopic} · 分镜`, status: "completed", payload: { shots: result.shots || [] } });
     if (requestId) await markGenerateDone(requestId, user.id, scriptId);
-    return NextResponse.json(applyView(result));
+    return NextResponse.json({ ...applyView(result), assetId: scriptId, storyboardAssetId: sbId });
   } catch (e: any) {
     await refundGenerationQuota(user.id, "script");
     await markGenerateFailed(requestId);

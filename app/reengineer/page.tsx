@@ -10,6 +10,7 @@ import {
   Table,
   Copy,
   Wand2,
+  Hammer,
   AlertTriangle,
   Music,
   ChevronRight,
@@ -199,6 +200,9 @@ function EngineResult({
   onExport: (type: "txt" | "csv") => void;
 }) {
   const [copied, setCopied] = React.useState(false);
+  const [plan, setPlan] = React.useState<any>(null);
+  const [planBusy, setPlanBusy] = React.useState(false);
+  const [planError, setPlanError] = React.useState<string | null>(null);
   const bp = r.blueprint || {};
   const lines = r.script || [];
   const sb = r.storyboard || {};
@@ -206,6 +210,26 @@ function EngineResult({
   function copyLines() {
     const txt = lines.map((l: any) => `${l.mood ? `[${l.mood}] ` : ""}${l.text}`).join("\n");
     navigator.clipboard?.writeText(txt).then(() => setCopied(true)).catch(() => {});
+  }
+
+  async function genPlan() {
+    if (!r.storyboardAssetId) return;
+    setPlanBusy(true);
+    setPlanError(null);
+    try {
+      const res = await fetch("/api/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ storyboardAssetId: r.storyboardAssetId }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setPlanError(d.error || "生成失败"); return; }
+      setPlan(d.plan);
+    } catch {
+      setPlanError("网络异常，请重试");
+    } finally {
+      setPlanBusy(false);
+    }
   }
 
   return (
@@ -328,10 +352,41 @@ function EngineResult({
         </Card>
       </section>
 
-      {/* ④ 一键导出 */}
+      {/* ③.5 拍摄计划（Storyboard → Plan） */}
       <section className="space-y-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold">
           <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">4</span>
+          拍摄计划
+        </h2>
+        {!plan ? (
+          <Button variant="gradient" className="gap-1.5" onClick={genPlan} disabled={planBusy || !r.storyboardAssetId}>
+            <Hammer className="h-4 w-4" /> {planBusy ? "生成中…" : "继续生成拍摄计划"}
+          </Button>
+        ) : (
+          <Card>
+            <CardContent className="space-y-2 p-4">
+              <p className="text-sm font-semibold">{plan.meta?.title}</p>
+              <div className="space-y-1.5 text-sm">
+                {(plan.clips || []).map((c: any, i: number) => (
+                  <div key={i} className="flex gap-2 border-b border-border/50 pb-1.5">
+                    <span className="shrink-0 font-mono text-xs text-muted-foreground">{String(i + 1).padStart(2, "0")}</span>
+                    <span>
+                      <span className="font-medium">{c.phase}</span> · {c.visual}
+                      {c.line ? ` · ${c.line}` : ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        {planError && <p className="text-xs text-destructive">{planError}</p>}
+      </section>
+
+      {/* ⑤ 一键导出 */}
+      <section className="space-y-3">
+        <h2 className="flex items-center gap-2 text-lg font-semibold">
+          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">5</span>
           一键导出，拿起就拍
         </h2>
         <div className="grid gap-3 sm:grid-cols-2">

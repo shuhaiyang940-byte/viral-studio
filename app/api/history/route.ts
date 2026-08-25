@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       id: a.assetId,
       type: a.type,
       assetId: a.assetId,
+      parentAssetId: a.parentAssetId,
       title: a.title,
       status: a.status,
       createdAt: a.createdAt,

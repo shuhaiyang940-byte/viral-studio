@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
       persona: typeof body.persona === "string" ? body.persona.trim() || undefined : undefined,
       platform: typeof body.platform === "string" ? body.platform.trim() || undefined : undefined,
     });
+    let respAsset: Record<string, string> = {};
     if (user) {
       const scriptId = requestId ? `script:${user.id}:${requestId}` : `script:${user.id}:${randomUUID()}`;
       await saveAsset({
@@ -87,8 +88,9 @@ export async function POST(req: NextRequest) {
         title: `${product} · 分镜`, status: "completed", payload: result.storyboard,
       });
       if (requestId) await markGenerateDone(requestId, user.id, scriptId);
+      respAsset = { assetId: scriptId, storyboardAssetId: sbId };
     }
-    return NextResponse.json(applyView(result));
+    return NextResponse.json({ ...applyView(result), ...respAsset });
   } catch (e: any) {
     if (user) await refundGenerationQuota(user.id, "script");
     else if (anonKey) await refundQuota(anonKey);

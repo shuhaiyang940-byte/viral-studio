@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { kvGet, kvSet } from "@/lib/kv";
 import { guardAiRequest } from "@/lib/ai-guard";
 import { getCurrentUser } from "@/lib/auth/session";
-import { saveAsset } from "@/lib/assets";
+import { saveAsset, getAsset } from "@/lib/assets";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +27,38 @@ export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "未登录" }, { status: 401 });
   try {
-    const plan = await req.json();
+    const body = await req.json();
+    const storyboardAssetId = typeof body.storyboardAssetId === "string" ? body.storyboardAssetId : undefined;
+
+    // 从 Storyboard 服务端生成拍摄计划（不信任客户端提交的分镜内容；验证归属）
+    if (storyboardAssetId) {
+      const sb = await getAsset(user.id, storyboardAssetId);
+      if (!sb || sb.type !== "storyboard") {
+        return NextResponse.json({ error: "分镜资产不存在" }, { status: 404 });
+      }
+      const shots: any[] = Array.isArray((sb.payload as any)?.shots) ? (sb.payload as any).shots : [];
+      const plan = {
+        meta: { title: sb.title || "拍摄计划", source: "storyboard" },
+        clips: shots.map((s, i) => ({
+          id: `clip-${Date.now()}-${i}`,
+          phase: s.phase,
+          durationSec: s.durationSec || 8,
+          visual: s.visual,
+          line: s.line,
+          sfx: s.sfx,
+        })),
+        parentAssetId: storyboardAssetId,
+        assetId: `plan:${user.id}`,
+      };
+      await kvSet(`edit_plan:${user.id}`, JSON.stringify(plan));
+      await saveAsset({
+        userId: user.id, type: "edit_plan", assetId: `plan:${user.id}`,
+        parentAssetId: storyboardAssetId, title: plan.meta.title, status: "completed", payload: plan,
+      });
+      return NextResponse.json({ ok: true, plan, planAssetId: `plan:${user.id}` });
+    }
+
+    const plan = body;
     if (!plan || !plan.meta || !Array.isArray(plan.clips)) {
       return NextResponse.json({ error: "无效的编辑计划" }, { status: 400 });
     }

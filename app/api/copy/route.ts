@@ -12,6 +12,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { getUserEntitlements } from "@/lib/permissions";
 import { consumeGenerationQuota, refundGenerationQuota, consumeAnonymousGenerate, refundQuota } from "@/lib/quota-server";
 import { clientIp } from "@/lib/rate-limit";
+import { beginGenerate, markGenerateDone, markGenerateFailed } from "@/lib/generate-guard";
+import { kvGet, kvSet } from "@/lib/kv";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,6 +86,13 @@ export async function POST(req: NextRequest) {
     quotaConsumed = true;
   }
 
+  const reqId = typeof (b as any).requestId === "string" ? (b as any).requestId : undefined;
+  const begin = await beginGenerate(reqId, quotaUser?.id);
+  if (begin.doneAssetId && reqId) {
+    const cached = await kvGet(`genreq:${reqId}:result`);
+    if (cached) return NextResponse.json(JSON.parse(cached));
+  }
+
   try {
     const content = await reasoningChat(
       [
@@ -146,8 +155,13 @@ export async function POST(req: NextRequest) {
       styleNote: b.style,
       source: "llm",
     };
+    if (reqId) {
+      await kvSet(`genreq:${reqId}:result`, JSON.stringify(out));
+      await markGenerateDone(reqId, quotaUser?.id, "copy:done");
+    }
     return NextResponse.json(out);
   } catch (err) {
+    await markGenerateFailed(reqId);
     if (quotaConsumed) {
       if (quotaUser) await refundGenerationQuota(quotaUser.id, "copy");
       else if (anonKey) await refundQuota(anonKey);

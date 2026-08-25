@@ -92,6 +92,7 @@ export async function POST(req: NextRequest) {
       duration: Number.isFinite(Number(body.duration)) ? Math.max(30, Math.min(60, Number(body.duration))) : undefined,
     });
     // —— 资产化：Script + Storyboard（带 parent 链，幂等 upsert）——
+    let respAsset: Record<string, string> = {};
     if (user) {
       const scriptId = requestId ? `script:${user.id}:${requestId}` : `script:${user.id}:${randomUUID()}`;
       await saveAsset({
@@ -104,8 +105,9 @@ export async function POST(req: NextRequest) {
         title: `${result.title || myTopic} · 分镜`, status: "completed", payload: { shots: result.shots || [] },
       });
       if (requestId) await markGenerateDone(requestId, user.id, scriptId);
+      respAsset = { assetId: scriptId, storyboardAssetId: sbId };
     }
-    return NextResponse.json(applyView(result));
+    return NextResponse.json({ ...applyView(result), ...respAsset });
   } catch (e: any) {
     if (user) await refundGenerationQuota(user.id, "script");
     else if (anonKey) await refundQuota(anonKey);
