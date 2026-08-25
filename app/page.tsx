@@ -399,12 +399,12 @@ export default function HomePage() {
           </div>
           <div className="mt-10 text-center">
             <Button asChild size="lg" variant="gradient" className="gap-2">
-              <Link href="/analyze">
-                <Wand2 className="h-4 w-4" /> 免费拆解第一条爆款
+              <Link href="/demo">
+                <Wand2 className="h-4 w-4" /> 免费体验：把爆款变成你的
               </Link>
             </Button>
             <p className="mt-3 text-xs text-muted-foreground">
-              会员功能建设中，当前全站免费
+              无需登录 · 60 秒看完整过程
             </p>
           </div>
         </div>

@@ -87,7 +87,7 @@ export function SiteHeader() {
                 <Link href="/login">登录</Link>
               </Button>
               <Button size="sm" asChild>
-                <Link href="/analyze">免费体验</Link>
+                <Link href="/demo">免费体验</Link>
               </Button>
             </>
           )}
