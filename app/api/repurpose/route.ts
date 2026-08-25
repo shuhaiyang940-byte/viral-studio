@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateRepurpose, type RepurposeInput } from "@/lib/repurpose";
 import { guardAiRequest } from "@/lib/ai-guard";
+import { getCurrentUser } from "@/lib/auth/session";
+import { getUserEntitlements, PRO_GATE_INFO } from "@/lib/permissions";
+import { capabilitiesFor } from "@/lib/entitlements";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,7 +36,23 @@ export async function POST(req: NextRequest) {
       emotion: Number.isFinite(Number(body.emotion)) ? Math.max(0, Math.min(100, Number(body.emotion))) : undefined,
       duration: Number.isFinite(Number(body.duration)) ? Math.max(30, Math.min(60, Number(body.duration))) : undefined,
     });
-    return NextResponse.json(result);
+    // —— Free / Pro 边界：先生成真实完整脚本，再按权限决定展示范围 ——
+    const user = await getCurrentUser();
+    const ent = await getUserEntitlements(user?.id ?? "");
+    const full = capabilitiesFor(ent.tier).scriptFull;
+    const gateInfo = PRO_GATE_INFO.scriptFull;
+    if (!full) {
+      // Preview：保留 hook + 前 2 条要点 + 前 3 镜，剩余明确为 Pro 解锁
+      return NextResponse.json({
+        ...result,
+        body: (result.body || []).slice(0, 2),
+        shots: (result.shots || []).slice(0, 3),
+        locked: true,
+        done: gateInfo.done,
+        unlock: gateInfo.unlock,
+      });
+    }
+    return NextResponse.json({ ...result, locked: false });
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "生成失败，请稍后重试" }, { status: 500 });
   }

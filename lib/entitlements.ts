@@ -119,3 +119,59 @@ export function canUseFeature(
   if (process.env.NEXT_PUBLIC_FREE_FULL_ACCESS !== "0") return true;
   return entitlementFor(tier).features[feature];
 }
+
+/* ─────────── 统一 Entitlement 能力层（Free / Pro 商业边界） ───────────
+ * 只关注「商业闭环关键能力」，服务端决定；客户端仅展示 UI。
+ * 原则：Free 得到真实价值（能看前面半程），但不能完成完整商业闭环；
+ *       Pro 解锁完整 Script / Storyboard / Plan / Export。
+ */
+export type Capability =
+  | "analysisBasic"
+  | "analysisDeep"
+  | "scriptPreview"
+  | "scriptFull"
+  | "storyboardPreview"
+  | "storyboardFull"
+  | "planPreview"
+  | "planFull"
+  | "export"
+  | "advanced";
+
+export type CapabilitySet = Record<Capability, boolean>;
+
+const FREE_CAPS: CapabilitySet = {
+  analysisBasic: true,
+  analysisDeep: false,
+  scriptPreview: true,
+  scriptFull: false,
+  storyboardPreview: true,
+  storyboardFull: false,
+  planPreview: true,
+  planFull: false,
+  export: false,
+  advanced: false,
+};
+
+const PRO_CAPS: CapabilitySet = {
+  analysisBasic: true,
+  analysisDeep: true,
+  scriptPreview: true,
+  scriptFull: true,
+  storyboardPreview: true,
+  storyboardFull: true,
+  planPreview: true,
+  planFull: true,
+  export: true,
+  advanced: true,
+};
+
+/** 档位 → 能力集（free/creator 走 Free 边界；pro/studio 走 Pro 边界） */
+export function capabilitiesFor(tier: string | undefined | null): CapabilitySet {
+  if (tier === "pro" || tier === "studio") return PRO_CAPS;
+  return FREE_CAPS;
+}
+
+/** 服务端判断某能力是否可用（仅供服务端权限用，不受公测放宽影响） */
+export function canCapability(tier: string | undefined | null, cap: Capability): boolean {
+  return capabilitiesFor(tier)[cap];
+}

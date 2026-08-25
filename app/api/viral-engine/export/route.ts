@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth/session";
+import { requireCapability } from "@/lib/permissions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +26,15 @@ interface Payload {
  * → 返回可下载文件（txt 提词器 / csv 分镜表，Excel 可打开）。
  */
 export async function POST(req: NextRequest) {
+  // 导出属于 Pro 能力（Free 只能看到 preview，无法导出完整成品）
+  const user = await getCurrentUser();
+  const cap = await requireCapability(user?.id, "export");
+  if (!cap.ok) {
+    return NextResponse.json(
+      { error: cap.error, code: "PRO_GATE", done: cap.done, unlock: cap.unlock },
+      { status: cap.status }
+    );
+  }
   const body = (await req.json().catch(() => ({}))) as { type?: string; payload?: Payload };
   const type = body.type;
   const p = body.payload || {};
