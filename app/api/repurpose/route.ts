@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
       myTopic,
       myPersona: body.myPersona ? String(body.myPersona).trim() : undefined,
       platform: body.platform ? String(body.platform).trim() : undefined,
+      casual: Number.isFinite(Number(body.casual)) ? Math.max(0, Math.min(100, Number(body.casual))) : undefined,
+      emotion: Number.isFinite(Number(body.emotion)) ? Math.max(0, Math.min(100, Number(body.emotion))) : undefined,
+      duration: Number.isFinite(Number(body.duration)) ? Math.max(30, Math.min(60, Number(body.duration))) : undefined,
     });
     return NextResponse.json(result);
   } catch (e: any) {

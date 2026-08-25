@@ -31,6 +31,7 @@ export function SiteHeader() {
             { label: "首页", href: "/" },
             { label: "爆款拆解", href: "/analyze" },
             { label: "找对标", href: "/find-peer" },
+            { label: "对标画布", href: "/studio" },
             { label: "账号诊所", href: "/clinic" },
             { label: "爆款搬运", href: "/reengineer" },
             { label: "AI写文案", href: "/copywriting" },

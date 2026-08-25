@@ -50,6 +50,12 @@ export interface RepurposeInput {
   myPersona?: string;
   /** 发布平台（决定节奏与结尾策略） */
   platform?: string;
+  /** 口语化程度 0~100（0=正统，100=极接地气） */
+  casual?: number;
+  /** 情绪强度 0~100（0=温和，100=强痛点/恐吓） */
+  emotion?: number;
+  /** 目标时长秒（30~60，用于控制内容量与节奏） */
+  duration?: number;
 }
 
 const PLATFORM_TIPS: Record<string, string> = {
@@ -171,10 +177,13 @@ export async function generateRepurpose(input: RepurposeInput): Promise<Repurpos
         "你是短视频爆款导演。用户给了一条爆款套路的骨架，你要把它的结构原样保留，" +
         "但把内容全部替换成用户自己的主题 / 产品 / 人设，产出一份" +
         "「照念就能拍」的口播脚本。只返回 JSON，不要解释。" +
+        `${input.casual !== undefined ? `口语化要求：${input.casual}/100（0=书面正统，100=极其口语接地气，多用短句与语气词）。` : ""}` +
+        `${input.emotion !== undefined ? `情绪强度：${input.emotion}/100（0=温和，100=强痛点/恐吓），请据此调节钩子与语气的力度。` : ""}` +
+        `${input.duration !== undefined ? `目标时长：约 ${input.duration} 秒，控制句子数量与分镜节奏。` : ""}` +
         "结构：{\"hook\":\"前3秒钩子(脚本式,可照念)\",\"title\":\"主标题\",\"body\":[\"第1要点\",\"第2要点\",\"第3要点\"]," +
         "\"cta\":\"结尾行动号召\",\"shots\":[{\"phase\":\"钩子\",\"visual\":\"画面建议\",\"line\":\"台词\",\"durationSec\":3," +
         "\"sfx\":\"音效/BGM\",\"tone\":\"语调提示\",\"pitfall\":\"避坑提示\"}],\"tips\":[\"落地建议\"]}";
-      const user = `【爆款套路】${playbook.title}\n钩子示例：${playbook.hook}\n结构：\n${structText}\n\n【我的素材】\n主题/产品：${myTopic}${myPersona ? `\n我的人设：${myPersona}` : ""}${platform ? `\n平台：${platform}` : ""}`;
+      const user = `【爆款套路】${playbook.title}\n钩子示例：${playbook.hook}\n结构：\n${structText}\n\n【我的素材】\n主题/产品：${myTopic}${myPersona ? `\n我的人设：${myPersona}` : ""}${platform ? `\n平台：${platform}` : ""}${input.casual !== undefined ? `\n口语化程度：${input.casual}/100` : ""}${input.emotion !== undefined ? `\n情绪强度：${input.emotion}/100` : ""}${input.duration !== undefined ? `\n目标时长：约${input.duration}秒` : ""}`;
 
       const raw = await chat("deepseek", [
         { role: "system", content: system },
