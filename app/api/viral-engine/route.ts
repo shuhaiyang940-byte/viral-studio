@@ -9,7 +9,7 @@ import { saveAsset, getAsset } from "@/lib/assets";
 import { beginGenerate, markGenerateDone, markGenerateFailed } from "@/lib/generate-guard";
 import { consumeGenerationQuota, refundGenerationQuota, consumeAnonymousGenerate, refundQuota } from "@/lib/quota-server";
 import { clientIp } from "@/lib/rate-limit";
-import { logEvent, EVENTS } from "@/lib/analytics";
+import { logEvent, EVENTS, logApiError } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
     const q = await consumeGenerationQuota(user.id, "script", ent.tier);
     if (!q.ok) {
       await markGenerateFailed(requestId);
+      await logApiError({ endpoint: "/api/viral-engine", status: 429, errorType: "QUOTA_LIMIT", userId: user.id });
       return NextResponse.json({ error: "今日生成次数已用完，升级会员可继续。", code: "QUOTA_EXCEEDED" }, { status: 429 });
     }
   }
@@ -66,6 +67,7 @@ export async function POST(req: NextRequest) {
     const an = await consumeAnonymousGenerate(ip, "script");
     if (!an.ok) {
       await markGenerateFailed(requestId);
+      await logApiError({ endpoint: "/api/viral-engine", status: 429, errorType: "QUOTA_LIMIT" });
       return NextResponse.json({ error: "免费体验次数已用完，请明日再来或登录升级。", code: "ANON_QUOTA_EXCEEDED" }, { status: 429 });
     }
   }

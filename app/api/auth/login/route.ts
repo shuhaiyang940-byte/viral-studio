@@ -3,6 +3,7 @@ import { getSql, ensureSchema, hasDatabase } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { setSession } from "@/lib/auth/session";
 import { rateLimit, resetRateLimit, clientIp } from "@/lib/rate-limit";
+import { logEvent, EVENTS } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
       },
     });
     await setSession(res, { sub: u.id, email: u.email, name: u.name, tier: u.tier });
+    await logEvent({ userId: u.id, event: EVENTS.login });
     return res;
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "登录失败" }, { status: 500 });

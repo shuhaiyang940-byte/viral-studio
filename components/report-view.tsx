@@ -219,7 +219,16 @@ export function ReportView({ id }: { id?: string }) {
             <p className="text-xs text-muted-foreground">下一步：把这个爆款结构，换成属于你的原创脚本与分镜。</p>
           </div>
           <Button asChild variant="gradient" className="gap-1.5">
-            <Link href={`/reengineer?analysisAssetId=${report.id}`}>
+            <Link
+              href={`/reengineer?analysisAssetId=${report.id}`}
+              onClick={() =>
+                fetch("/api/events", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ event: "start_creation_clicked", assetId: report.id }),
+                }).catch(() => {})
+              }
+            >
               <Wand2 className="h-4 w-4" /> 开始创作
             </Link>
           </Button>

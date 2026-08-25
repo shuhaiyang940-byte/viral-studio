@@ -7,7 +7,7 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { kvGet, kvSet, kvDel } from "@/lib/kv";
 import { codeOf } from "@/lib/ai-fallback";
 import { saveAsset } from "@/lib/assets";
-import { logEvent, EVENTS } from "@/lib/analytics";
+import { logEvent, EVENTS, logApiError } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     if (count > q.limit) {
       await refundQuota(quotaKey);
       await logUsage({ userId: user?.id, quotaType: "video_analysis", amount: 1, action: "refund", status: "failed", requestId });
+      await logApiError({ endpoint: "/api/analyze", status: 429, errorType: "QUOTA_LIMIT", userId: user?.id });
       if (reqKey) await kvDel(reqKey);
       return NextResponse.json(
         {
@@ -60,6 +61,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    await logEvent({ userId: user?.id, event: EVENTS.analyze_started });
     const report = await analyzeVideo({
       source: typeof body.source === "string" ? body.source : undefined,
       title: typeof body.title === "string" ? body.title : undefined,

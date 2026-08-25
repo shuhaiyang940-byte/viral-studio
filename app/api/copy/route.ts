@@ -14,6 +14,7 @@ import { consumeGenerationQuota, refundGenerationQuota, consumeAnonymousGenerate
 import { clientIp } from "@/lib/rate-limit";
 import { beginGenerate, markGenerateDone, markGenerateFailed } from "@/lib/generate-guard";
 import { kvGet, kvSet } from "@/lib/kv";
+import { logApiError } from "@/lib/analytics";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,12 +77,18 @@ export async function POST(req: NextRequest) {
     const ent = await getUserEntitlements(quotaUser?.id ?? "");
     if (quotaUser) {
       const q = await consumeGenerationQuota(quotaUser.id, "copy", ent.tier);
-      if (!q.ok) return NextResponse.json({ error: "今日生成次数已用完，升级会员可继续。", code: "QUOTA_EXCEEDED" }, { status: 429 });
+      if (!q.ok) {
+        await logApiError({ endpoint: "/api/copy", status: 429, errorType: "QUOTA_LIMIT", userId: quotaUser.id });
+        return NextResponse.json({ error: "今日生成次数已用完，升级会员可继续。", code: "QUOTA_EXCEEDED" }, { status: 429 });
+      }
     } else {
       const ip = clientIp(req);
       anonKey = `gen:anon:copy:ip:${ip}:`;
       const an = await consumeAnonymousGenerate(ip, "copy");
-      if (!an.ok) return NextResponse.json({ error: "免费体验次数已用完，请明日再来或登录升级。", code: "ANON_QUOTA_EXCEEDED" }, { status: 429 });
+      if (!an.ok) {
+        await logApiError({ endpoint: "/api/copy", status: 429, errorType: "QUOTA_LIMIT" });
+        return NextResponse.json({ error: "免费体验次数已用完，请明日再来或登录升级。", code: "ANON_QUOTA_EXCEEDED" }, { status: 429 });
+      }
     }
     quotaConsumed = true;
   }

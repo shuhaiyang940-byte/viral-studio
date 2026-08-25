@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { globalRateLimit, clientIp } from "./rate-limit";
 import { hasDatabase, q } from "./db";
+import { logApiError } from "./analytics";
 
 /**
  * AI 接口防刷守卫（IP 维度）。
@@ -193,6 +194,7 @@ export async function guardAiRequest(
       until === null || until === Number.MAX_SAFE_INTEGER
         ? null
         : new Date(until).toISOString();
+    await logApiError({ endpoint: req.nextUrl.pathname, status: 403, errorType: "IP_BLOCKED" });
     return {
       ok: false,
       res: NextResponse.json(
@@ -230,6 +232,7 @@ export async function guardAiRequest(
       `自动封禁：${scope} 接口（${limit} 次/小时）被连续触发限流`,
       BAN_MS
     );
+    await logApiError({ endpoint: req.nextUrl.pathname, status: 429, errorType: "RATE_LIMIT" });
     return {
       ok: false,
       res: NextResponse.json(
@@ -247,6 +250,7 @@ export async function guardAiRequest(
     };
   }
 
+  await logApiError({ endpoint: req.nextUrl.pathname, status: 429, errorType: "RATE_LIMIT" });
   return {
     ok: false,
     res: NextResponse.json(

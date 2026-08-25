@@ -39,3 +39,13 @@ export async function logEvent(opts: {
     console.warn("[analytics] 记录事件失败（不影响主流程）：", e);
   }
 }
+
+/** 记录 API 健康状况（Business rejection 如 RATE_LIMIT/IP_BLOCKED 也算健康信号，区分于系统故障） */
+export async function logApiError(opts: {
+  endpoint: string;
+  status: number;
+  errorType: "RATE_LIMIT" | "IP_BLOCKED" | "AI_PROVIDER_ERROR" | "DATABASE_ERROR" | "INTERNAL_ERROR" | string;
+  userId?: string | null;
+}): Promise<void> {
+  await logEvent({ userId: opts.userId, event: "api_error", meta: { endpoint: opts.endpoint, status: opts.status, errorType: opts.errorType } });
+}

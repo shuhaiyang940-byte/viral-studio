@@ -6,6 +6,7 @@ import { setSession } from "@/lib/auth/session";
 import { rateLimit, clientIp } from "@/lib/rate-limit";
 import { createEmailToken, verifyEmailLink, emailShell } from "@/lib/auth/tokens";
 import { sendMail, shouldExposeDevLink } from "@/lib/mail";
+import { logEvent, EVENTS } from "@/lib/analytics";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
     let devLink: string | undefined;
     const res = NextResponse.json({ user });
     await setSession(res, { sub: u.id, email: u.email, name: u.name, tier: u.tier });
+    await logEvent({ userId: u.id, event: EVENTS.signup });
 
     // 发送验证邮件（失败不阻断注册；开发模式把链接带回响应方便联调）
     const token = await createEmailToken(id, "verify-email");
