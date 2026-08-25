@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!quota.ok) {
     return NextResponse.json(
       {
-        error: "今日免费分析次数已用完，升级会员可无限次分析。",
+        error: "今日免费额度已用完，请明日再试。",
         code: "QUOTA_EXCEEDED",
         quota: { limit: quota.limit, remaining: quota.remaining },
       },

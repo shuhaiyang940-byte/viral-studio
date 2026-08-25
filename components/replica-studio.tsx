@@ -185,7 +185,7 @@ export function ReplicaStudio() {
             </Button>
             {!isPro && (
               <span className="text-xs text-muted-foreground">
-                {locked ? "今日免费次数已用完" : "免费档每天 1 次"}
+                会员功能
               </span>
             )}
           </div>
@@ -200,14 +200,14 @@ export function ReplicaStudio() {
               <Lock className="h-5 w-5" />
             </div>
             <div className="flex-1">
-              <p className="font-medium">今日免费次数已用完</p>
+              <p className="font-medium">该功能为会员功能</p>
               <p className="text-sm text-muted-foreground">
-                升级进阶版，解锁无限次复刻 + 5 标题 + 完整 6 镜分镜。
+                会员功能正式开放后即可使用，当前暂未对免费账号开放。
               </p>
             </div>
             <Button asChild variant="gradient">
               <Link href="/pricing">
-                <Crown className="h-4 w-4" /> 升级
+                <Crown className="h-4 w-4" /> 前往了解
               </Link>
             </Button>
           </CardContent>

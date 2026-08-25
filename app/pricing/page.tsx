@@ -23,6 +23,7 @@ import {
   type PricingCell,
 } from "@/lib/mock-data";
 import { useSession } from "@/lib/auth";
+import { BETA_OPEN } from "@/lib/beta";
 
 type Billing = "monthly" | "yearly";
 
@@ -37,7 +38,7 @@ function Cell({ value }: { value: PricingCell }) {
   return <span className="text-xs font-medium text-foreground/90">{value}</span>;
 }
 
-export default function PricingPage() {
+function MemberPricing() {
   const [billing, setBilling] = React.useState<Billing>("monthly");
   const { session } = useSession();
   const [mounted, setMounted] = React.useState(false);
@@ -291,4 +292,111 @@ export default function PricingPage() {
       </section>
     </div>
   );
+}
+
+/** Beta 公测说明页：不展示价格、不提供购买，只表达「限时免费公测」 */
+function BetaPricing() {
+  const { session } = useSession();
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
+  return (
+    <div className="flex flex-col">
+      {/* Hero */}
+      <section className="relative overflow-hidden">
+        <div className="pointer-events-none absolute -top-32 left-1/2 h-[400px] w-[700px] -translate-x-1/2 rounded-full bg-primary/8 blur-3xl" />
+        <div className="mx-auto max-w-4xl px-4 py-16 text-center sm:px-6">
+          <Badge variant="secondary" className="mb-4 gap-1.5">
+            <Crown className="h-3.5 w-3.5 text-primary" /> 限时免费公测
+          </Badge>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+            核心创作功能，Beta 公测期间全部免费
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-muted-foreground">
+            现在无需注册任何会员，即可免费体验完整的创作流程：从爆款分析，到脚本、分镜、拍摄计划，再到导出。
+          </p>
+        </div>
+      </section>
+
+      {/* 当前免费开放清单 */}
+      <section className="mx-auto w-full max-w-4xl px-4 sm:px-6">
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-8">
+            <h2 className="text-xl font-bold">当前 Beta 免费开放</h2>
+            <ul className="mt-5 grid gap-2.5 sm:grid-cols-2">
+              {[
+                "爆款分析（评分 / 黄金3秒 / 结构 / 情绪曲线）",
+                "完整分析报告（含深度拆解）",
+                "AI 脚本生成",
+                "完整分镜表（一镜一镜怎么拍）",
+                "拍摄计划",
+                "导出（提词器 / 分镜表 / 剪映草稿）",
+                "历史创作（云保存，跨设备继续）",
+                "创意选题库 / 对标挖掘 / 账号诊断",
+              ].map((t) => (
+                <li
+                  key={t}
+                  className="flex items-start gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm"
+                >
+                  <Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> {t}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 rounded-lg bg-background/60 px-4 py-3 text-sm text-muted-foreground">
+              不需要付费，也不需要购买会员。Beta 公测期间，这些能力对你完全开放。
+            </p>
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* 未来会员方案规划（不展示价格 / 不提供购买） */}
+      <section className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
+        <div className="text-center">
+          <h2 className="text-2xl font-bold tracking-tight">未来会员方案（规划中）</h2>
+          <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
+            以下为正式收费后的方案规划，目前<strong className="text-foreground">尚未开放购买</strong>。
+            Beta 公测期间无需付费，正式价格与权益以 Beta 结束后的公告为准。
+          </p>
+        </div>
+        <div className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          {MEMBERSHIP.map((m) => (
+            <Card key={m.tier} className="border-border/70">
+              <CardContent className="flex h-full flex-col p-6">
+                <h3 className="text-lg font-bold">{m.name}</h3>
+                <p className="mt-1 text-sm text-muted-foreground">{m.tagline}</p>
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  <Badge variant={m.tier === "free" ? "success" : "secondary"}>
+                    {m.tier === "free" ? "长期免费" : "即将推出"}
+                  </Badge>
+                </div>
+                <Button className="mt-5 w-full" variant="outline" disabled>
+                  即将推出
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </section>
+
+      {/* 底部 CTA */}
+      <section className="mx-auto w-full max-w-5xl px-4 pb-20 sm:px-6">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <Button asChild size="lg" variant="gradient" className="gap-2">
+            <Link href="/studio">
+              <Sparkles className="h-4 w-4" /> 立即免费体验
+            </Link>
+          </Button>
+          {mounted && session && (
+            <p className="text-xs text-muted-foreground">
+              当前已登录：{session.name} · Beta 期间无需额外开通
+            </p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+export default function PricingPage() {
+  return BETA_OPEN ? <BetaPricing /> : <MemberPricing />;
 }

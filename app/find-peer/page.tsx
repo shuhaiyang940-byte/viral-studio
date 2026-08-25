@@ -51,6 +51,7 @@ import {
 import { useSession } from "@/lib/auth";
 import { saveReport, saveStoryboard } from "@/lib/storage";
 import { briefToStoryboard } from "@/lib/storyboard";
+import { BETA_OPEN } from "@/lib/beta";
 
 function Chip({
   active,
@@ -673,11 +674,13 @@ export default function FindPeerPage() {
                       <div>
                         <h3 className="font-semibold">一键生成 AI 分镜图</h3>
                         <p className="mt-0.5 text-sm text-muted-foreground">
-                          把上面的需求直接变成可拍的分镜头表（含场景示意），高级会员专享。
+                          {BETA_OPEN
+                            ? "把上面的需求直接变成可拍的分镜头表（含场景示意）。"
+                            : "把上面的需求直接变成可拍的分镜头表（含场景示意），高级会员专享。"}
                         </p>
                       </div>
                     </div>
-                    {mounted && session?.isPro ? (
+                    {mounted && (session?.isPro || BETA_OPEN) ? (
                       <Button onClick={generateStoryboard} className="gap-1.5">
                         <Sparkles className="h-4 w-4" /> 生成 AI 分镜图
                       </Button>
@@ -689,10 +692,15 @@ export default function FindPeerPage() {
                       </Button>
                     )}
                   </div>
-                  {mounted && !session?.isPro && (
+                  {mounted && !session?.isPro && !BETA_OPEN && (
                     <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Crown className="h-3.5 w-3.5 text-primary" />
                       免费 / 普通会员可看完整对标与爆款套路；AI 分镜图需升级普通会员（按需求自动出分镜）。
+                    </p>
+                  )}
+                  {BETA_OPEN && (
+                    <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Sparkles className="h-3.5 w-3.5 text-primary" /> Beta 公测期间，AI 分镜图免费开放。
                     </p>
                   )}
                 </div>

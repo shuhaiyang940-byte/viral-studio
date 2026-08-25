@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
       await refundQuota(quotaKey);
       await logUsage({ userId: user?.id, quotaType: "video_analysis", amount: 1, action: "refund", status: "failed", requestId });
       return NextResponse.json(
-        { error: "今日免费分析次数已用完，升级会员可无限次分析。", code: "QUOTA_EXCEEDED", quota: { limit: q.limit, remaining: 0 } },
+        { error: "今日免费额度已用完，请明日再试。", code: "QUOTA_EXCEEDED", quota: { limit: q.limit, remaining: 0 } },
         { status: 429 }
       );
     }

@@ -837,7 +837,7 @@ function LoginGate({ report, id }: { report: AnalysisReport; id?: string }) {
       <h1 className="text-2xl font-bold tracking-tight">登录后免费查看完整拆解报告</h1>
       <p className="mt-3 text-muted-foreground leading-relaxed">
         报告已生成，完整内容（评分、分镜拆解、换成你的主题怎么拍）登录后全部免费查看。
-        会员功能建设中，当前全站免费开放。
+        Beta 公测期间，核心创作功能免费开放。
       </p>
       {/* 模糊 teaser */}
       <div className="mt-8 select-none rounded-xl border border-border bg-muted/20 p-6 text-left blur-sm">
@@ -855,7 +855,7 @@ function LoginGate({ report, id }: { report: AnalysisReport; id?: string }) {
         </Link>
       </Button>
       <p className="mt-3 text-xs text-muted-foreground">
-        支持邮箱注册登录 · 会员功能建设中，当前不收费
+        支持邮箱注册登录 · Beta 公测期间免费
       </p>
     </div>
   );
@@ -926,7 +926,7 @@ function LockedDeepParts() {
       </div>
       <h2 className="text-lg font-semibold">完整《爆款导演拆解报告》</h2>
       <p className="mt-2 text-sm text-muted-foreground">
-        会员功能建设中，当前全站免费开放。注册登录后即可查看全部 8 段内容：
+        Beta 公测期间，核心创作功能免费开放。注册登录后即可查看全部 8 段内容：
       </p>
       <ul className="mx-auto mt-4 inline-flex max-w-md flex-col gap-2 text-left">
         {items.map((it) => (

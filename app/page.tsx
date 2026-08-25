@@ -18,6 +18,7 @@ import {
   Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BETA_OPEN } from "@/lib/beta";
 import { UniversalConverter } from "@/components/universal-converter";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -366,19 +367,23 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── 定价 CTA（完整方案见 /pricing）── */}
+      {/* ── 商业状态 CTA：Beta 免费公测 / 正式会员方案 ── */}
       <section className="mx-auto w-full max-w-5xl px-4 py-20 sm:px-6">
         <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/10 via-primary/[0.04] to-transparent px-6 py-12 text-center sm:px-12">
           <h2 className="text-3xl font-bold tracking-tight">从第一次拆解，到长期陪你做爆款</h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            免费版每天 1 次爆款拆解先上手；创作者版解锁完整导演报告，进阶版加上爆款复刻，
-            专业版由 AI 导演长期陪你优化账号。
+            {BETA_OPEN
+              ? "Beta 公测期间，核心创作功能全部免费开放，无需购买会员。从爆款拆解到脚本、分镜、拍摄计划，直接开拍。"
+              : "免费版每天 1 次爆款拆解先上手；创作者版解锁完整导演报告，进阶版加上爆款复刻，专业版由 AI 导演长期陪你优化账号。"}
           </p>
           <Button asChild size="lg" variant="gradient" className="mt-6 gap-2">
-            <Link href="/pricing">
-              查看完整会员方案 <ArrowRight className="h-4 w-4" />
+            <Link href={BETA_OPEN ? "/studio" : "/pricing"}>
+              {BETA_OPEN ? "立即免费体验" : "查看完整会员方案"} <ArrowRight className="h-4 w-4" />
             </Link>
           </Button>
+          {BETA_OPEN && (
+            <p className="mt-3 text-xs text-muted-foreground">无需付费 · 无需开通会员 · 现在就能用</p>
+          )}
         </div>
       </section>
     </div>

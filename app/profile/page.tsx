@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
+import { BETA_OPEN } from "@/lib/beta";
 
 export default function ProfilePage() {
   const [reports, setReports] = React.useState<AnalysisReport[]>([]);
@@ -130,19 +131,21 @@ export default function ProfilePage() {
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  {session.isPro
-                    ? "会员：无限次分析，已解锁全部高级模块"
-                    : quota && quota.limit !== null
-                      ? `今日剩余分析次数：${quota.remaining ?? 0} / ${quota.limit}`
-                      : "今日剩余分析次数：加载中…"}
+                  {BETA_OPEN
+                    ? "Beta 公测中 · 核心创作功能免费开放，无需开通会员"
+                    : session.isPro
+                      ? "会员：无限次分析，已解锁全部高级模块"
+                      : quota && quota.limit !== null
+                        ? `今日剩余分析次数：${quota.remaining ?? 0} / ${quota.limit}`
+                        : "今日剩余分析次数：加载中…"}
                 </p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               {!session.isPro && (
                 <Button asChild variant="gradient">
-                  <Link href="/payment?tier=pro">
-                    <Crown className="h-4 w-4" /> 升级会员
+                  <Link href={BETA_OPEN ? "/studio" : "/payment?tier=pro"}>
+                    <Crown className="h-4 w-4" /> {BETA_OPEN ? "免费体验" : "升级会员"}
                   </Link>
                 </Button>
               )}
@@ -314,7 +317,7 @@ export default function ProfilePage() {
                   </div>
                 )}
                 <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  以上档案数据只存在你的浏览器本地，所有分析报告都会基于这些信息给出定制化建议。
+                  这些档案信息保存在本设备，用于定制分析建议；正式创作报告、分镜与拍摄计划保存在账号云端。
                 </p>
               </div>
             ) : (
@@ -546,10 +549,16 @@ export default function ProfilePage() {
                   {current && <Badge>当前</Badge>}
                   {m.comingSoon && <Badge variant="warning">功能完善中</Badge>}
                 </div>
-                <div className="mt-2 flex items-end gap-1">
-                  <span className="text-2xl font-bold">¥{m.price}</span>
-                  <span className="mb-0.5 text-xs text-muted-foreground">/ {m.period}</span>
-                </div>
+                {BETA_OPEN ? (
+                  <div className="mt-2 text-sm font-medium text-success">
+                    {m.tier === "free" ? "长期免费" : "Beta 结束后推出"}
+                  </div>
+                ) : (
+                  <div className="mt-2 flex items-end gap-1">
+                    <span className="text-2xl font-bold">¥{m.price}</span>
+                    <span className="mb-0.5 text-xs text-muted-foreground">/ {m.period}</span>
+                  </div>
+                )}
                 {m.comingSoon && (
                   <p className="mt-1 text-xs font-medium text-warning">功能完善中 · 即将开放</p>
                 )}

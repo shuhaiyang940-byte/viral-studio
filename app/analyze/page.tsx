@@ -20,6 +20,7 @@ import {
   Lock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BETA_OPEN } from "@/lib/beta";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -258,11 +259,17 @@ export default function AnalyzePage() {
         <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
           {quota.remaining === 0 ? (
             <>
-              <Lock className="h-3.5 w-3.5 text-warning" /> 今日分析次数已用完，升级会员可无限次分析
+              <Lock className="h-3.5 w-3.5 text-warning" />{" "}
+              {BETA_OPEN
+                ? "今日免费额度已用完，Beta 公测期间额度每天自动刷新，可明日再试"
+                : "今日分析次数已用完，升级会员可无限次分析"}
             </>
           ) : (
             <>
-              <Crown className="h-3.5 w-3.5 text-primary" /> 今日还可分析 {quota.remaining} 次（每日 {quota.limit} 次，升级解锁更多）
+              <Crown className="h-3.5 w-3.5 text-primary" />{" "}
+              {BETA_OPEN
+                ? `今日还可分析 ${quota.remaining} 次（Beta 每日免费额度）`
+                : `今日还可分析 ${quota.remaining} 次（每日 ${quota.limit} 次，升级解锁更多）`}
             </>
           )}
         </div>
@@ -559,15 +566,20 @@ function QuotaExhaustedCard({ onUpgrade }: { onUpgrade: () => void }) {
         <div>
           <p className="text-lg font-semibold">今日免费分析已用完</p>
           <p className="mt-1.5 text-sm text-muted-foreground">
-            免费版每天可分析 1 次（匿名按 IP 限次）。升级会员后无限次分析。
+            {BETA_OPEN
+              ? "Beta 公测期间，核心创作能力免费开放，分析额度每天自动刷新，可明日继续体验。"
+              : "免费版每天可分析 1 次（匿名按 IP 限次）。升级会员后无限次分析。"}
           </p>
         </div>
         <Button onClick={onUpgrade} variant="gradient" size="lg" className="gap-2">
-          <Crown className="h-4 w-4" /> 升级解锁无限次
+          {BETA_OPEN ? <Sparkles className="h-4 w-4" /> : <Crown className="h-4 w-4" />}
+          {BETA_OPEN ? "返回分析页" : "升级解锁无限次"}
         </Button>
-        <p className="text-xs text-muted-foreground">
-          会员功能：当前免费公测，升级流程为演示（不真实扣费）；正式收费前全站内容免费开放。
-        </p>
+        {!BETA_OPEN && (
+          <p className="text-xs text-muted-foreground">
+            会员功能：当前免费公测，升级流程为演示（不真实扣费）；正式收费前全站内容免费开放。
+          </p>
+        )}
       </CardContent>
     </Card>
   );

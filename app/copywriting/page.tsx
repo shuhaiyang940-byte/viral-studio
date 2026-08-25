@@ -196,7 +196,7 @@ export default function CopywritingPage() {
           <PenLine className="h-5 w-5" />
           <span className="text-sm font-semibold tracking-wide">AI 写文案</span>
           <span className="ml-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">
-            高级 · 收费内容
+            会员功能
           </span>
         </div>
         <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
@@ -204,7 +204,7 @@ export default function CopywritingPage() {
         </h1>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-muted-foreground">
           根据你填写的<strong className="text-slate-800">创作档案</strong>（风格 / 受众），把热点或你的新方向，
-          直接写成贴合你人设的文案。先拆解热点、答几个问题收窄方向，生成时再决定要不要升级。
+          直接写成贴合你人设的文案。先拆解热点、答几个问题收窄方向，即可生成。
         </p>
 
         {reportId && (
@@ -433,7 +433,7 @@ export default function CopywritingPage() {
             </button>
             {locked && (
               <span className="text-xs text-slate-500">
-                生成功能为高级会员专享，点上面即可预览需解锁的环节
+                该功能为会员权益，暂未对当前账号开放
               </span>
             )}
           </div>
@@ -450,7 +450,7 @@ export default function CopywritingPage() {
         {showUpgrade && (
           <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 p-6 text-center">
             <Crown className="mx-auto h-8 w-8 text-amber-500" />
-            <h2 className="mt-3 text-lg font-semibold text-foreground">解锁「按你的风格 + 热点」一键写稿</h2>
+            <h2 className="mt-3 text-lg font-semibold text-foreground">「按你的风格 + 热点」一键写稿 · 会员功能</h2>
             <p className="mt-2 text-sm text-muted-foreground">
               已为你预填热点选题
               {topic && <strong className="mx-1 text-slate-800">{topic}</strong>}
@@ -458,13 +458,13 @@ export default function CopywritingPage() {
               {buildConstraints().length > 0 && (
                 <>，并带入拆解约束：{buildConstraints().join(" / ")}</>
               )}
-              。升级后即可一键生成贴合你人设的成稿。
+              。该权益为会员功能，正式开放后即可一键生成贴合你人设的成稿。
             </p>
             <Link
               href="/pricing?feature=copywrite"
               className="mt-4 inline-flex items-center gap-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white"
             >
-              升级解锁 <ArrowRight className="h-4 w-4" />
+              前往了解 <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         )}

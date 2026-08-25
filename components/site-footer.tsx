@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { BETA_OPEN } from "@/lib/beta";
 
 export function SiteFooter() {
   return (
@@ -17,7 +18,7 @@ export function SiteFooter() {
             <li><Link href="/analyze" className="hover:text-foreground">爆款拆解</Link></li>
             <li><Link href="/library" className="hover:text-foreground">案例库</Link></li>
             <li><Link href="/find-peer" className="hover:text-foreground">找对标</Link></li>
-            <li><Link href="/pricing" className="hover:text-foreground">价格</Link></li>
+            <li><Link href="/pricing" className="hover:text-foreground">{BETA_OPEN ? "公测说明" : "会员方案"}</Link></li>
           </ul>
         </div>
         <div>
@@ -40,7 +41,11 @@ export function SiteFooter() {
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:px-6">
           <span>© {new Date().getFullYear()} 爆款研究所 · AI 短视频导演. 保留所有权利。</span>
-          <span>当前为免费公测阶段 · 会员功能建设中 · 分析结果由 AI 生成，请结合自身情况判断</span>
+          <span>
+            {BETA_OPEN
+              ? "Beta 公测中 · 核心创作功能限时免费开放"
+              : "分析结果由 AI 生成，请结合自身情况判断"}
+          </span>
         </div>
       </div>
     </footer>

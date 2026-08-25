@@ -22,6 +22,7 @@ import { PLAYBOOKS, type Playbook } from "@/lib/benchmarks";
 import { SideBySideScriptEditor, type EditorMine, type EditorSkeleton } from "@/components/side-by-side-editor";
 import { BlurredVipUnlockCard } from "@/components/blurred-vip-unlock";
 import { TeleprompterButton } from "@/components/teleprompter-modal";
+import { BETA_OPEN } from "@/lib/beta";
 
 const PILLS = ["知识口播", "美妆种草", "数码带货", "创业干货"];
 
@@ -126,7 +127,9 @@ function StudioInner() {
           ))}
         </div>
         <Button asChild size="sm" variant="gradient" className="glow-purple gap-1.5">
-          <Link href="/pricing"><Crown className="h-4 w-4" /> 升级 VIP</Link>
+          <Link href={BETA_OPEN ? "/studio" : "/pricing"}>
+            <Crown className="h-4 w-4" /> {BETA_OPEN ? "免费体验" : "升级 VIP"}
+          </Link>
         </Button>
       </div>
 

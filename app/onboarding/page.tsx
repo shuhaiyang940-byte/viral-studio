@@ -55,7 +55,7 @@ export default function OnboardingPage() {
         <p className="text-xs text-muted-foreground leading-relaxed">
           你填的每一项都会影响后续的分析报告——剪辑基础决定建议深度，
           内容类型决定拆解角度，痛点决定优先改进项。
-          所有数据只存在你的浏览器本地，不会上传到任何服务器。
+          这些档案信息当前保存在本设备，用于定制你的分析报告；正式创作资产（报告、分镜、拍摄计划）保存在账号云端。
         </p>
       </div>
     </div>

@@ -52,7 +52,7 @@ export default function AboutPage() {
       <div className="mt-10 rounded-2xl border border-primary/20 bg-primary/5 p-6">
         <h2 className="text-lg font-bold">当前状态</h2>
         <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <li>· 免费公测阶段：全部功能免费开放，会员功能建设中；</li>
+          <li>· Beta 免费公测：核心创作功能免费开放；</li>
           <li>· 邮箱验证、找回密码已上线；</li>
           <li>· 上传视频支持真实画面理解（抽帧 + 视觉模型），转写能力随部署环境逐步启用；</li>
           <li>· 数据与隐私详见<a href="/privacy" className="text-primary hover:underline">隐私政策</a>。</li>

@@ -612,6 +612,6 @@ export const PRICING_MATRIX: PricingRow[] = [
   { group: "我的 AI 导演", label: "创作者档案定制建议", free: "基础版", creator: "进阶版", pro: "专属版", studio: "长期优化" },
   { group: "我的 AI 导演", label: "账号定位诊断", free: false, creator: false, pro: "按需诊断", studio: "定期自动（规划中）" },
   // 服务
-  { group: "服务", label: "历史报告存储", free: "仅本地", creator: "仅本地", pro: "仅本地", studio: "规划中（云同步）" },
+  { group: "服务", label: "历史报告存储", free: "账号云端保存", creator: "账号云端保存", pro: "账号云端保存", studio: "账号云端保存" },
   { group: "服务", label: "专属客服", free: false, creator: false, pro: false, studio: "规划中" },
 ];

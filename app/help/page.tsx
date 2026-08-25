@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { BETA_OPEN } from "@/lib/beta";
 import {
   HelpCircle,
   Rocket,
@@ -53,15 +54,15 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "免费版和会员有什么区别？",
-    a: "当前处于免费公测阶段：全部功能免费开放，会员功能建设中，暂不收费。正式会员上线后，会按「免费体验 → 会员解锁完整报告」的方式运行，届时会提前公告。",
+    a: "当前处于 Beta 免费公测：核心创作功能全部免费开放，无需付费。正式会员上线后，会按「免费体验 → 会员解锁完整报告」的方式运行，届时会提前公告。",
   },
   {
     q: "微信登录安全吗？我的数据存在哪？",
-    a: "邮箱账号走真实服务端：密码 bcrypt 加密、会话 HttpOnly Cookie、验证邮件与找回密码已上线。手机号 / QQ / 微信登录目前是演示入口，不会收集真实凭证。创作档案与分析记录默认存于浏览器本地。",
+    a: "邮箱账号走真实服务端：密码 bcrypt 加密、会话 HttpOnly Cookie、验证邮件与找回密码已上线。手机号 / QQ / 微信登录目前是演示入口，不会收集真实凭证。正式创作资产（分析报告、分镜、拍摄计划、历史）保存在账号云端，登录后跨设备可访问；浏览器本地仅作缓存。",
   },
   {
     q: "升级会员会真实扣费吗？",
-    a: "不会。会员功能建设中，当前全站免费，所有「支付页」均为占位展示。正式收费前会接入真实支付通道并提前公告。",
+    a: "不会。当前为 Beta 免费公测，所有「支付页」均为占位展示，不做真实扣费。正式收费前会接入真实支付通道并提前公告。",
   },
   {
     q: "为什么我能看到完整的拆解报告？",
@@ -77,7 +78,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "怎么删除我的账号和数据？",
-    a: "发送邮件至 hello@viralstudio.ai 并注明注册邮箱，我们会在 15 个工作日内删除账号及相关数据。浏览器本地的创作档案、分析记录，可在浏览器设置中清除本站点数据。",
+    a: "发送邮件至 hello@viralstudio.ai 并注明注册邮箱，我们会在 15 个工作日内删除账号及相关数据。正式创作资产保存在账号云端，删除账号即一并清除；浏览器本地缓存可随时在浏览器设置中清除（不影响云端资产）。",
   },
   {
     q: "为什么微信登录后还要绑定手机号？",
@@ -204,7 +205,7 @@ export default function HelpPage() {
             <div className="text-sm">
               <p className="font-medium">安全与隐私</p>
               <p className="mt-1 text-muted-foreground">
-                演示数据仅存浏览器本地；真实登录走微信开放平台 + JWT，密钥不落地前端。
+                正式创作资产保存在云端账号；浏览器本地仅作缓存，密钥不落地前端。
               </p>
             </div>
           </div>
@@ -213,7 +214,9 @@ export default function HelpPage() {
             <div className="text-sm">
               <p className="font-medium">关于计费</p>
               <p className="mt-1 text-muted-foreground">
-                当前为演示，支付不真实扣费；真实支付需接入微信支付 / 支付宝商户号。
+                {BETA_OPEN
+                  ? "Beta 公测期间无需付费，当前不接入真实支付。"
+                  : "当前为演示，支付不真实扣费；真实支付需接入微信支付 / 支付宝商户号。"}
               </p>
             </div>
           </div>
@@ -235,7 +238,7 @@ export default function HelpPage() {
             </Button>
             <Button asChild variant="ghost">
               <Link href="/pricing">
-                <Smartphone className="h-4 w-4" /> 查看会员方案
+                <Smartphone className="h-4 w-4" /> {BETA_OPEN ? "了解 Beta 公测" : "查看会员方案"}
               </Link>
             </Button>
           </div>
