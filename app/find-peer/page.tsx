@@ -804,7 +804,7 @@ export default function FindPeerPage() {
 
       {/* 一键变成我的视频 */}
       <Dialog open={repOpen} onOpenChange={setRepOpen}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className={repResult ? "sm:max-w-4xl" : "sm:max-w-lg"}>
           <DialogHeader>
             <DialogTitle>一键变成我的视频</DialogTitle>
             <DialogDescription>
@@ -857,7 +857,8 @@ export default function FindPeerPage() {
               </div>
             </>
           ) : (
-            <RepurposeResultView
+            <CompareView
+              playbook={repTarget}
               r={repResult}
               onRegen={() => setRepResult(null)}
               onClose={() => setRepOpen(false)}
@@ -869,12 +870,14 @@ export default function FindPeerPage() {
   );
 }
 
-/** 结果展示：可照念的脚本 + 分镜（含画面 / 语调 / 避坑），支持一键复制 */
-function RepurposeResultView({
+/** 对比式结果：左「对标爆款」右「AI 改写版」，红=钩子 蓝=痛点 绿=转化(CTA) */
+function CompareView({
+  playbook,
   r,
   onRegen,
   onClose,
 }: {
+  playbook: any;
   r: any;
   onRegen: () => void;
   onClose: () => void;
@@ -902,68 +905,105 @@ function RepurposeResultView({
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border border-border p-3">
-        <p className="text-lg font-semibold">{r.title}</p>
-        <p className="mt-1 text-sm text-primary">
-          <span className="font-medium">黄金 3 秒：</span>
-          {r.hook}
-        </p>
+      {/* 图例 */}
+      <div className="flex flex-wrap gap-2 text-[11px]">
+        <Badge className="bg-red-500/15 text-red-600 dark:text-red-300 text-[10px]">红 = 钩子（前 3 秒）</Badge>
+        <Badge className="bg-blue-500/15 text-blue-600 dark:text-blue-300 text-[10px]">蓝 = 痛点 / 铺垫</Badge>
+        <Badge className="bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 text-[10px]">绿 = 转化（CTA）</Badge>
       </div>
 
-      {(r.body || []).length > 0 && (
-        <ul className="space-y-1.5 text-sm">
-          {(r.body as string[]).map((b, i) => (
-            <li key={i} className="flex gap-2">
-              <span className="shrink-0 font-mono text-xs text-muted-foreground">{(i + 1).toString().padStart(2, "0")}</span>
-              <span>{b}</span>
-            </li>
-          ))}
-          <li className="flex gap-2">
-            <span className="shrink-0 font-mono text-xs text-muted-foreground">CTA</span>
-            <span className="text-primary">{r.cta}</span>
-          </li>
-        </ul>
-      )}
-
-      {(r.shots || []).length > 0 && (
-        <div>
-          <p className="mb-2 text-xs font-semibold text-muted-foreground">分镜表（照着拍）</p>
-          <div className="space-y-2">
-            {(r.shots as any[]).map((s, i) => (
-              <div key={i} className="rounded-lg border border-border p-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">
-                    {i + 1}. {s.phase}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">{s.durationSec}s</span>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">画面：{s.visual}</p>
-                <p className="mt-1 text-sm">{s.line}</p>
-                <div className="mt-1 flex flex-wrap gap-1.5">
-                  <Badge variant="secondary" className="text-[10px]">语调：{s.tone}</Badge>
-                  <Badge variant="outline" className="text-[10px]">音效：{s.sfx}</Badge>
-                  <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-300 text-[10px]">避坑：{s.pitfall}</Badge>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {(r.tips || []).length > 0 && (
-        <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
-          {(r.tips as string[]).map((t, i) => (
-            <p key={i} className="mb-1 flex gap-1.5">
-              <ChevronRight className="mt-0.5 h-3 w-3 shrink-0" /> {t}
+      <div className="grid gap-4 lg:grid-cols-2">
+        {/* 左：对标爆款 */}
+        <div className="space-y-3 rounded-xl border border-border p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <span className="flex h-5 w-5 items-center justify-center rounded-md bg-muted text-[10px] font-bold">{playbook?.title ? "原" : "爆"}</span>
+            对标爆款
+          </p>
+          <p className="text-lg font-semibold">{playbook?.title}</p>
+          {playbook?.hook && (
+            <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">
+              <span className="font-medium">钩子：</span>
+              {playbook.hook}
             </p>
-          ))}
+          )}
+          <ol className="space-y-1.5 text-sm">
+            {(playbook?.structure || []).map((s: any, i: number) => (
+              <li key={i} className="flex gap-2 rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-1.5 text-blue-700 dark:text-blue-200">
+                <span className="shrink-0 font-mono text-xs opacity-70">{s.secs}s</span>
+                <span>
+                  <span className="font-medium">{s.phase}</span> · {s.detail}
+                </span>
+              </li>
+            ))}
+          </ol>
+          {playbook?.note && (
+            <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-300">
+              <span className="font-medium">转化 / 为什么能打：</span> {playbook.note}
+            </p>
+          )}
         </div>
-      )}
+
+        {/* 右：AI 改写版 */}
+        <div className="space-y-3 rounded-xl border border-primary/30 p-4">
+          <p className="flex items-center gap-2 text-sm font-semibold">
+            <Wand2 className="h-4 w-4 text-primary" /> AI 为你改写的版本
+          </p>
+          <p className="text-lg font-semibold">{r.title}</p>
+          {r.hook && (
+            <p className="rounded-md border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-300">
+              <span className="font-medium">钩子：</span> {r.hook}
+            </p>
+          )}
+          {(r.body || []).length > 0 && (
+            <ul className="space-y-1.5 text-sm">
+              {(r.body as string[]).map((b, i) => (
+                <li key={i} className="rounded-md border border-blue-500/30 bg-blue-500/5 px-2 py-1.5 text-blue-700 dark:text-blue-200">
+                  <span className="mr-1 font-mono text-xs opacity-70">{(i + 1).toString().padStart(2, "0")}</span>
+                  {b}
+                </li>
+              ))}
+            </ul>
+          )}
+          {r.cta && (
+            <p className="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-600 dark:text-emerald-300">
+              <span className="font-medium">转化：</span> {r.cta}
+            </p>
+          )}
+
+          {(r.shots || []).length > 0 && (
+            <div className="space-y-2">
+              <p className="text-[11px] font-semibold text-muted-foreground">分镜表（照着拍）</p>
+              {(r.shots as any[]).map((s, i) => (
+                <div key={i} className="rounded-lg border border-border p-2.5">
+                  <p className="text-sm font-semibold">
+                    {i + 1}. {s.phase}
+                    <span className="ml-1 text-[10px] font-normal text-muted-foreground">({s.durationSec}s)</span>
+                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">画面：{s.visual}</p>
+                  <p className="mt-0.5 text-sm">{s.line}</p>
+                  <div className="mt-1 flex flex-wrap gap-1">
+                    <Badge variant="secondary" className="text-[10px]">语调：{s.tone}</Badge>
+                    <Badge className="bg-amber-500/15 text-amber-600 dark:text-amber-300 text-[10px]">避坑：{s.pitfall}</Badge>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {(r.tips || []).length > 0 && (
+            <div className="rounded-lg bg-muted/40 p-2.5 text-xs text-muted-foreground">
+              {(r.tips as string[]).map((t, i) => (
+                <p key={i} className="mb-1 flex gap-1.5">
+                  <ChevronRight className="mt-0.5 h-3 w-3 shrink-0" /> {t}
+                </p>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
 
       <div className="flex justify-end gap-2">
-        <Button variant="ghost" onClick={onClose}>
-          关闭
-        </Button>
+        <Button variant="ghost" onClick={onClose}>关闭</Button>
         <Button variant="outline" onClick={onRegen} className="gap-1.5">
           <Wand2 className="h-4 w-4" /> 再来一次
         </Button>
