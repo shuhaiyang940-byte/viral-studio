@@ -2,9 +2,10 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
 import path from "path";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { guardAiRequest } from "@/lib/ai-guard";
 import { kvGet, kvSet } from "@/lib/kv";
+import { getCurrentUser } from "@/lib/auth/session";
 
 const execFileP = promisify(execFile);
 
@@ -23,17 +24,19 @@ const OUT_FILE = path.join(OUT_DIR, "video.mp4");
 export async function POST(req: NextRequest) {
   const g = await guardAiRequest(req, "render");
   if (!g.ok) return g.res;
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "未登录" }, { status: 401 });
   try {
     fs.mkdirSync(OUT_DIR, { recursive: true });
 
     // 若前端传来了编辑后的计划，先写回（简易剪映改完即渲染）
     const body = await req.json().catch(() => null);
     if (body && body.plan && body.plan.meta && Array.isArray(body.plan.clips)) {
-      await kvSet("edit_plan", JSON.stringify(body.plan, null, 2));
+      await kvSet(`edit_plan:${user.id}`, JSON.stringify(body.plan, null, 2));
       fs.writeFileSync(PLAN_PATH, JSON.stringify(body.plan, null, 2), "utf-8");
     } else {
       // 未随请求带计划：从 KV 恢复（Serverless 下 plan 接口存的是 KV）
-      const raw = await kvGet("edit_plan");
+      const raw = await kvGet(`edit_plan:${user.id}`);
       if (raw) {
         fs.mkdirSync(path.dirname(PLAN_PATH), { recursive: true });
         fs.writeFileSync(PLAN_PATH, raw, "utf-8");

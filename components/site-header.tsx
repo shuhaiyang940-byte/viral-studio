@@ -7,6 +7,7 @@ import { LogOut, User, Crown, Wand2, Flame, Target, Sparkles } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/logo";
 import { useSession, logout } from "@/lib/auth";
+import { hydrateWorkspace } from "@/lib/storage";
 
 export function SiteHeader() {
   // useSession 挂载时会回源 /api/auth/me 校准，避免本地镜像与服务端 Cookie 不一致
@@ -15,6 +16,10 @@ export function SiteHeader() {
   const [loggingOut, setLoggingOut] = React.useState(false);
 
   React.useEffect(() => setMounted(true), []);
+  // 登录后把服务端已持久化的创作资产回灌到本地缓存（跨设备/清缓存也能看到）
+  React.useEffect(() => {
+    if (mounted && session) void hydrateWorkspace();
+  }, [mounted, session]);
 
   async function handleLogout() {
     setLoggingOut(true);
