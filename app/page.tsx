@@ -15,6 +15,7 @@ import {
   UserCheck,
   BookOpen,
   Wand2,
+  Flame,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { UniversalConverter } from "@/components/universal-converter";
@@ -107,43 +108,32 @@ function ReportPreviewCard() {
 /* ─── 核心功能（6 卡片行）─── */
 const FEATURES = [
   {
-    icon: Video,
-    title: "爆款导演拆解报告",
-    desc: "AI 模拟十年经验导演：为什么火、结构是什么、一镜一镜怎么拍",
+    icon: Wand2,
+    title: "拆爆款复刻",
+    desc: "粘贴任意爆款，AI 拆解心理结构，3 步变成你的原创镜头脚本",
     color: "from-violet-500 to-purple-600",
+    href: "/studio",
+  },
+  {
+    icon: Flame,
+    title: "找对标黑马",
+    desc: "按赛道匹配「小号大爆款」的黑马对标，优先抄高回报的结构",
+    color: "from-emerald-500 to-teal-600",
+    href: "/find-peer",
   },
   {
     icon: Target,
-    title: "找对标 & 爆款套路",
-    desc: "按赛道匹配流量大的对标账号与可复制的爆款公式",
-    color: "from-emerald-500 to-teal-600",
+    title: "账号诊断所",
+    desc: "输入你的账号，AI 诊断官直出红海度、同质化病灶与破局路子",
+    color: "from-amber-500 to-rose-500",
+    href: "/clinic",
   },
   {
-    icon: BookOpen,
-    title: "爆款公式库",
-    desc: "从真实案例提炼方法，你收藏的是套路，不是视频",
-    color: "from-sky-500 to-blue-600",
-    href: "/formulas",
-  },
-  {
-    icon: PenTool,
-    title: "AI 写文案",
-    desc: "按参考风格生成标题、口播文案与分镜脚本",
-    color: "from-amber-500 to-orange-600",
-  },
-  {
-    icon: Wand2,
-    title: "换成你的主题怎么拍",
-    desc: "参考视频的每一镜，AI 都翻译成你的版本，附照做清单",
-    color: "from-fuchsia-500 to-pink-600",
-    href: "/replicate",
-  },
-  {
-    icon: UserCheck,
-    title: "我的 AI 导演",
-    desc: "填写账号档案，分析越来越懂你的定位与方向",
-    color: "from-rose-500 to-orange-500",
-    href: "/profile#director",
+    icon: Sparkles,
+    title: "创意选题库",
+    desc: "全网热榜实时提炼成创意题材，缺灵感时来这找下一条内容",
+    color: "from-sky-500 to-cyan-600",
+    href: "/ideas",
   },
 ];
 

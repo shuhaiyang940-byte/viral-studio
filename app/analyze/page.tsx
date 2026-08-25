@@ -209,7 +209,7 @@ export default function AnalyzePage() {
           </a>
         </Button>
         <p className="mt-3 text-xs text-muted-foreground">
-          所有数据只存在你的浏览器本地，不会上传到任何服务器
+          视频经加密通道交给 AI 简短分析，服务器不保存你的原片，分析结果可在「我的」里随时清除。
         </p>
       </div>
     );
