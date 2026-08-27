@@ -15,6 +15,9 @@ export interface StrategyAdvisory {
   advantage_used: string[];
   brief: string;
   strategy_note: string;
+  challenge: string;        // 主编意见：点出用户前提/路径的一个问题（无可指摘则写"无明显问题"）
+  creator_stance: string;   // 创作者对这类内容的立场（可与用户原意不同）
+  insist_angle: string;     // 即使用户想要别的，也坚持的角度
 }
 
 export interface WorkflowResult {
@@ -69,7 +72,10 @@ export async function runStrategyWorkflow(input: {
       role: "system",
       content:
         "你是短视频「爆款策略顾问」。你会读用户的账号定位档案和对标内容，算重合度、给避开方向、找出用户优势，并给一个原创 brief。" +
-        "只返回 JSON：{\"persona_analysis\":\"一句话人设优势分析\",\"overlap_pct\":0-100,\"avoid_dirs\":[\"避开方向1\",\"方向2\"],\"advantage_used\":[\"用到的优势1\",\"优势2\"],\"brief\":\"给编剧的创作brief\",\"strategy_note\":\"给用户看的一段话：重合度XX%、避开哪些、优势在人设/资源/时机、纯模仿不会爆因为…\"}",
+        "同时你是一位有 12 年实景操盘经验、有自己审美和判断的资深编导：**尊重用户的目标（涨粉/成交/引流），但不盲从用户给的方法**。" +
+        "如果用户的前提或路径有问题，直接点出来并给更好的做法；你和用户原意不一致时，站在经验/数据那一边，不要顺着用户。说话专业、有依据，不为了杠而杠。" +
+        "只返回 JSON：{\"persona_analysis\":\"一句话人设优势分析\",\"overlap_pct\":0-100,\"avoid_dirs\":[\"避开方向1\",\"方向2\"],\"advantage_used\":[\"用到的优势1\",\"优势2\"],\"brief\":\"给编剧的创作brief\",\"strategy_note\":\"给用户看的一段话：重合度XX%、避开哪些、优势在人设/资源/时机、纯模仿不会爆因为…\"," +
+        "\"challenge\":\"点出用户前提/路径的一个问题，无可指摘写'无明显问题'\",\"creator_stance\":\"你对这类内容的创作立场（可与用户原意不同）\",\"insist_angle\":\"即使用户想要别的，你坚持的角度\"}",
     },
     {
       role: "user",
@@ -90,12 +96,13 @@ export async function runStrategyWorkflow(input: {
         "\"sfx\":\"音效\",\"bgm\":\"配乐(风格/BPM)\",\"tone\":\"语调\",\"pitfall\":\"避坑\"}]}。" +
         "body 是给用户当提词/配音稿的完整贯口正文，不是分点提纲、不是\"开合跳1 2 3\"式喊数；每段要含具体例子/数字/细节，口语自然、能直接照着念。" +
         "文案里不要出现\"[你的名字]\"\"[产品名]\"\"[XX]\"这类占位符；自称用\"我\"或自然的称呼（用户没给你名字/品牌就别留占位）。" +
-        "body 拆成 3-6 段（每段一个明确点），不要合成一个 600 字大段。",
+        "body 拆成 3-6 段（每段一个明确点），不要合成一个 600 字大段。" +
+        "同时你也是有审美和判断的编导：**以创作者立场（creator_stance）为准，而不是照搬用户原意**；challenge 是必须回应的点——要么修正，要么用更优方案。脚本至少含 1 处反常识/与众不同的视角。禁止复述 brief、禁止\"你说得都对\"式的顺滑网感词；忠于真相与能爆的经验。尊重用户目标（涨粉/成交），挑战的是实现路径，不是目标。",
     },
     {
       role: "user",
       content:
-        `【策略 brief】${adv.brief}\n【我的优势】${(adv.advantage_used || []).join("；")}\n【我的产品/方向】${product}\n【平台】${platform || "抖音"}${duration ? `\n【目标时长】${duration}s` : ""}\n请写一条字数适中、能体现上述优势的原创口播脚本。body 每段是可直接照读的完整台词（含具体例子/数字/画面提示，不是分点提纲、不是\"开合跳1 2 3\"式喊数），与 shots 的台词深度一致。`,
+        `【策略 brief】${adv.brief}\n【创作者立场(以此为准)】${adv.creator_stance || "无"}\n【主编挑战(必须回应)】${adv.challenge || "无明显问题"}\n【坚持角度】${adv.insist_angle || "无"}\n【我的优势】${(adv.advantage_used || []).join("；")}\n【我的产品/方向】${product}\n【平台】${platform || "抖音"}${duration ? `\n【目标时长】${duration}s` : ""}\n请写一条字数适中、能体现上述优势的原创口播脚本。body 每段是可直接照读的完整台词（含具体例子/数字/画面提示，不是分点提纲、不是\"开合跳1 2 3\"式喊数），与 shots 的台词深度一致。`,
     },
   ], { json: true, temperature: 0.85, maxTokens: 1500, task: "workflow:script" });
   const s = JSON.parse(script) as ScriptOut;
