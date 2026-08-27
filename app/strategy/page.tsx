@@ -35,6 +35,7 @@ export default function StrategyPage() {
     const diagPersona = sp.get("diagPersona");
     if (diagRef) setReference(diagRef);
     if (diagProduct) setProduct(diagProduct);
+    if (diagPersona) setPersona((p) => ({ ...p, tags: diagPersona }));
     fetch("/api/persona-card").then((r) => r.json()).then((d) => {
       const c = d.card;
       if (c) setPersona((prev) => ({
