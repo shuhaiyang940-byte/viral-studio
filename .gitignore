@@ -30,5 +30,9 @@ overview.md
 *-overview.md
 .env*
 
+# 敏感凭据与封禁脚本：勿提交（防 KEY/封禁能力泄露）
+docs/credentials-backup.txt
+scripts/_unban.ts
+
 # 本地评审/测试证据（非源码）
 PHASE-16.*
