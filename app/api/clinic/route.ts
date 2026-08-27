@@ -34,6 +34,12 @@ export async function POST(req: NextRequest) {
     return Number.isFinite(n) && n >= 0 ? n : undefined;
   }
 
+  // 是否有真实数据：无数据请求不走缓存，避免读到"旧 LLM 编造分"残留
+  const hasData =
+    [body.followers, body.engagementRate, body.avgPlays, body.avgLikes, body.avgComments]
+      .some((v) => v !== undefined && v !== null && `${v}`.trim() !== "") ||
+    !!String(body.description ?? "").trim() || !!String(body.sampleText ?? "").trim();
+
   try {
     // 结果缓存：同账号同输入短时间复用，避免 66s 重复诊断 + 二次触发限流
     const cacheKey = `clinic:${JSON.stringify({
@@ -41,8 +47,10 @@ export async function POST(req: NextRequest) {
       followers: body.followers ?? "", engagementRate: body.engagementRate ?? "",
       avgPlays: body.avgPlays ?? "", description: body.description ? `${body.description}`.slice(0, 30) : "",
     }).replace(/\s+/g, "").slice(0, 200)}:${user.id}`;
-    const cached = await kvGet(cacheKey);
-    if (cached) return NextResponse.json(JSON.parse(cached));
+    if (hasData) {
+      const cached = await kvGet(cacheKey);
+      if (cached) return NextResponse.json(JSON.parse(cached));
+    }
     const result = await generateClinic({
       niche,
       contentType: body.contentType as "sell" | "talk",
@@ -56,7 +64,7 @@ export async function POST(req: NextRequest) {
       description: body.description ? String(body.description).trim().slice(0, 500) : undefined,
       sampleText: body.sampleText ? String(body.sampleText).trim().slice(0, 800) : undefined,
     });
-    await kvSet(cacheKey, JSON.stringify(result)).catch(() => {});
+    if (hasData) await kvSet(cacheKey, JSON.stringify(result)).catch(() => {});
     return NextResponse.json(result);
   } catch (e: any) {
     return NextResponse.json({ error: e?.message || "诊断失败，请稍后重试" }, { status: 500 });
