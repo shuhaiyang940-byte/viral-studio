@@ -11,7 +11,7 @@ import { useSession } from "@/lib/auth";
 
 export default function StrategyPage() {
   const router = useRouter();
-  const { session } = useSession();
+  const { session, loading } = useSession();
   const [persona, setPersona] = React.useState({ tags: "", resources: "", timing: "", platform: "抖音", audience: "" });
   const [reference, setReference] = React.useState("");
   const [product, setProduct] = React.useState("");
@@ -21,6 +21,7 @@ export default function StrategyPage() {
   const [error, setError] = React.useState("");
 
   React.useEffect(() => {
+    if (loading) return; // 等会话校准完再判断登录态，避免已登录用户被误判为未登录而踢回首页
     if (!session) { router.replace(`/login?redirect=${encodeURIComponent("/strategy")}`); return; }
     fetch("/api/persona-card").then((r) => r.json()).then((d) => {
       const c = d.card;
@@ -29,7 +30,7 @@ export default function StrategyPage() {
         timing: c.timing || "", platform: c.platform || "抖音", audience: c.audience || "",
       });
     }).catch(() => {});
-  }, [session, router]);
+  }, [session, loading, router]);
 
   const saveCard = async () => {
     setSaveMsg(""); setError("");
