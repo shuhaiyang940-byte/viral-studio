@@ -9,7 +9,7 @@ export function SiteFooter() {
         <div className="space-y-3">
           <Logo />
           <p className="max-w-xs text-sm text-muted-foreground">
-            你的 AI 短视频策略顾问：填账号定位 + 选对标 → 算出原创爆款脚本 → 拍完回来复盘，越拍越准。
+            你的 AI 短视频策略顾问：填账号定位 + 选对标 → 算出原创爆款脚本 → 拍完回来复盘，看清每次问题。
           </p>
         </div>
         <div>

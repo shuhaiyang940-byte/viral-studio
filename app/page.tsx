@@ -161,7 +161,7 @@ const STEPS = [
     icon: Wand2,
     num: 3,
     title: "按脚本拍 + 拍完复盘",
-    desc: "把发布数据回传，AI 复盘为什么爆/没爆，写回你的档案，越拍越准",
+    desc: "把发布数据回传，AI 复盘为什么爆/没爆，写回你的档案，看清每次问题",
     href: "/replicate",
   },
 ];
