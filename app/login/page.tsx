@@ -62,6 +62,22 @@ export default function LoginPage() {
     setError("");
   }
 
+  // 登录失败时：仅对网络/服务端错误（无 status 或 5xx）自动重试，最多 3 次；业务错误（如密码错误）不重试
+  async function loginWithRetry(email: string, password: string): Promise<Session> {
+    let lastErr: unknown;
+    for (let i = 0; i < 3; i++) {
+      try {
+        return await login(email, password);
+      } catch (e: any) {
+        lastErr = e;
+        const status = (e as any)?.status;
+        if (status && status < 500) throw e;
+        await new Promise((r) => setTimeout(r, 600 * (i + 1)));
+      }
+    }
+    throw lastErr;
+  }
+
   async function handleEmail(e: React.FormEvent) {
     e.preventDefault();
     setError("");
@@ -79,10 +95,14 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const s = mode === "register" ? await register(email, password, name) : await login(email, password);
+      const s = mode === "register"
+        ? await register(email, password, name)
+        : await loginWithRetry(email, password);
       await afterAuth(s, false);
     } catch (err: any) {
-      setError(err?.message || "操作失败，请重试");
+      const status = (err as any)?.status;
+      // 网络/服务端错误（无 status 或 5xx）已自动重试；此处仍失败则提示稍后再试
+      setError(status && status < 500 ? (err?.message || "登录失败") : "网络有点慢，已自动重试仍失败，请稍后再试");
       setLoading(false);
     }
   }

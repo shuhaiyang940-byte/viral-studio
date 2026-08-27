@@ -125,9 +125,9 @@ export default function ClinicPage() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium">内容类型</label>
-                <div className="flex gap-2">
+                <div className="flex gap-2" role="group" aria-label="内容类型">
                   {TYPES.map((t) => (
-                    <button key={t.id} type="button" onClick={() => setForm({ ...form, contentType: t.id })} className={`flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${form.contentType === t.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30"}`}>
+                    <button key={t.id} type="button" aria-pressed={form.contentType === t.id} onClick={() => setForm({ ...form, contentType: t.id })} className={`flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${form.contentType === t.id ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-foreground/30"}`}>
                       {t.label}
                     </button>
                   ))}
@@ -136,7 +136,7 @@ export default function ClinicPage() {
             </div>
 
             <details className="rounded-lg border border-border/70 bg-muted/20 p-3">
-              <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">补充你的账号数据（可选，让诊断更准）</summary>
+              <summary className="cursor-pointer text-xs font-medium text-muted-foreground hover:text-foreground">补充你的账号数据（可选，让诊断更准。这里填的是你手头的数据，非平台实时抓取）</summary>
               <div className="mt-3 space-y-3">
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div><label className="mb-1 block text-xs font-medium">粉丝量·万</label><Input value={form.followers} onChange={(e) => setForm({ ...form, followers: e.target.value })} placeholder="如：12" inputMode="numeric" /></div>

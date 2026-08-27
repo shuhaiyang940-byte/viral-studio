@@ -144,7 +144,9 @@ async function postJSON(url: string, body: unknown) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data?.error || "请求失败");
+    const err = new Error(data?.error || "请求失败") as Error & { status?: number };
+    err.status = res.status;
+    throw err;
   }
   return data;
 }

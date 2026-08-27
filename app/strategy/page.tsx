@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Progress } from "@/components/ui/progress";
 import { useSession } from "@/lib/auth";
 
 export default function StrategyPage() {
@@ -19,6 +20,10 @@ export default function StrategyPage() {
   const [saveMsg, setSaveMsg] = React.useState("");
   const [result, setResult] = React.useState<any>(null);
   const [error, setError] = React.useState("");
+  const [genProgress, setGenProgress] = React.useState(0);
+  const [genStage, setGenStage] = React.useState(0);
+  const genTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+  const GEN_STAGES = ["正在分析对标账号…", "正在计算你的优势与重合度…", "正在构思原创脚本…", "正在拆分镜与音效…"];
 
   React.useEffect(() => {
     if (loading) return; // 等会话校准完再判断登录态，避免已登录用户被误判为未登录而踢回首页
@@ -49,6 +54,11 @@ export default function StrategyPage() {
 
   const generate = async () => {
     setError(""); setResult(null); setBusy(true);
+    setGenProgress(12); setGenStage(0);
+    genTimerRef.current = setInterval(() => {
+      setGenProgress((p) => (p >= 90 ? 90 : p + 6 + Math.floor(Math.random() * 6)));
+      setGenStage((s) => (s + 1) % GEN_STAGES.length);
+    }, 2200);
     try {
       const r = await fetch("/api/strategy-generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         reference, product, platform: persona.platform, duration: undefined,
@@ -56,7 +66,10 @@ export default function StrategyPage() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "生成失败");
       setResult(d);
-    } catch (e: any) { setError(e.message); } finally { setBusy(false); }
+    } catch (e: any) { setError(e.message); } finally {
+      if (genTimerRef.current) { clearInterval(genTimerRef.current); genTimerRef.current = null; }
+      setBusy(false); setGenProgress(0); setGenStage(0);
+    }
   };
 
   return (
@@ -94,6 +107,15 @@ export default function StrategyPage() {
             <div><label className="mb-1 block text-xs text-muted-foreground">对标 / 参考内容（爆款标题、文案，或你选中的公式）</label><Textarea value={reference} onChange={(e) => setReference(e.target.value)} rows={3} placeholder="如：深夜零食铺：凌晨饿哭系列 9.9 三袋追剧零食" /></div>
             <div><label className="mb-1 block text-xs text-muted-foreground">我的产品 / 方向</label><Input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="如：我卖的手工辣酱 / 我做美食探店" /></div>
             <Button onClick={generate} disabled={busy || (!reference && !product)} className="w-full gap-1.5"><Wand2 className="h-4 w-4" />{busy ? "策略生成中…（约 20-40 秒）" : "生成策略原创脚本"}</Button>
+            {busy && (
+              <div className="space-y-2 pt-1">
+                <Progress value={genProgress} className="h-1.5" />
+                <p className="text-center text-xs text-muted-foreground">
+                  <span aria-live="polite">{GEN_STAGES[genStage]}</span>
+                  <span className="ml-1 opacity-70">· {genProgress}%</span>
+                </p>
+              </div>
+            )}
             {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
           </CardContent>
         </Card>
