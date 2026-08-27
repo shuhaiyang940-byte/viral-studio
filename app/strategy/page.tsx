@@ -20,7 +20,6 @@ export default function StrategyPage() {
   const [saveMsg, setSaveMsg] = React.useState("");
   const [result, setResult] = React.useState<any>(null);
   const [error, setError] = React.useState("");
-  const [personaSaved, setPersonaSaved] = React.useState(false);
   const [genStage, setGenStage] = React.useState(0);
   const genTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const GEN_STAGES = ["已提交，正在分析对标账号…", "模型计算中，正在构思原创脚本…", "正在拆分镜与音效…"];
@@ -30,7 +29,6 @@ export default function StrategyPage() {
     if (!session) { router.replace(`/login?redirect=${encodeURIComponent("/strategy")}`); return; }
     fetch("/api/persona-card").then((r) => r.json()).then((d) => {
       const c = d.card;
-      setPersonaSaved(!!c);
       if (c) setPersona({
         tags: (c.personaTags || []).join("，"), resources: (c.resources || []).join("，"),
         timing: c.timing || "", platform: c.platform || "抖音", audience: c.audience || "",
@@ -50,15 +48,14 @@ export default function StrategyPage() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "保存失败");
       setSaveMsg("✓ 账号定位已保存，下次生成会自动读取");
-      setPersonaSaved(true);
     } catch (e: any) { setError(e.message); }
   };
 
   const generate = async () => {
     setError(""); setResult(null); setBusy(true);
-    // 填了账号定位但没保存过 → 自动先保存，让生成的脚本真正贴合账号
+    // 点了生成就把当前填写的账号定位落库（即使没手动点保存），让脚本真正贴合账号
     const hasFilled = persona.tags.trim() || persona.resources.trim() || persona.timing.trim() || persona.audience.trim();
-    if (!personaSaved && hasFilled) await saveCard();
+    if (hasFilled) await saveCard();
     setGenStage(0);
     genTimerRef.current = setInterval(() => {
       setGenStage((s) => (s + 1) % GEN_STAGES.length);
