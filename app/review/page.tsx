@@ -138,7 +138,7 @@ export default function ReviewPage() {
             <p className="flex items-center gap-2 font-semibold"><Save className="h-4 w-4 text-primary" /> 填报本次作品</p>
             <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
               <label className="mb-1 block text-xs font-medium">粘贴后台数据，自动回填（可选）</label>
-              <Textarea value={pasteText} onChange={(e) => { setPasteText(e.target.value); setPasteMsg(""); }} rows={2} placeholder="播放 3800，点赞 61，评论 40，完播率 7.2，涨粉 12，转化 2" />
+              <Textarea value={pasteText} onChange={(e) => { setPasteText(e.target.value); setPasteMsg(""); }} rows={2} placeholder="从抖音 / 小红书 / 视频号后台复制数据，粘贴到此处（支持 播放 / 点赞 / 评论 / 完播率 / 涨粉 / 转化）" />
               <Button size="sm" variant="outline" className="mt-2 gap-1" onClick={parsePaste}>
                 <Sparkles className="h-3.5 w-3.5" /> 自动填入
               </Button>
