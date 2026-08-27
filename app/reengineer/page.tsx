@@ -48,6 +48,7 @@ function normalizeEngine(r: any): any {
     line: s.line || "",
     cue: s.visual || "",
     sfx: s.sfx || "",
+    bgm: s.bgm || (s.phase === "钩子" ? "紧张鼓点 120BPM" : "轻铺底 BGM"),
   }));
   const blueprint = {
     hook_type: "黄金3秒 · 爆款基因组重组",
@@ -71,8 +72,19 @@ function normalizeEngine(r: any): any {
     storyboard: {
       rows,
       notes: shots.map((s: any) => s.pitfall).filter(Boolean),
-      bgm: shots[0]?.sfx,
+      bgm: shots[0]?.bgm || shots[0]?.sfx || "轻铺底 BGM",
+      soundDesign: r.soundDesign || buildSoundDesignFromRows(rows),
     },
+  };
+}
+
+function buildSoundDesignFromRows(rows: { no: string; shot: string; bgm: string; sfx: string }[]): any {
+  const cues = rows.map((r) => ({ shot: `${r.no} · ${r.shot || "镜头"}`, bgm: r.bgm, sfx: r.sfx, emotion: "" }));
+  const bgms = Array.from(new Set(cues.map((c) => c.bgm)));
+  const sfxs = Array.from(new Set(cues.map((c) => c.sfx)));
+  return {
+    summary: `【声音设计】配乐：${bgms.join("；")}。音效：${sfxs.join("；")}。前3秒给冲击音，结尾收余韵，避免压过口播。`,
+    cues,
   };
 }
 
@@ -80,6 +92,7 @@ function ReengineerInner() {
   const sp = useSearchParams();
   const [form, setForm] = React.useState({
     text: sp.get("text") || "",
+    topic: sp.get("topic") || "",
     product: sp.get("product") || "",
     persona: sp.get("persona") || "",
     platform: sp.get("platform") || "抖音",
@@ -94,7 +107,8 @@ function ReengineerInner() {
   const requestIdRef = React.useRef<string | null>(null);
 
   async function run() {
-    if (!form.text.trim() || !form.product.trim()) return;
+    const topic = (form.topic.trim() || form.product.trim());
+    if (!(form.text.trim() || form.analysisAssetId) || !topic) return;
     setBusy(true);
     setError(null);
     try {
@@ -107,10 +121,11 @@ function ReengineerInner() {
       const requestId = requestIdRef.current;
       const endpoint = form.analysisAssetId ? "/api/flow/start" : "/api/viral-engine";
       const body = form.analysisAssetId
-        ? { analysisAssetId: form.analysisAssetId, myTopic: form.product.trim(), requestId }
+        ? { analysisAssetId: form.analysisAssetId, myTopic: topic, requestId }
         : {
             text: form.text.trim(),
-            product: form.product.trim(),
+            product: form.product.trim() || topic,
+            topic: form.topic.trim() || undefined,
             persona: form.persona.trim() || undefined,
             platform: form.platform.trim() || undefined,
             requestId,
@@ -139,7 +154,7 @@ function ReengineerInner() {
   async function doExport(type: "txt" | "csv") {
     if (!result) return;
     const payload = {
-      title: form.product.trim() || "爆款复刻",
+      title: (form.topic.trim() || form.product.trim()) || "文案拆解",
       lines: (result.script || []).map((l: any) => ({ text: l.text, mood: l.mood })),
       rows: (result.storyboard?.rows || []).map((r: any) => ({
         no: r.no,
@@ -147,9 +162,11 @@ function ReengineerInner() {
         line: r.line,
         cue: r.cue,
         sfx: r.sfx,
+        bgm: r.bgm,
       })),
       notes: result.storyboard?.notes || [],
       bgm: result.storyboard?.bgm,
+      soundDesign: result.storyboard?.soundDesign,
     };
     const res = await fetch("/api/viral-engine/export", {
       method: "POST",
@@ -170,12 +187,15 @@ function ReengineerInner() {
     <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
       <div className="mb-8 text-center">
         <Badge className="mb-3 gap-1.5">
-          <Layers className="h-3.5 w-3.5" /> 三段流水线 · 对标文案 → 拆解 → 复刻 → 分镜
+          <Layers className="h-3.5 w-3.5" /> 三段流水线 · 文案 → 拆解 → 改写 → 分镜
         </Badge>
-        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">爆款搬运工</h1>
+        <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">文案拆解助手</h1>
         <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
           粘贴任意一条对标视频的文案 / 字幕，AI 先拆出它的爆款基因，再换成你的产品做成原创脚本，
           最后生成新手也能照着拍的分镜表。一键导出，拿起就能拍。
+        </p>
+        <p className="mx-auto mt-2 max-w-2xl text-xs text-muted-foreground">
+          这是「用这个视频的方法做我的内容」（复刻/创作）。如果你只是<strong>想研究这个视频为什么有效</strong>，请回到分析报告页看「深度拆解」，这里不会替你改写成产品视频。
         </p>
       </div>
 
@@ -200,16 +220,16 @@ function ReengineerInner() {
             )}
             <div className="grid gap-4 sm:grid-cols-3">
               <div>
-                <label className="mb-1 block text-xs font-medium">你的产品 / 服务（必填）</label>
-                <Input value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} placeholder="如：我卖的手工辣酱" />
+                <label className="mb-1 block text-xs font-medium">我的主题 / 创作方向（必填）</label>
+                <Input value={form.topic} onChange={(e) => setForm({ ...form, topic: e.target.value })} placeholder="不卖东西也填主题，如：如何高效学习 / 一杯好咖啡的3个细节" />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium">我的产品 / 服务（可选）</label>
+                <Input value={form.product} onChange={(e) => setForm({ ...form, product: e.target.value })} placeholder="要带货才填，如：我卖的手工辣酱" />
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium">我的人设（可选）</label>
                 <Input value={form.persona} onChange={(e) => setForm({ ...form, persona: e.target.value })} placeholder="如：毒舌创业者 / 温柔种草阿姨" />
-              </div>
-              <div>
-                <label className="mb-1 block text-xs font-medium">发布平台（可选）</label>
-                <Input value={form.platform} onChange={(e) => setForm({ ...form, platform: e.target.value })} placeholder="如：抖音" />
               </div>
             </div>
 
@@ -217,19 +237,19 @@ function ReengineerInner() {
               <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>
             )}
 
-            <Button onClick={run} disabled={busy || !form.text.trim() || !form.product.trim()} className="w-full gap-1.5">
+            <Button onClick={run} disabled={busy || !(form.text.trim() || form.analysisAssetId) || !(form.topic.trim() || form.product.trim())} className="w-full gap-1.5">
               <Sparkles className="h-4 w-4" />
-              {busy ? "三段流水线生成中…" : "一键拆解 + 复刻 + 出分镜"}
+              {busy ? "三段流水线生成中…" : "一键拆解 + 改写 + 出分镜"}
             </Button>
             <p className="text-center text-[11px] text-muted-foreground">
-              需要先填「对标文案」和「你的产品」；人设/平台可后填。生成后可导出提词器或分镜表。
+              {form.analysisAssetId ? "从你的分析继续，填「主题」即可；要带货再补产品。" : "需填「对标文案」和「主题」；产品为可选（不卖东西就用主题）。生成后可导出提词器或分镜表。"}
             </p>
           </CardContent>
         </Card>
       ) : (
         <EngineResult
           r={result}
-          title={form.product.trim() || "爆款复刻"}
+          title={form.product.trim() || "文案拆解"}
           onReset={() => setResult(null)}
           onExport={doExport}
         />
@@ -430,7 +450,8 @@ function EngineResult({
                   <th className="py-2 pr-3">景别 / 镜头动作</th>
                   <th className="py-2 pr-3">口播（含语气）</th>
                   <th className="py-2 pr-3">画面 / 道具</th>
-                  <th className="py-2">音效 / BGM</th>
+                  <th className="py-2 pr-3">音效</th>
+                  <th className="py-2">配乐 / BGM</th>
                 </tr>
               </thead>
               <tbody>
@@ -440,11 +461,20 @@ function EngineResult({
                     <td className="py-2 pr-3">{row.shot}</td>
                     <td className="py-2 pr-3">{row.line}</td>
                     <td className="py-2 pr-3 text-muted-foreground">{row.cue}</td>
-                    <td className="py-2 text-muted-foreground">{row.sfx}</td>
+                    <td className="py-2 pr-3 text-muted-foreground">{row.sfx}</td>
+                    <td className="py-2 text-muted-foreground">{row.bgm || "轻铺底 BGM"}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            {sb.soundDesign && (
+              <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 p-3 text-xs">
+                <div className="mb-1 flex items-center gap-1.5 font-semibold text-foreground">
+                  <Music className="h-3.5 w-3.5" /> 声音设计说明（可直接交给后期）
+                </div>
+                <p className="text-foreground/90">{sb.soundDesign.summary}</p>
+              </div>
+            )}
             {(sb.notes || []).length > 0 && (
               <div className="mt-4 space-y-1.5">
                 {(sb.notes as string[]).map((n, i) => (

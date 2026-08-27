@@ -41,7 +41,12 @@ function ReportPreviewCard() {
     <Card className="overflow-hidden border-border/70 shadow-xl shadow-black/5">
       <CardContent className="p-5">
         {/* 标题 */}
-        <h3 className="mb-4 text-sm font-semibold">分析报告示例</h3>
+        <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold">
+          分析报告示例
+          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-normal text-muted-foreground">
+            演示数据 · 非真实生成
+          </span>
+        </h3>
 
         {/* 视频缩略图区域 */}
         <div className="relative mb-4 flex aspect-video overflow-hidden rounded-lg bg-gradient-to-br from-neutral-800 via-neutral-700 to-neutral-900">
@@ -357,7 +362,7 @@ export default function HomePage() {
           <div className="mt-10 text-center">
             <Button asChild size="lg" variant="gradient" className="gap-2">
               <Link href="/demo">
-                <Wand2 className="h-4 w-4" /> 免费体验：把爆款变成你的
+                <Wand2 className="h-4 w-4" /> 登录体验：把爆款变成你的
               </Link>
             </Button>
             <p className="mt-3 text-xs text-muted-foreground">
@@ -373,7 +378,7 @@ export default function HomePage() {
           <h2 className="text-3xl font-bold tracking-tight">从第一次拆解，到长期陪你做爆款</h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
             {BETA_OPEN
-              ? "Beta 公测期间，核心创作功能全部免费开放，无需购买会员。从爆款拆解到脚本、分镜、拍摄计划，直接开拍。"
+              ? "Beta 公测期间免会员费，但需登录后使用（防止匿名滥用）。登录即可从爆款拆解到脚本、分镜、拍摄计划，免费版每日有额度。"
               : "免费版每天 1 次爆款拆解先上手；创作者版解锁完整导演报告，进阶版加上爆款复刻，专业版由 AI 导演长期陪你优化账号。"}
           </p>
           <Button asChild size="lg" variant="gradient" className="mt-6 gap-2">

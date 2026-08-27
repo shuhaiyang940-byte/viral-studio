@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "user-research": "node scripts/user-research.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -30,6 +31,7 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/postcss": "^4.0.0",
     "@types/node": "^22.10.0",
     "@types/qrcode": "^1.5.6",
@@ -39,6 +41,7 @@
     "eslint-config-next": "^16.3.2",
     "postcss": "^8.5.1",
     "tailwindcss": "^4.0.0",
+    "tsx": "^4.23.12",
     "typescript": "^5.7.0"
   }
 }

@@ -29,3 +29,6 @@ tsconfig.tsbuildinfo
 overview.md
 *-overview.md
 .env*
+
+# 本地评审/测试证据（非源码）
+PHASE-16.*

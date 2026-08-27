@@ -70,7 +70,8 @@ export default function DemoPage() {
       `【结尾】${result.cta}`,
       "",
       "【分镜表】",
-      ...(result.shots || []).map((s: any, i: number) => `${i + 1}. ${s.phase}（${s.durationSec}s）\n   画面：${s.visual}\n   台词：${s.line}\n   语调：${s.tone}\n   避坑：${s.pitfall}`),
+      ...(result.shots || []).map((s: any, i: number) => `${i + 1}. ${s.phase}（${s.durationSec}s）\n   画面：${s.visual}\n   台词：${s.line}\n   语调：${s.tone}\n   音效：${s.sfx || ""}\n   配乐：${s.bgm || ""}\n   避坑：${s.pitfall}`),
+      ...(result.soundDesign?.summary ? ["", "【声音设计】", result.soundDesign.summary] : []),
       "",
       "【落地建议】",
       ...(result.tips || []).map((t: string) => `· ${t}`),
@@ -178,9 +179,16 @@ export default function DemoPage() {
                         <p className="text-sm font-semibold">{i + 1}. {s.phase} <span className="text-[10px] font-normal text-muted-foreground">({s.durationSec}s)</span></p>
                         <p className="mt-1 text-xs text-muted-foreground">画面：{s.visual}</p>
                         <p className="mt-0.5 text-sm">{s.line}</p>
+                        {s.sfx && <p className="mt-0.5 text-[10px] text-muted-foreground">音效：{s.sfx}</p>}
+                        {s.bgm && <p className="mt-0.5 text-[10px] text-muted-foreground">配乐：{s.bgm}</p>}
                         <p className="mt-1 text-[11px] text-amber-600 dark:text-amber-300">避坑：{s.pitfall}</p>
                       </div>
                     ))}
+                    {result.soundDesign?.summary && (
+                      <p className="rounded-md border border-primary/20 bg-primary/5 p-2.5 text-[11px] text-foreground/90">
+                        <span className="font-semibold">声音设计：</span>{result.soundDesign.summary}
+                      </p>
+                    )}
                   </div>
                 )}
                 <div className="flex gap-2">

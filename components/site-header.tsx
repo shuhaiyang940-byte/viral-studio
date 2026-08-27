@@ -35,14 +35,15 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md">
       {BETA && (
         <div className="bg-primary/5 px-3 py-1 text-center text-[11px] text-muted-foreground">
-          Beta 公测中 · 核心创作功能限时免费开放，无需付费
+          Beta 公测 · 登录后可用，含免费额度，创作功能需登录
         </div>
       )}
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         <Logo />
         <nav className="hidden items-center gap-8 md:flex">
           {[
-            { label: "拆爆款复刻", href: "/studio" },
+            { label: "爆款拆解", href: "/studio" },
+            { label: "爆款策略顾问", href: "/strategy" },
             { label: "找对标黑马", href: "/find-peer" },
             { label: "账号诊断所", href: "/clinic" },
             { label: "创意选题", href: "/ideas" },
@@ -112,7 +113,7 @@ export function SiteHeader() {
 function MobileNav() {
   const pathname = usePathname();
   const items = [
-    { label: "拆爆款复刻", href: "/studio", icon: Wand2 },
+    { label: "爆款拆解", href: "/studio", icon: Wand2 },
     { label: "找对标黑马", href: "/find-peer", icon: Flame },
     { label: "账号诊断", href: "/clinic", icon: Target },
     { label: "创意选题", href: "/ideas", icon: Sparkles },

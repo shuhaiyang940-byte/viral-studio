@@ -27,8 +27,8 @@ export async function extractFrames(
   videoPath: string,
   opts: { count?: number; width?: number } = {}
 ): Promise<ExtractedFrames | null> {
-  const count = Math.min(10, Math.max(3, opts.count ?? 6));
-  const width = opts.width ?? 768;
+  const count = Math.min(6, Math.max(3, opts.count ?? 4));
+  const width = opts.width ?? 512;
 
   let durationSec = 0;
   try {
@@ -114,7 +114,7 @@ export async function describeFrames(
   const text = await chat("qwen", [{ role: "user", content }], {
     temperature: 0.3,
     maxTokens: 1200,
-    timeoutMs: 60000,
+    timeoutMs: 90000,
   });
   return { mode: "real", summary: text.trim() };
 }
@@ -257,4 +257,65 @@ export async function transcribeWithQwenAudio(
     }
   }
   return undefined;
+}
+
+/** 用 ffmpeg 从本地视频提取音轨为 16k 单声道 wav，返回路径（失败返回 null）。 */
+export async function extractAudio(
+  videoPath: string,
+  outWav: string
+): Promise<string | null> {
+  try {
+    await execFileP("ffmpeg", [
+      "-y", "-i", videoPath, "-vn",
+      "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+      outWav,
+    ]);
+    return fs.existsSync(outWav) ? outWav : null;
+  } catch (e) {
+    console.warn("[asr] 提取音频失败：", e);
+    return null;
+  }
+}
+
+/**
+ * 本地音频 → Qwen ASR（DashScope multimodal-generation，qwen-omni 支持 audio 数据 URL）。
+ * 仅供上传路径：把 ffmpeg 提取的 wav 以 base64 data URL 送入。失败返回 undefined（绝不造假）。
+ */
+export async function transcribeLocalAudio(
+  wavPath: string
+): Promise<string | undefined> {
+  if (process.env.AI_ASR !== "1") return undefined;
+  const key = process.env.QWEN_API_KEY || process.env.LLM_API_KEY;
+  if (!key) return undefined;
+  try {
+    const buf = fs.readFileSync(wavPath);
+    const dataUrl = `data:audio/wav;base64,${buf.toString("base64")}`;
+    const PROMPT = "请把这段音频中的语音完整转写为文字，只输出转写文本本身，不要任何解释。";
+    const model = process.env.QWEN_AUDIO_MODEL || "qwen-omni-turbo";
+    const res = await fetch(
+      "https://dashscope.aliyuncs.com/api/v1/services/aigc/multimodal-generation/generation",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+        body: JSON.stringify({
+          model,
+          input: { messages: [{ role: "user", content: [{ text: PROMPT }, { audio: dataUrl }] }] },
+        }),
+        signal: AbortSignal.timeout(90000),
+      }
+    );
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.warn(`[asr] 本地转写失败（${res.status}）：${body.slice(0, 200)}`);
+      return undefined;
+    }
+    const data = await res.json();
+    const content = data?.output?.choices?.[0]?.message?.content;
+    if (Array.isArray(content)) return content.map((c) => c?.text || "").join("").trim() || undefined;
+    if (typeof content === "string" && content.trim()) return content.trim();
+    return undefined;
+  } catch (e) {
+    console.warn("[asr] 本地转写异常：", e);
+    return undefined;
+  }
 }

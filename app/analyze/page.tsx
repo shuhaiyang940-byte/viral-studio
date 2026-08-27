@@ -40,6 +40,7 @@ import { mockReferenceSignal } from "@/lib/reference-signal";
 import { useSession } from "@/lib/auth";
 import { fetchQuota, type ClientQuota } from "@/lib/quota-client";
 import { put } from "@vercel/blob/client";
+import { selectAnalyzeEndpoint } from "@/lib/creation-input";
 
 const PIPELINE = [
   { icon: Upload, label: "上传视频" },
@@ -53,6 +54,7 @@ export default function AnalyzePage() {
   // 从 localStorage 读取已保存的新手档案；没有则引导去 /onboarding
   const [profile, setProfile] = React.useState<OnboardingProfile | null>(null);
   const [needsOnboarding, setNeedsOnboarding] = React.useState(false);
+  const [skipped, setSkipped] = React.useState(false);
 
   React.useEffect(() => {
     const saved = getProfile();
@@ -76,6 +78,15 @@ export default function AnalyzePage() {
   const [error, setError] = React.useState<string | null>(null);
   // 同一次用户操作复用同一个 requestId（服务端做 5 分钟重复提交保护），完成后才允许新建。
   const requestIdRef = React.useRef<string | null>(null);
+
+  // 从首页「一键生成」跳转过来时：带 ?url= 则预填视频链接并切到 URL 模式
+  React.useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const u = q.get("url") || "";
+    if (u) { setMode("url"); setUrl(u); }
+    const rt = q.get("refType") || "";
+    if (rt) setRefType(rt);
+  }, []);
 
   // 配额来自服务端：登录 / 升级后要立刻重算
   React.useEffect(() => {
@@ -148,14 +159,14 @@ export default function AnalyzePage() {
               fd.append("requestId", requestId);
               return fetch("/api/analyze/upload", { method: "POST", body: fd });
             })()
-          : await fetch("/api/analyze", {
+          : await fetch(selectAnalyzeEndpoint(mode), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                source: url,
+                ...(mode === "url"
+                  ? { videoUrl: url, refType, profile }
+                  : { source: url, profile, refType }),
                 title: title.trim() || undefined,
-                profile,
-                refType,
                 requestId,
               }),
             });
@@ -184,7 +195,7 @@ export default function AnalyzePage() {
     }
   }
 
-  if (needsOnboarding || !profile) {
+  if ((needsOnboarding || !profile) && !skipped) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-20 text-center sm:px-6">
         <div className="mb-6 inline-flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
@@ -229,6 +240,9 @@ export default function AnalyzePage() {
         <p className="mt-3 text-xs text-muted-foreground">
           视频经加密通道交给 AI 简短分析，服务器不保存你的原片，分析结果可在「我的」里随时清除。
         </p>
+        <Button variant="ghost" className="mt-4 text-sm" onClick={() => setSkipped(true)}>
+          先跳过，直接开始分析（不填档案也能用）
+        </Button>
       </div>
     );
   }
@@ -397,7 +411,7 @@ export default function AnalyzePage() {
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               <option value="" disabled>
-                请选择——演示模式我们没法真的看视频，需要你告诉我们
+                请选择——用于判断分析方向；若未接通真实画面/语音理解，AI 会如实标注不确定性
               </option>
               {REFERENCE_TYPES.map((t) => (
                 <option key={t} value={t}>

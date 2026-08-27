@@ -120,39 +120,41 @@ export function getLearningStats(): LearningStats {
  * 这里用 GLOBAL_BASELINE 模拟「已经学了上万次跨平台样本」的起点，
  * 再叠加你本地的匿名贡献，算出当前等级与「锐度」（观点是否够犀利、不温吞）。
  */
-const GLOBAL_BASELINE_SAMPLES = 12480;
-const GLOBAL_BASELINE_REACHED_RATE = 63;
-
 export interface EvolutionInfo {
-  /** 1-10 级 */
+  /** 1-10 级（当前仅表示本地演示活跃度，不代表真实 AI 进化） */
   level: number;
-  /** 全局基线 + 本地贡献的总样本数 */
+  /** 本地贡献的真实匿名反馈条数（非虚构基线） */
   totalSamples: number;
-  /** 综合达标率（含全局基线） */
+  /** 本地样本的达标率 */
   reachedRate: number;
-  /** 锐度：越高观点越敢说、越不温吞 */
+  /** 锐度（当前恒为 false：不存在服务端长期学习，不做「越学越犀利」的暗示） */
   blunt: boolean;
-  /** 锐度档位文案 */
+  /** 档位文案（诚实标注） */
   label: string;
+  /** 数据来源：local-demo（仅本机 localStorage，非服务端真实学习） */
+  source: "local-demo";
+  /** 诚实说明 */
+  note: string;
 }
 
+/**
+ * 「AI 进化」展示（Phase 15-B 整改后为诚实版）：
+ * 之前用 GLOBAL_BASELINE_SAMPLES=12480 等硬编码基线冒充「已学习上万次」，已移除。
+ * 现在只统计本机 localStorage 里的真实匿名反馈；服务端真实学习底座仍在建设。
+ */
 export function getEvolution(): EvolutionInfo {
   const stats = getLearningStats();
-  const total = GLOBAL_BASELINE_SAMPLES + stats.count;
-  const reached = Math.round(
-    (GLOBAL_BASELINE_SAMPLES * GLOBAL_BASELINE_REACHED_RATE + stats.count * stats.reachedRate) /
-      Math.max(1, total)
-  );
-  // 每 1500 次样本升 1 级，封顶 10 级
-  const level = Math.min(10, 1 + Math.floor(total / 1500));
-  const blunt = level >= 5;
-  const label =
-    level >= 8
-      ? "毒舌军师 · 观点极犀利"
-      : level >= 5
-        ? "老练军师 · 敢说真话"
-        : level >= 3
-          ? "进阶军师 · 渐有锋芒"
-          : "新手军师 · 还在学";
-  return { level, totalSamples: total, reachedRate: reached, blunt, label };
+  const total = stats.count;
+  const level = total > 0 ? 1 : 0;
+  const blunt = false;
+  const label = total > 0 ? `本地演示 · ${total} 条` : "尚未积累真实样本";
+  return {
+    level,
+    totalSamples: total,
+    reachedRate: total ? stats.reachedRate : 0,
+    blunt,
+    label,
+    source: "local-demo",
+    note: "此为本地演示统计（仅存于浏览器），不代表服务端真实学习；服务端知识底座 / 每日学习任务正在建设中。",
+  };
 }

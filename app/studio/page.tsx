@@ -14,6 +14,7 @@ import {
   Clapperboard,
   Sparkles,
   AlertTriangle,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -86,9 +87,10 @@ function StudioInner() {
     const payload = {
       title: product.trim() || "爆款复刻",
       lines: [mine.hook, ...(mine.body || []), mine.cta].filter(Boolean).map((t: string) => ({ text: t })),
-      rows: (mine.shots || []).map((s: any, i: number) => ({ no: String(i + 1).padStart(2, "0"), shot: s.visual, line: s.line, cue: s.pitfall, sfx: s.sfx })),
+      rows: (mine.shots || []).map((s: any, i: number) => ({ no: String(i + 1).padStart(2, "0"), shot: s.visual, line: s.line, cue: s.pitfall, sfx: s.sfx, bgm: s.bgm })),
       notes: mine.tips || [],
       bgm: (mine.shots?.[0]?.sfx || "").replace("轻铺底 BGM", ""),
+      soundDesign: mine.soundDesign,
     };
     const res = await fetch("/api/viral-engine/export", {
       method: "POST",
@@ -111,7 +113,7 @@ function StudioInner() {
       <div className="flex h-14 items-center justify-between border-b border-border/60 px-4">
         <div className="flex items-center gap-3">
           <Clapperboard className="h-5 w-5 text-primary" />
-          <span className="font-semibold">Find-Peer 对标爆款画布</span>
+          <span className="font-semibold">拆爆款 · 对标画布</span>
         </div>
         <div className="hidden gap-2 md:flex">
           {PILLS.map((p) => (
@@ -140,6 +142,15 @@ function StudioInner() {
           <div className="relative mb-3">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="搜爆款公式 / 赛道" className="pl-8" />
+          </div>
+          <div className="mb-2 rounded-md border border-primary/20 bg-primary/5 px-2.5 py-2 text-[11px]">
+            <p className="font-medium text-foreground">想拆你自己的文案/字幕？</p>
+            <p className="mt-0.5 text-muted-foreground">
+              粘贴对标文案，AI 拆骨架→复刻→分镜（合规、不抓平台）。
+            </p>
+            <Link href="/reengineer" className="mt-1 inline-flex items-center gap-1 text-primary underline">
+              去「贴文案/字幕拆解」 <ArrowRight className="h-3 w-3" />
+            </Link>
           </div>
           <p className="mb-2 px-1 text-xs font-medium text-muted-foreground">爆款公式库</p>
           <div className="space-y-2">
@@ -221,9 +232,16 @@ function StudioInner() {
                     <p className="text-xs font-semibold">{i + 1}. {s.phase} <span className="font-normal text-muted-foreground">({s.durationSec}s)</span></p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{s.visual}</p>
                     <p className="mt-0.5 text-sm">{s.line}</p>
+                    {s.sfx && <p className="mt-0.5 text-[10px] text-muted-foreground">音效：{s.sfx}</p>}
+                    {s.bgm && <p className="mt-0.5 text-[10px] text-muted-foreground">配乐：{s.bgm}</p>}
                     {s.pitfall && <p className="mt-1 flex items-center gap-1 text-[10px] text-amber-600 dark:text-amber-300"><AlertTriangle className="h-3 w-3" />{s.pitfall}</p>}
                   </div>
                 ))}
+                {mine.soundDesign?.summary && (
+                  <p className="rounded-md border border-primary/20 bg-primary/5 p-2.5 text-[10px] text-foreground/90">
+                    <span className="font-semibold">声音设计：</span>{mine.soundDesign.summary}
+                  </p>
+                )}
               </div>
             )}
           </div>

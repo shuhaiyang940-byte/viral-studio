@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "视频分析需先登录（防止资源滥用）" }, { status: 401 });
   const requestId = typeof body.requestId === "string" ? body.requestId : undefined;
 
   // 重复提交保护（requestId 幂等）：同 requestId 在 5 分钟内正在处理 → 拒绝
@@ -69,6 +70,14 @@ export async function POST(req: NextRequest) {
         body.profile && typeof body.profile === "object" ? body.profile : undefined,
       refType: typeof body.refType === "string" ? body.refType : undefined,
     });
+    // 诚实性：本端点未读取真实视频画面/语音，明确标记，避免用户误以为已「看懂」视频。
+    if (!(report as any).visual) {
+      (report as any).visual = {
+        mode: "none",
+        frameCount: 0,
+        note: "本次未读取视频真实内容（画面/语音），分析基于你输入的标题与类型推断；如需真实拆解，请上传视频或粘贴视频链接。",
+      };
+    }
     // 分析成功：落库为正式创作资产（失败不写 completed，绝不伪装成功）
     if (user) {
       await saveAsset({

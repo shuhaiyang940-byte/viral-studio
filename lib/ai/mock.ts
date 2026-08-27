@@ -512,6 +512,7 @@ export function buildPrompt(input: {
   refType?: string;
   visualSummary?: string;
   transcript?: string;
+  timelineText?: string;
 }): string {
   const title = input.title?.trim() || "（未提供标题，请根据内容推断）";
   const userTopic =
@@ -521,6 +522,7 @@ export function buildPrompt(input: {
   const refType = input.refType?.trim() || "（未指定，请按视频内容判断）";
   const visual = input.visualSummary?.trim();
   const transcript = input.transcript?.trim();
+  const timelineText = input.timelineText?.trim();
   return `请分析以下短视频并生成「爆款拆解报告」。
 视频来源：${input.source || "（用户上传的视频文件）"}
 视频标题：${title}
@@ -537,6 +539,11 @@ ${
     ? `真实语音转写（由 Qwen-Audio 提取，是你判断「文案/台词/口播」的唯一依据，务必引用其中的关键台词）：
 ${transcript}`
     : "（本次没有语音转写数据：文案相关分析请基于类型与常识合理推断）"
+}
+${
+  timelineText
+    ? `${timelineText}`
+    : "（没有可用的时间轴事实层：请勿臆造具体时间段的具体内容）"
 }
 
 请严格只返回一个 JSON 对象，结构如下（不要包含任何解释文字）：

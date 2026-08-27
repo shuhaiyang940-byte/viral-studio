@@ -196,6 +196,8 @@ export interface MismatchInfo {
   reason?: string;
 }
 
+import type { VideoUnderstanding } from "./video-fact";
+
 export interface AnalysisReport {
   id: string;
   meta: VideoMeta;
@@ -235,6 +237,8 @@ export interface AnalysisReport {
     /** 语音转写文本（真实 ASR 成功时返回） */
     transcript?: string;
   };
+  /** 视频理解完整性/覆盖度（Phase 16.10：诚实展示系统是否真正读到视频） */
+  understanding?: VideoUnderstanding;
   createdAt: string;
 }
 
@@ -272,6 +276,8 @@ export interface ReferenceSignal {
   comments: { text: string; like?: number }[];
   /** 说明：这些信号仅供参考，不是结论 */
   note: string;
+  /** 数据可信度标记：DEMO 表示演示数据，禁止作为真实学习样本进入知识库 */
+  sourceStatus?: "DEMO" | "OK" | "PARTIAL" | "SOURCE_UNAVAILABLE" | "NO_DATA";
 }
 
 /** 提分目标：帮普通人从不及格→70、及格→80 的补齐清单 */

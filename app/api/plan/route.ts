@@ -4,6 +4,8 @@ import { guardAiRequest } from "@/lib/ai-guard";
 import { getCurrentUser } from "@/lib/auth/session";
 import { saveAsset, getAsset } from "@/lib/assets";
 import { logEvent, EVENTS } from "@/lib/analytics";
+import { applyIntentToPlan } from "@/lib/creative/plan-adapt";
+import type { CreativeIntent } from "@/lib/creative/types";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +32,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const storyboardAssetId = typeof body.storyboardAssetId === "string" ? body.storyboardAssetId : undefined;
+    const creativeIntent: CreativeIntent | undefined = body.creativeIntent;
 
     // 从 Storyboard 服务端生成拍摄计划（不信任客户端提交的分镜内容；验证归属）
     if (storyboardAssetId) {
@@ -50,18 +53,24 @@ export async function POST(req: NextRequest) {
         visual: s.visual || s.cue || s.shot || "中景，对着镜头讲",
         line: s.line || "",
         sfx: s.sfx || "",
+        bgm: s.bgm || "",
         camera: s.camera || (typeof s.shot === "string" ? s.shot : "手机固定机位"),
         note: s.pitfall || s.note || "",
       }));
+      const adapted = applyIntentToPlan(clips, creativeIntent);
+      const finalClips = adapted.clips;
+      const postTips = [
+        "先拍重头镜，保证情绪连贯，别按剧本顺序硬拍。",
+        "成片建议 15~30 秒节奏，前 3 秒务必给足钩子。",
+        "竖屏与平台一致（抖音/小红书建议 9:16），口播音量统一。",
+        "声音：按分镜的配乐/音效 cue 铺，前3秒给冲击音，结尾收余韵，别压过口播。",
+      ];
+      if (adapted.note) postTips.unshift(adapted.note);
       const plan = {
         meta: { title: sb.title || "拍摄计划", source: "storyboard" },
-        order: clips.map((c) => `${c.no}. ${c.phase}`),
-        clips,
-        postTips: [
-          "先拍重头镜，保证情绪连贯，别按剧本顺序硬拍。",
-          "成片建议 15~30 秒节奏，前 3 秒务必给足钩子。",
-          "竖屏与平台一致（抖音/小红书建议 9:16），口播音量统一。",
-        ],
+        order: finalClips.map((c) => `${c.no}. ${c.phase}`),
+        clips: finalClips,
+        postTips,
         parentAssetId: storyboardAssetId,
         // 按分镜版本来标识，避免不同 Storyboard 的计划互相覆盖（版本链不污染）
         assetId: `plan:${user.id}:${storyboardAssetId}`,

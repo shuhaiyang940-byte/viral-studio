@@ -3,13 +3,14 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { analyzeVideo } from "@/lib/ai";
-import { extractFrames, describeFrames } from "@/lib/vision";
+import { extractFrames, describeFrames, extractAudio, transcribeLocalAudio } from "@/lib/vision";
 import { guardAiRequest } from "@/lib/ai-guard";
 import { getQuotaForReq, consumeQuota, refundQuota, logUsage } from "@/lib/quota-server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { codeOf } from "@/lib/ai-fallback";
 import { saveAsset } from "@/lib/assets";
 import type { OnboardingProfile } from "@/lib/types";
+import { buildUnderstanding, timelineFactBlock } from "@/lib/video-fact";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,7 +85,7 @@ export async function POST(req: NextRequest) {
     fs.writeFileSync(videoPath, Buffer.from(await file.arrayBuffer()));
 
     // 1) 抽帧
-    const frames = await extractFrames(videoPath, { count: 6, width: 768 });
+    const frames = await extractFrames(videoPath, { count: 4, width: 512 });
 
     // 2) 视觉理解（真实 Qwen-VL 或演示摘要）
     let visualSummary: string | undefined;
@@ -98,12 +99,28 @@ export async function POST(req: NextRequest) {
     }
 
     // 3) 生成报告（含视觉摘要）
+    const durationSec = frames?.meta.durationSec ?? null;
+    // 3.1) 真实 ASR：提取音轨 → 本地 Qwen ASR（仅 AI_ASR=1 时执行；失败不造假）
+    let transcript: string | undefined;
+    const wavPath = path.join(dir, "audio.wav");
+    const audioOk = await extractAudio(videoPath, wavPath);
+    if (audioOk) transcript = await transcribeLocalAudio(wavPath);
+    const understanding = buildUnderstanding({
+      durationSec,
+      hasTranscript: !!transcript,
+      hasVision: visualMode === "real",
+      hasOcr: false,
+      visualCoverageSec: visualMode === "real" ? durationSec : null,
+    });
+    const timelineText = timelineFactBlock(understanding);
     const report = await analyzeVideo({
       source: file.name,
       title,
       profile,
       refType,
       visualSummary,
+      transcript,
+      timelineText,
     });
     report.visual = {
       mode: visualMode,
@@ -115,6 +132,7 @@ export async function POST(req: NextRequest) {
             ? `已提取 ${frameCount} 帧画面，但当前为演示模式（未调用视觉模型）`
             : "未能提取画面帧（请确认运行环境已安装 ffmpeg）",
     };
+    report.understanding = understanding;
     // 分析成功：落库为正式创作资产（失败不写 completed）
     if (user) {
       await saveAsset({

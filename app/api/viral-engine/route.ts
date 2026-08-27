@@ -26,6 +26,7 @@ export async function POST(req: NextRequest) {
   const requestId = typeof body.requestId === "string" ? body.requestId : undefined;
   const parentAssetId = typeof body.parentAssetId === "string" ? body.parentAssetId : undefined;
   const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "请先登录后再生成（防止匿名滥用）" }, { status: 401 });
   const ent = await getUserEntitlements(user?.id ?? "");
   const full = capabilitiesFor(ent.tier).scriptFull;
   const gateInfo = PRO_GATE_INFO.scriptFull;

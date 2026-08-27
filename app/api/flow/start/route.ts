@@ -9,6 +9,10 @@ import { getAsset, saveAsset, type AssetRecord } from "@/lib/assets";
 import { beginGenerate, markGenerateDone, markGenerateFailed } from "@/lib/generate-guard";
 import { consumeGenerationQuota, refundGenerationQuota } from "@/lib/quota-server";
 import { logEvent, EVENTS } from "@/lib/analytics";
+import { intentToPromptBlock } from "@/lib/creative/intent";
+import { applyIntentToShots } from "@/lib/creative/plan-adapt";
+import type { CreativeIntent } from "@/lib/creative/types";
+import { parseDurationSec } from "@/lib/creation-input";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,6 +53,7 @@ export async function POST(req: NextRequest) {
     analysisAssetId?: string;
     myTopic?: string;
     requestId?: string;
+    creativeIntent?: CreativeIntent;
   };
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "未登录" }, { status: 401 });
@@ -96,11 +101,17 @@ export async function POST(req: NextRequest) {
 
   try {
     const playbook = playbookFromAnalysis(analysis.payload);
-    const result = await generateRepurpose({ playbook, myTopic });
+    const result = await generateRepurpose({
+      playbook,
+      myTopic,
+      duration: parseDurationSec((analysis.payload as any)?.meta?.duration) ?? undefined,
+      creativeIntent: body.creativeIntent ? intentToPromptBlock(body.creativeIntent) : undefined,
+    });
     const scriptId = requestId ? `script:${user.id}:${requestId}` : `script:${user.id}:${randomUUID()}`;
     await saveAsset({ userId: user.id, type: "script", assetId: scriptId, parentAssetId: analysisAssetId, title: result.title || myTopic, status: "completed", payload: result });
     const sbId = requestId ? `storyboard:${user.id}:${requestId}` : `storyboard:${user.id}:${randomUUID()}`;
-    await saveAsset({ userId: user.id, type: "storyboard", assetId: sbId, parentAssetId: scriptId, title: `${result.title || myTopic} · 分镜`, status: "completed", payload: { shots: result.shots || [] } });
+    const storyboardShots = applyIntentToShots(result.shots || [], body.creativeIntent);
+    await saveAsset({ userId: user.id, type: "storyboard", assetId: sbId, parentAssetId: scriptId, title: `${result.title || myTopic} · 分镜`, status: "completed", payload: { shots: storyboardShots } });
       if (requestId) await markGenerateDone(requestId, user.id, scriptId);
       await logEvent({ userId: user.id, event: EVENTS.script_generated, assetId: scriptId });
       await logEvent({ userId: user.id, event: EVENTS.storyboard_generated, assetId: sbId });

@@ -61,6 +61,8 @@ export interface ClinicResult {
   score: number;
   /** 一句话总结核心瓶颈 */
   summary: string;
+  /** 诚实说明：诊断基于什么（真实数据 or 你填写的资料） */
+  sourceNote: string;
   /** 全局战略观：赛道红海度 */
   redOcean: { level: string; detail: string };
   /** 同质化预警 + 后果 */
@@ -136,6 +138,9 @@ function buildTemplateResult(input: ClinicInput, benchmarks: ClinicBench[]): Cli
     summary: hasEng
       ? `你的账号卡在「能发但没破圈」：数据不差，但离黑马对标还差一口气的「差异化」。`
       : "补上近 20 条互动数据与文案采样，我能给你更精准的破局方案；当前先按通用的三条动作走。",
+    sourceNote: hasEng
+      ? "说明：本结果基于你填写的近 20 条数据与文案采样给出，仅作参考；并非抓取该账号的真实平台数据。"
+      : "说明：本结果仅基于你填写的账号/赛道信息给出，**未接入该账号的真实粉丝/互动/内容数据**，不是真实账号数据诊断，仅供参考。",
     redOcean: {
       level: "红海蓝海交界",
       detail: `${input.niche}赛道竞争者众多，但同质化严重；真正稀缺的是「有辨识度的人设 + 能落地的干货」。`,
@@ -189,6 +194,7 @@ function normalize(raw: any, input: ClinicInput, benchmarks: ClinicBench[]): Cli
   return {
     score,
     summary: str(raw?.summary, "数据还不够全，先给出可执行的粗诊断。"),
+    sourceNote: str(raw?.sourceNote, "说明：本诊断基于你填写的资料（未接入真实账号数据），仅供方向参考，不是真实数据诊断。"),
     redOcean: { level: str(raw?.redOcean?.level, "红海蓝海交界"), detail: str(raw?.redOcean?.detail, "赛道饱和，需要差异化。") },
     homogen: { alert: str(raw?.homogen?.alert, "内容同质化明显。"), consequence: str(raw?.homogen?.consequence, "长期难以破圈。") },
     differentiation: strArr(raw?.differentiation, ["切入细分人群", "换表达形式做差异化"]),

@@ -4,6 +4,7 @@ import { understandVideoUrl } from "@/lib/vision";
 import { guardAiRequest } from "@/lib/ai-guard";
 import { checkAnalyzeQuota } from "@/lib/quota-server";
 import type { OnboardingProfile } from "@/lib/types";
+import { buildUnderstanding, timelineFactBlock } from "@/lib/video-fact";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,6 +46,13 @@ export async function POST(req: NextRequest) {
   }
 
   const u = await understandVideoUrl(videoUrl, title, refType);
+  const understanding = buildUnderstanding({
+    hasTranscript: !!u.transcript,
+    hasVision: u.mode === "real",
+    hasOcr: false,
+    // 本端点未探测时长/转写时长，无法量化覆盖；由 buildUnderstanding 如实标记 PARTIAL/NONE
+  });
+  const timelineText = timelineFactBlock(understanding);
   const report = await analyzeVideo({
     source: videoUrl,
     title,
@@ -52,6 +60,7 @@ export async function POST(req: NextRequest) {
     refType,
     visualSummary: u.summary,
     transcript: u.transcript,
+    timelineText,
   });
   report.visual = {
     mode: u.mode,
@@ -59,5 +68,6 @@ export async function POST(req: NextRequest) {
     note: u.note,
     transcript: u.transcript,
   };
+  report.understanding = understanding;
   return NextResponse.json(report);
 }

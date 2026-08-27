@@ -27,16 +27,18 @@ export type AiScope =
   | "clinic"
   | "hotspots"
   | "plan"
-  | "render";
+  | "render"
+  | "creative";
 
 const DEFAULT_LIMITS: Record<AiScope, { limit: number; windowMs: number }> = {
   analyze: { limit: 10, windowMs: 60 * 60_000 },
   copy: { limit: 30, windowMs: 60 * 60_000 },
   replicate: { limit: 10, windowMs: 60 * 60_000 },
-  clinic: { limit: 5, windowMs: 60 * 60_000 },
+  clinic: { limit: 30, windowMs: 60 * 60_000 },
   hotspots: { limit: 30, windowMs: 60 * 60_000 },
   plan: { limit: 20, windowMs: 60 * 60_000 },
   render: { limit: 5, windowMs: 60 * 60_000 },
+  creative: { limit: 60, windowMs: 60 * 60_000 },
 };
 
 function intEnv(name: string, fallback: number): number {

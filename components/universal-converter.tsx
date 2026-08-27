@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Sparkles, Pin, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useSession } from "@/lib/auth";
 
 const NICHES = ["知识口播", "美妆种草", "数码带货", "情感共鸣", "美食", "商业"];
 const PRESETS = [
@@ -16,21 +17,41 @@ const PRESETS = [
 
 export function UniversalConverter() {
   const router = useRouter();
+  const { session } = useSession();
   const [text, setText] = React.useState("");
   const [niche, setNiche] = React.useState("知识口播");
   const [product, setProduct] = React.useState("");
   const [persona, setPersona] = React.useState("");
   const [platform, setPlatform] = React.useState("抖音");
+  const [hint, setHint] = React.useState("");
 
   function go() {
+    const ta = text.trim();
+    // 1) 什么都没填：不硬跳，明确提示（避免"点了没反应/跳到无关页"）
+    if (!ta && !product.trim()) {
+      setHint("请先粘贴一个视频链接，或填一个主题 / 创作方向，再点生成");
+      return;
+    }
     const params = new URLSearchParams();
-    if (text.trim()) params.set("text", text.trim());
+    if (ta) params.set("text", ta);
     if (product.trim()) params.set("product", product.trim());
     if (persona.trim()) params.set("persona", persona.trim());
     if (platform.trim()) params.set("platform", platform.trim());
     if (niche) params.set("niche", niche);
-    // 有文案走向三段流水线；仅填产品/赛道走向三栏画布
-    router.push(text.trim() ? `/reengineer?${params}` : `/studio?${params}`);
+    const isLink = /douyin|iesdouyin|tiktok|xiaohongshu|xhslink|bilibili|b23|weixin|channels|http|https|www\./i.test(ta);
+    const to = (p: string) => router.push(session ? p : `/login?redirect=${encodeURIComponent(p)}`);
+    // 2) 视频链接 → 去"拆解/分析"这个视频
+    if (isLink) {
+      to(`/analyze?url=${encodeURIComponent(ta)}`);
+      return;
+    }
+    // 3) 文案 / 主题 → 去"用它创作/复刻"
+    if (ta) {
+      to(`/reengineer?${params}`);
+      return;
+    }
+    // 4) 只填了产品/赛道（没填文案）→ 走三栏画布
+    to(`/studio?${params}`);
   }
 
   return (
@@ -76,8 +97,8 @@ export function UniversalConverter() {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-[11px] text-muted-foreground">我的产品 / 主题</label>
-            <Input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="如：我卖手工辣酱" />
+            <label className="mb-1 block text-[11px] text-muted-foreground">我的主题 / 创作方向（不卖东西就填主题）</label>
+            <Input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="如：如何高效学习（主题）；要带货才补产品，如：手工辣酱" />
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-muted-foreground">我的人设</label>
@@ -86,9 +107,15 @@ export function UniversalConverter() {
         </div>
 
         <div className="mt-4">
+          {hint && (
+            <p className="mb-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{hint}</p>
+          )}
           <Button size="lg" variant="gradient" className="w-full gap-2 glow-purple" onClick={go}>
             <Wand2 className="h-4 w-4" /> 一键生成我的复刻脚本
           </Button>
+          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+            贴视频链接 = 拆解它；填主题/文案 = 用它创作你的内容。空着点会提示你，不会白跳。
+          </p>
         </div>
       </div>
 

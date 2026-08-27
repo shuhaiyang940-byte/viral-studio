@@ -44,6 +44,16 @@ export default function ClinicPage() {
   const [result, setResult] = React.useState<any>(null);
 
   async function run() {
+    // 空输入不给分：没填账号也没填任何数据 → 明确提示，不产出一个"健康度分数"
+    const hasData =
+      form.account.trim() || form.followers.trim() || form.engagementRate.trim() ||
+      form.avgPlays.trim() || form.avgLikes.trim() || form.avgComments.trim() ||
+      form.description.trim() || form.sampleText.trim();
+    if (!hasData) {
+      setError("请先填账号名 / 主页链接，或至少一项账号数据（粉丝量/互动率等），否则无法做诊断");
+      setResult(null);
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -177,6 +187,11 @@ function ClinicResult({ r, onReset }: { r: any; onReset: () => void }) {
             </div>
           </div>
           <Progress value={r.score} className="mt-4" />
+          {r.sourceNote && (
+            <p className="mt-3 rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-[11px] text-muted-foreground">
+              {r.sourceNote}
+            </p>
+          )}
         </CardContent>
       </Card>
 

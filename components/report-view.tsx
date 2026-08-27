@@ -32,8 +32,10 @@ import {
   Timer,
   Sigma,
   Wand2,
+  FileSearch,
 } from "lucide-react";
 import type { AnalysisReport, EmotionPoint, OnboardingProfile } from "@/lib/types";
+const pct = (x: number | null | undefined) => (x == null ? "—" : `${Math.round(x * 100)}%`);
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -210,7 +212,7 @@ export function ReportView({ id }: { id?: string }) {
   const { meta, score, section } = report;
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+    <div id="breakdown" className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       {/* 一键创作：从分析结果直接进入「复刻/创作」工作流 */}
       {report && (
         <div className="mb-6 flex flex-col gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -218,20 +220,27 @@ export function ReportView({ id }: { id?: string }) {
             <p className="font-semibold">已经完成爆款分析 ✓</p>
             <p className="text-xs text-muted-foreground">下一步：把这个爆款结构，换成属于你的原创脚本与分镜。</p>
           </div>
-          <Button asChild variant="gradient" className="gap-1.5">
-            <Link
-              href={`/reengineer?analysisAssetId=${report.id}`}
-              onClick={() =>
-                fetch("/api/events", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ event: "start_creation_clicked", assetId: report.id }),
-                }).catch(() => {})
-              }
-            >
-              <Wand2 className="h-4 w-4" /> 开始创作
-            </Link>
-          </Button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button asChild variant="outline" className="gap-1.5">
+              <a href="#breakdown">
+                <FileSearch className="h-4 w-4" /> ① 深度拆解这个视频（研究它为什么有效）
+              </a>
+            </Button>
+            <Button asChild variant="gradient" className="gap-1.5">
+              <Link
+                href={`/reengineer?analysisAssetId=${report.id}`}
+                onClick={() =>
+                  fetch("/api/events", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ event: "start_creation_clicked", assetId: report.id }),
+                  }).catch(() => {})
+                }
+              >
+                <Wand2 className="h-4 w-4" /> ② 用这个视频的方法创作我的内容
+              </Link>
+            </Button>
+          </div>
         </div>
       )}
       {/* 头部 */}
@@ -270,7 +279,16 @@ export function ReportView({ id }: { id?: string }) {
                 <Badge variant="secondary" className="gap-1">
                   画面理解（演示模式）
                 </Badge>
-              ) : null}
+              ) : (
+                <Badge variant="warning" className="gap-1">
+                  <AlertTriangle className="h-3 w-3" /> 未读取视频真实内容（基于标题/类型推断）
+                </Badge>
+              )}
+              {report.visual.mode === "real" && !report.visual.transcript && (
+                <Badge variant="outline" className="gap-1">
+                  仅画面概要 · 未获取语音转写（拆解为部分）
+                </Badge>
+              )}
               {report.visual.note && (
                 <span className="text-xs text-muted-foreground">{report.visual.note}</span>
               )}
@@ -281,6 +299,25 @@ export function ReportView({ id }: { id?: string }) {
                   </div>
                   <p className="mt-1 text-foreground/90">「{report.visual.transcript}」</p>
                 </div>
+              )}
+            </div>
+          )}
+          {report.understanding && (
+            <div className="mt-2 w-full rounded-md border border-border bg-muted/30 p-3 text-xs">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-foreground">视频理解覆盖度</span>
+                <Badge
+                  variant={String(report.understanding.coverageStatus) === "FULL" ? "success" : "warning"}
+                  className="gap-1"
+                >
+                  {String(report.understanding.coverageStatus || "UNKNOWN")}
+                </Badge>
+                <span className="text-muted-foreground">
+                  转写 {pct(report.understanding.transcriptCoverage)} · 画面 {pct(report.understanding.visualCoverage)} · 分段 {Number(report.understanding.segmentCount ?? 0)}
+                </span>
+              </div>
+              {report.understanding.note && (
+                <p className="mt-1 text-muted-foreground">{String(report.understanding.note)}</p>
               )}
             </div>
           )}
@@ -782,19 +819,16 @@ export function ReportView({ id }: { id?: string }) {
         <Card className="mt-8 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
           <CardContent className="p-5">
             <div className="flex items-center gap-2 text-sm font-semibold">
-              <GraduationCap className="h-4 w-4 text-primary" /> AI 成长飞轮 · 匿名学习反馈
+              <GraduationCap className="h-4 w-4 text-primary" /> AI 成长飞轮 · 本地演示（尚未接入真实学习）
             </div>
             <p className="mt-2 text-sm text-muted-foreground">
-              你这次的分析（参考信号 + 你的目标分数）会<b>匿名</b>汇入模型成长池，帮系统越用越懂「普通人怎么从不及格到 70、及格到 80」。参考信号只作参考、不当答案，也不会绑定你的账号。将来这些样本会用于 RAG 召回与模型微调（详见 lib/learning.ts 占位说明）。
+              当前为<b>本地演示</b>：参考信号与目标分数只在你的浏览器里做匿名统计，<b>并不</b>汇入模型、也<b>不</b>影响任何 AI 输出。服务端的真实学习底座（知识库 / 权重 / 生命周期 / 每日任务）正在建设中。
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-              <Badge variant="outline">已参与 {learning.count} 次匿名反馈</Badge>
-              <Badge variant="outline">达标率 {learning.reachedRate}%</Badge>
+              <Badge variant="outline">本地反馈 {learning.count} 条</Badge>
+              <Badge variant="outline">本地达标率 {learning.reachedRate}%</Badge>
               {evolution && (
-                <Badge variant="outline">AI 进化 Lv.{evolution.level} · {evolution.label}</Badge>
-              )}
-              {evolution && (
-                <Badge variant="outline">跨平台学习 {formatNumber(evolution.totalSamples)} 次</Badge>
+                <Badge variant="outline">{evolution.label}</Badge>
               )}
               {learning.topTags.map((t) => (
                 <Badge key={t} variant="secondary">
@@ -804,8 +838,7 @@ export function ReportView({ id }: { id?: string }) {
             </div>
             {evolution && (
               <p className="mt-2 text-xs text-muted-foreground">
-                系统通过跨平台匿名样本持续训练，等级越高、对视频的见解越准、越敢说真话
-                （不会只讲不温不吞的客套话）。你的每次匿名反馈都在帮它进化。
+                说明：这里展示的是本机演示统计，<b>不代表 AI 真实进化的能力</b>。真实的多角色知识库 / 权重 / 生命周期 / 每日学习已在服务端建设中，届时会展示真实的样本数与证据来源。
               </p>
             )}
           </CardContent>

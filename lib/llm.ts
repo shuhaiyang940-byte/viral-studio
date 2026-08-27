@@ -8,6 +8,8 @@
 // 注意：本文件只被服务端代码引用（/api/copy、lib/hotspots-server、lib/ai/providers），
 // 切勿在 'use client' 组件中 import，否则会泄露 Key。
 
+import { recordAiUsage } from "./ai-usage";
+
 export type LlmProvider = "deepseek" | "qwen";
 
 interface ProviderCfg {
@@ -65,6 +67,8 @@ export interface ChatOpts {
   temperature?: number;
   maxTokens?: number;
   timeoutMs?: number;
+  /** 任务标记（用户任务填 scope，学习任务填 learning:*），用于 AI 用量审计。 */
+  task?: string;
 }
 
 /**
@@ -89,30 +93,35 @@ export async function chat(
   );
   const model = usesVision && cfg.visionModel ? cfg.visionModel : cfg.model;
 
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 30000);
   // 视觉模型回退链：部分账号未开通带 -latest 后缀的模型时，自动降级到稳定版
   const candidates = usesVision
     ? [...new Set([model, "qwen-vl-max", "qwen-vl-plus"])]
     : [model];
   let lastErr: unknown = null;
-  try {
-    for (const m of candidates) {
-      const res = await fetch(`${cfg.baseURL}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${key}`,
-        },
-        body: JSON.stringify({
-          model: m,
-          messages,
-          ...(opts.json ? { response_format: { type: "json_object" } } : {}),
-          temperature: opts.temperature ?? 0.7,
-          ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
-        }),
-        signal: ctrl.signal,
-      });
+  for (const m of candidates) {
+      // 每个候选模型独立超时：一个模型超时不会把整个回退链 abort（原共享 timer 导致第一个超时即全灭）。
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 30000);
+      let res: Response;
+      try {
+        res = await fetch(`${cfg.baseURL}/chat/completions`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${key}`,
+          },
+          body: JSON.stringify({
+            model: m,
+            messages,
+            ...(opts.json ? { response_format: { type: "json_object" } } : {}),
+            temperature: opts.temperature ?? 0.7,
+            ...(opts.maxTokens ? { max_tokens: opts.maxTokens } : {}),
+          }),
+          signal: ctrl.signal,
+        });
+      } finally {
+        clearTimeout(timer);
+      }
       if (!res.ok) {
         const txt = await res.text().catch(() => "");
         lastErr = new Error(`[llm] ${cfg.label} API ${res.status}: ${txt.slice(0, 300)}`);
@@ -124,12 +133,29 @@ export async function chat(
         lastErr = new Error(`[llm] ${cfg.label} 返回为空`);
         continue;
       }
+      // 真实 usage（仅当 API 返回才记录；拿不到就交给 recordAiUsage 留空，绝不自己估算）。
+      const usage = data?.usage ?? null;
+      void recordAiUsage({
+        task: opts.task ?? "general",
+        engine: p,
+        model: m,
+        endpoint: "chat/completions",
+        inputTokens: usage?.prompt_tokens ?? null,
+        outputTokens: usage?.completion_tokens ?? null,
+        totalTokens: usage?.total_tokens ?? null,
+        status: "ok",
+      });
       return content;
     }
+    void recordAiUsage({
+      task: opts.task ?? "general",
+      engine: p,
+      model: candidates[candidates.length - 1] ?? cfg.model,
+      endpoint: "chat/completions",
+      status: "error",
+      error: lastErr instanceof Error ? lastErr.message : "LLM 调用失败",
+    });
     throw lastErr ?? new Error(`[llm] ${cfg.label} 调用失败`);
-  } finally {
-    clearTimeout(timer);
-  }
 }
 
 /** 推理层（DeepSeek）：写文案、分类、润色、报告推理。 */

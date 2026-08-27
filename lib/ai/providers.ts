@@ -178,6 +178,7 @@ export async function analyzeWithProvider(
     refType?: string;
     visualSummary?: string;
     transcript?: string;
+    timelineText?: string;
   }
 ): Promise<AnalysisReport> {
   const prompt = buildPrompt(input);

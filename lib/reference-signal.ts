@@ -103,6 +103,8 @@ export function mockReferenceSignal(
     platform,
     tags,
     comments,
+    sourceStatus: "DEMO" as const,
     note: "以上标签与评论来自该链接的公开信息，仅作为 AI 分析的「参考信号」——帮你理解这条视频受欢迎的侧面，但**不能当作结论或答案**。真正判断还是要靠你对内容的拆解。",
+    // 明确：演示数据，禁止作为真实学习样本进入知识库（Phase 15-B P0）。
   };
 }

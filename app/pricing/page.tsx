@@ -398,5 +398,5 @@ function BetaPricing() {
 }
 
 export default function PricingPage() {
-  return BETA_OPEN ? <BetaPricing /> : <MemberPricing />;
+  return <MemberPricing />;
 }

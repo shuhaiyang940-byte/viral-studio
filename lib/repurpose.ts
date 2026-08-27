@@ -19,6 +19,8 @@ export interface RepurposeShot {
   durationSec: number;
   /** 音效 / BGM 提示 */
   sfx: string;
+  /** 配乐 / BGM 建议（风格 / 节奏 / BPM） */
+  bgm?: string;
   /** 语调提示 */
   tone: string;
   /** 避坑提示 */
@@ -40,6 +42,37 @@ export interface RepurposeResult {
   tips: string[];
   /** 来源：llm = 真模型生成；template = 本地模板兜底 */
   source: "llm" | "template";
+  /** 声音设计（配乐 / 音效 cue 清单 + 说明，可直接交给后期） */
+  soundDesign?: SoundDesign;
+}
+
+export interface SoundDesign {
+  summary: string;
+  cues: { shot: string; bgm: string; sfx: string; emotion: string }[];
+}
+
+const PHASE_BGM: Record<string, string> = {
+  钩子: "紧张鼓点 120BPM + 悬疑铺底，前3秒给冲击",
+  铺垫: "轻铺底弦乐，留呼吸感",
+  展开: "节奏推进，加轻鼓点，信息处略微收紧",
+  高潮: "鼓点加量 + 情绪堆叠，转场用 whoosh 衔接",
+  收尾: "舒缓收尾 BGM，结尾留 0.5s 余韵",
+};
+
+/** 从每镜的配乐 / 音效生成「声音设计说明」（模板兜底，永不空） */
+export function buildSoundDesign(shots: RepurposeShot[]): SoundDesign {
+  const cues = shots.map((s) => ({
+    shot: `第${s.index}镜 · ${s.phase}`,
+    bgm: s.bgm || "轻铺底 BGM",
+    sfx: s.sfx || "转场 whoosh / 重点词加重",
+    emotion: s.tone || "自然",
+  }));
+  const bgms = Array.from(new Set(cues.map((c) => c.bgm)));
+  const sfxs = Array.from(new Set(cues.map((c) => c.sfx)));
+  const summary =
+    `【声音设计】总基调：${bgms[0] || "轻铺底配乐"}。配乐节奏：${bgms.join("；")}。` +
+    `音效要点：${sfxs.join("；")}。前3秒务必给冲击音，结尾收余韵，全程避免压过口播。`;
+  return { summary, cues };
 }
 
 export interface RepurposeInput {
@@ -57,6 +90,29 @@ export interface RepurposeInput {
   emotion?: number;
   /** 目标时长秒（30~60，用于控制内容量与节奏） */
   duration?: number;
+  /** 团队 Creative Intent 的紧凑文本（可选，注入后指导脚本方向） */
+  creativeIntent?: string;
+}
+
+/** 纯函数：把「爆款套路 + 我的素材 + 团队 intent」构造成发给 LLM 的 user 提示。 */
+export function buildRepurposeUserPrompt(input: {
+  playbook: RepurposeInput["playbook"];
+  myTopic: string;
+  myPersona?: string;
+  platform?: string;
+  casual?: number;
+  emotion?: number;
+  duration?: number;
+  creativeIntent?: string;
+}): string {
+  const { playbook, myTopic, myPersona, platform } = input;
+  const structText = playbook.structure
+    .map((s, i) => `${i + 1}. ${s.secs}s「${s.phase}」：${s.detail}`)
+    .join("\n");
+  const intentBlock = input.creativeIntent
+    ? `【团队创作方案（务必遵循，不要改变核心方向）】\n${input.creativeIntent}\n\n`
+    : "";
+  return `${intentBlock}【爆款套路】${playbook.title}\n钩子示例：${playbook.hook}\n结构：\n${structText}\n\n【我的素材】\n主题/产品：${myTopic}${myPersona ? `\n我的人设：${myPersona}` : ""}${platform ? `\n平台：${platform}` : ""}${input.casual !== undefined ? `\n口语化程度：${input.casual}/100` : ""}${input.emotion !== undefined ? `\n情绪强度：${input.emotion}/100` : ""}${input.duration !== undefined ? `\n目标时长：约${input.duration}秒` : ""}`;
 }
 
 const PLATFORM_TIPS: Record<string, string> = {
@@ -115,6 +171,7 @@ function buildTemplateResult(input: RepurposeInput): RepurposeResult {
         : `${seg.detail}。…就拿「${t}」来说，重点是这个。`,
     durationSec: clampNum(seg.secs, 8),
     sfx: playbook.music?.[0] || "轻铺底 BGM，关键信息处加强调音",
+    bgm: PHASE_BGM[seg.phase] || playbook.music?.[i] || "轻铺底 BGM",
     tone: PHASE_TONE[seg.phase] || "自然，像聊天",
     pitfall: PHASE_PITFALL[seg.phase] || "别念稿，语气放松",
   }));
@@ -133,6 +190,7 @@ function buildTemplateResult(input: RepurposeInput): RepurposeResult {
     shots,
     tips,
     source: "template",
+    soundDesign: buildSoundDesign(shots),
   };
 }
 
@@ -146,6 +204,7 @@ function normalize(raw: any, input: RepurposeInput): RepurposeResult {
     line: String(s.line || ""),
     durationSec: clampNum(s.durationSec, input.playbook.structure[i]?.secs ?? 8),
     sfx: String(s.sfx || input.playbook.music?.[0] || "轻铺底 BGM"),
+    bgm: String(s.bgm || PHASE_BGM[s.phase] || input.playbook.music?.[0] || "轻铺底 BGM"),
     tone: String(s.tone || PHASE_TONE[s.phase] || "自然"),
     pitfall: String(s.pitfall || PHASE_PITFALL[s.phase] || "别念稿"),
   }));
@@ -159,6 +218,8 @@ function normalize(raw: any, input: RepurposeInput): RepurposeResult {
     shots: shots.length ? shots : [], // 空时由前端兜底提示
     tips: Array.isArray(raw?.tips) ? raw.tips.map((x: any) => String(x)) : [],
     source: "llm",
+    soundDesign: buildSoundDesign(shots.length ? shots : [],
+    ),
   };
 }
 
@@ -168,9 +229,6 @@ function normalize(raw: any, input: RepurposeInput): RepurposeResult {
  */
 export async function generateRepurpose(input: RepurposeInput): Promise<RepurposeResult> {
   const { playbook, myTopic, myPersona, platform } = input;
-  const structText = playbook.structure
-    .map((s, i) => `${i + 1}. ${s.secs}s「${s.phase}」：${s.detail}`)
-    .join("\n");
 
   if (isConfigured("deepseek")) {
     try {
@@ -183,8 +241,9 @@ export async function generateRepurpose(input: RepurposeInput): Promise<Repurpos
         `${input.duration !== undefined ? `目标时长：约 ${input.duration} 秒，控制句子数量与分镜节奏。` : ""}` +
         "结构：{\"hook\":\"前3秒钩子(脚本式,可照念)\",\"title\":\"主标题\",\"body\":[\"第1要点\",\"第2要点\",\"第3要点\"]," +
         "\"cta\":\"结尾行动号召\",\"shots\":[{\"phase\":\"钩子\",\"visual\":\"画面建议\",\"line\":\"台词\",\"durationSec\":3," +
-        "\"sfx\":\"音效/BGM\",\"tone\":\"语调提示\",\"pitfall\":\"避坑提示\"}],\"tips\":[\"落地建议\"]}";
-      const user = `【爆款套路】${playbook.title}\n钩子示例：${playbook.hook}\n结构：\n${structText}\n\n【我的素材】\n主题/产品：${myTopic}${myPersona ? `\n我的人设：${myPersona}` : ""}${platform ? `\n平台：${platform}` : ""}${input.casual !== undefined ? `\n口语化程度：${input.casual}/100` : ""}${input.emotion !== undefined ? `\n情绪强度：${input.emotion}/100` : ""}${input.duration !== undefined ? `\n目标时长：约${input.duration}秒` : ""}`;
+        "\"sfx\":\"音效\",\"bgm\":\"配乐(风格/节奏/BPM)\",\"tone\":\"语调提示\",\"pitfall\":\"避坑提示\"}]," +
+        "\"tips\":[\"落地建议\"]}";
+      const user = buildRepurposeUserPrompt(input);
 
       const raw = await chat("deepseek", [
         { role: "system", content: system },

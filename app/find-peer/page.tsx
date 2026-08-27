@@ -118,6 +118,7 @@ export default function FindPeerPage() {
   const [goal, setGoal] = React.useState<string>("");
   const [title, setTitle] = React.useState<string>("");
   const [loading, setLoading] = React.useState(false);
+  const [searchError, setSearchError] = React.useState<string | null>(null);
   const [results, setResults] = React.useState<BenchmarkItem[]>([]);
   const [playbooks, setPlaybooks] = React.useState<Playbook[]>([]);
   const [trackingId, setTrackingId] = React.useState<string | null>(null);
@@ -145,7 +146,11 @@ export default function FindPeerPage() {
   }
 
   async function runSearch() {
-    if (!ideaType) return;
+    if (!ideaType) {
+      setSearchError("请先选择内容方向（口播 / 卖货 / 颜值…），再点「帮我找对标」");
+      return;
+    }
+    setSearchError(null);
     setLoading(true);
     setStep(3);
     try {
@@ -155,9 +160,17 @@ export default function FindPeerPage() {
       if (styles.length) params.set("styles", styles.join(","));
       if (effects.length) params.set("effects", effects.join(","));
       if (productType) params.set("productType", productType);
-      const res = await fetch(`/api/benchmarks?${params.toString()}`);
-      const data = await res.json();
-      setResults(data.items ?? []);
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15000);
+      let items: any[] = [];
+      try {
+        const res = await fetch(`/api/benchmarks?${params.toString()}`, { signal: ctrl.signal });
+        const data = await res.json().catch(() => {});
+        items = Array.isArray(data?.items) ? data.items : Array.isArray(data) ? data : [];
+      } finally {
+        clearTimeout(t);
+      }
+      setResults(items);
       setPlaybooks(findPlaybooks({ ideaType, category, goal, limit: 3 }));
     } catch {
       setResults([]);
@@ -493,6 +506,9 @@ export default function FindPeerPage() {
 
               <div className="flex items-center justify-between border-t border-border pt-4">
                 <p className="text-xs text-muted-foreground">系统将按你的条件，从对标库里自主匹配排序</p>
+                {searchError && (
+                  <p className="mt-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{searchError}</p>
+                )}
                 <Button onClick={runSearch} variant="gradient">
                   <Search className="h-4 w-4" /> 帮我找对标
                 </Button>
