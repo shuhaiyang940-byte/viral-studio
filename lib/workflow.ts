@@ -85,14 +85,15 @@ export async function runStrategyWorkflow(input: {
       role: "system",
       content:
         "你是短视频「原创编剧」。基于策略 brief 和用户优势创作一条原创口播脚本，禁止直接复制对标文案、禁止套固定公式。只返回 JSON：" +
-        "{\"hook\":\"前3秒钩子\",\"title\":\"标题\",\"body\":[\"要点1\",\"要点2\",\"要点3\"],\"cta\":\"结尾行动号召\"," +
+        "{\"hook\":\"前3秒钩子\",\"title\":\"标题\",\"body\":[\"完整可直接照读的口播段1\",\"口播段2\",\"口播段3\"],\"cta\":\"结尾行动号召\"," +
         "\"shots\":[{\"phase\":\"钩子/铺垫/展开/收尾\",\"visual\":\"画面建议\",\"line\":\"台词\",\"durationSec\":数字," +
-        "\"sfx\":\"音效\",\"bgm\":\"配乐(风格/BPM)\",\"tone\":\"语调\",\"pitfall\":\"避坑\"}]}",
+        "\"sfx\":\"音效\",\"bgm\":\"配乐(风格/BPM)\",\"tone\":\"语调\",\"pitfall\":\"避坑\"}]}。" +
+        "body 是给用户当提词/配音稿的完整贯口正文，不是分点提纲、不是\"开合跳1 2 3\"式喊数；每段要含具体例子/数字/细节，口语自然、能直接照着念。",
     },
     {
       role: "user",
       content:
-        `【策略 brief】${adv.brief}\n【我的优势】${(adv.advantage_used || []).join("；")}\n【我的产品/方向】${product}\n【平台】${platform || "抖音"}${duration ? `\n【目标时长】${duration}s` : ""}\n请写一条字数适中、每条台词简短口语、能体现上述优势的原创脚本。`,
+        `【策略 brief】${adv.brief}\n【我的优势】${(adv.advantage_used || []).join("；")}\n【我的产品/方向】${product}\n【平台】${platform || "抖音"}${duration ? `\n【目标时长】${duration}s` : ""}\n请写一条字数适中、能体现上述优势的原创口播脚本。body 每段是可直接照读的完整台词（含具体例子/数字/画面提示，不是分点提纲、不是\"开合跳1 2 3\"式喊数），与 shots 的台词深度一致。`,
     },
   ], { json: true, temperature: 0.85, maxTokens: 1500, task: "workflow:script" });
   const s = JSON.parse(script) as ScriptOut;
