@@ -9,7 +9,7 @@ export function SiteFooter() {
         <div className="space-y-3">
           <Logo />
           <p className="max-w-xs text-sm text-muted-foreground">
-            你的 AI 短视频导演：上传爆款视频，拆解为什么火、怎么复制成你的下一条。
+            你的 AI 短视频策略顾问：填账号定位 + 选对标 → 算出原创爆款脚本 → 拍完回来复盘，越拍越准。
           </p>
         </div>
         <div>
@@ -40,7 +40,7 @@ export function SiteFooter() {
       </div>
       <div className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-2 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:px-6">
-          <span>© {new Date().getFullYear()} 爆款研究所 · AI 短视频导演. 保留所有权利。</span>
+          <span>© {new Date().getFullYear()} 爆款研究所 · AI 短视频策略顾问. 保留所有权利。</span>
           <span>
             {BETA_OPEN
               ? "Beta 公测中 · 核心创作功能限时免费开放"

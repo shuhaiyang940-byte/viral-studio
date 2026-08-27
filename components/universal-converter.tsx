@@ -58,15 +58,15 @@ export function UniversalConverter() {
     <div className="space-y-7">
       <div>
         <h1 className="text-4xl font-extrabold leading-tight tracking-tight sm:text-5xl lg:text-[52px]">
-          把别人的爆款，
+          把你的账号定位，
           <br />
           <span className="bg-gradient-to-r from-violet-500 to-pink-500 bg-clip-text text-transparent">
-            一键变成你的镜头脚本
+            变成一条能拍的原创爆款脚本
           </span>
         </h1>
         <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-          不用学复杂提示词。输入任意爆款链接或文案，AI 帮你拆解心理逻辑，再换成你的产品，
-          直接生成带拍摄指导的口播稿。
+          不用学复杂提示词。填你的账号定位 + 选一个对标，AI 帮你算重合度、避开红海，
+          生成一条基于你优势的原创脚本，自带分镜、音效和声音设计。
         </p>
       </div>
 
@@ -111,10 +111,10 @@ export function UniversalConverter() {
             <p className="mb-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{hint}</p>
           )}
           <Button size="lg" variant="gradient" className="w-full gap-2 glow-purple" onClick={go}>
-            <Wand2 className="h-4 w-4" /> 一键生成我的复刻脚本
+            <Wand2 className="h-4 w-4" /> 生成我的原创策略脚本
           </Button>
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            贴视频链接 = 拆解它；填主题/文案 = 用它创作你的内容。空着点会提示你，不会白跳。
+            可粘爆款标题/文案或视频链接；也可直接填你的主题、产品与账号定位。空着点会提示你，不会白跳。
           </p>
         </div>
       </div>

@@ -11,7 +11,7 @@ export function Logo({ className, showText = true }: { className?: string; showT
       {showText && (
           <span className="flex flex-col leading-none">
           <span className="text-sm font-bold tracking-tight">爆款研究所</span>
-          <span className="text-[10px] font-medium text-muted-foreground">AI 短视频导演</span>
+          <span className="text-[10px] font-medium text-muted-foreground">AI 短视频策略顾问</span>
         </span>
       )}
     </Link>

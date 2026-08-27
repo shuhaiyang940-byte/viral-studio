@@ -7,22 +7,22 @@ import { SiteFooter } from "@/components/site-footer";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL || "http://localhost:3000"),
-  title: "爆款研究所 | 你的 AI 短视频导演",
+  title: "爆款研究所 | AI 短视频策略顾问",
   description:
-    "上传一个爆款视频，AI 爆款导演帮你拆解：为什么火、爆款结构是什么、哪些能复制、怎么变成你的下一条内容。",
+    "AI 短视频策略顾问：填账号定位 + 选对标，算出你的原创爆款脚本，自带分镜、音效、声音设计；拍完回传数据复盘，越拍越准。",
   keywords: ["短视频", "爆款", "AI 拆解", "分镜", "口播文案", "抖音", "小红书", "视频号"],
   openGraph: {
-    title: "爆款研究所 | 你的 AI 短视频导演",
+    title: "爆款研究所 | AI 短视频策略顾问",
     description:
-      "把别人的爆款拆成你的镜头脚本：逐镜头拆解 + 换成你的主题怎么拍，手把手教你把三十分做到七十分。",
+      "从你的账号定位出发生成原创爆款脚本：策略说明 + 分镜 + 音效 + 声音设计，拍完复盘写回档案，越拍越准。",
     type: "website",
     locale: "zh_CN",
     siteName: "爆款研究所",
   },
   twitter: {
     card: "summary",
-    title: "爆款研究所 | 你的 AI 短视频导演",
-    description: "把别人的爆款，拆成你的镜头脚本。",
+    title: "爆款研究所 | AI 短视频策略顾问",
+    description: "填定位 + 选对标 → 你的原创爆款脚本 → 拍完复盘，越拍越准。",
   },
   icons: {
     icon: "/icon.svg",

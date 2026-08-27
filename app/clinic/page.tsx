@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 
-const NICHES = ["生活", "旅游", "美食", "情感", "知识", "商业"];
+const NICHES = ["生活", "旅游", "美食", "情感", "知识", "美妆护肤", "穿搭", "母婴", "剧情", "搞笑", "商业"];
 const TYPES: { id: "sell" | "talk"; label: string }[] = [
   { id: "sell", label: "卖货 / 带货" },
   { id: "talk", label: "口播 / 知识" },

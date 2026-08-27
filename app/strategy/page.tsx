@@ -21,7 +21,6 @@ export default function StrategyPage() {
   const [result, setResult] = React.useState<any>(null);
   const [error, setError] = React.useState("");
   const [personaSaved, setPersonaSaved] = React.useState(false);
-  const [personaWarn, setPersonaWarn] = React.useState("");
   const [genStage, setGenStage] = React.useState(0);
   const genTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const GEN_STAGES = ["已提交，正在分析对标账号…", "模型计算中，正在构思原创脚本…", "正在拆分镜与音效…"];
@@ -52,13 +51,14 @@ export default function StrategyPage() {
       if (!r.ok) throw new Error(d.error || "保存失败");
       setSaveMsg("✓ 账号定位已保存，下次生成会自动读取");
       setPersonaSaved(true);
-      setPersonaWarn("");
     } catch (e: any) { setError(e.message); }
   };
 
   const generate = async () => {
     setError(""); setResult(null); setBusy(true);
-    if (!personaSaved) setPersonaWarn("建议先点「保存」把账号定位存下来，生成的脚本会更贴你的账号；现在将按当前填写临时生成。");
+    // 填了账号定位但没保存过 → 自动先保存，让生成的脚本真正贴合账号
+    const hasFilled = persona.tags.trim() || persona.resources.trim() || persona.timing.trim() || persona.audience.trim();
+    if (!personaSaved && hasFilled) await saveCard();
     setGenStage(0);
     genTimerRef.current = setInterval(() => {
       setGenStage((s) => (s + 1) % GEN_STAGES.length);
@@ -124,9 +124,6 @@ export default function StrategyPage() {
                 <span aria-live="polite">{GEN_STAGES[genStage]}</span>
                 <span className="opacity-70">约 20-40 秒</span>
               </div>
-            )}
-            {personaWarn && !busy && (
-              <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground">{personaWarn}</p>
             )}
             {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
           </CardContent>

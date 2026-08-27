@@ -115,10 +115,10 @@ function ReportPreviewCard() {
 const FEATURES = [
   {
     icon: Wand2,
-    title: "拆爆款复刻",
-    desc: "粘贴任意爆款，AI 拆解心理结构，3 步变成你的原创镜头脚本",
+    title: "爆款策略顾问",
+    desc: "填你的账号定位 + 选对标，算出原创爆款脚本，自带分镜、音效、声音设计",
     color: "from-violet-500 to-purple-600",
-    href: "/studio",
+    href: "/strategy",
   },
   {
     icon: Flame,
@@ -146,22 +146,22 @@ const FEATURES = [
 /* ─── 简单三步流程 ─── */
 const STEPS = [
   {
-    icon: CloudUpload,
+    icon: Target,
     num: 1,
-    title: "上传爆款视频",
-    desc: "粘贴链接或上传视频，AI 开始拆解它的爆款逻辑",
+    title: "填你的账号定位",
+    desc: "告诉我们你是谁、有什么、现在什么时机，AI 先读懂你",
   },
   {
     icon: Sparkles,
     num: 2,
-    title: "拆成镜头脚本",
-    desc: "生成评分、逐镜头分镜拆解与可复制公式",
+    title: "算出你的原创爆款脚本",
+    desc: "选一个对标，AI 算重合度、避开红海，生成原创脚本 + 分镜 + 音效",
   },
   {
     icon: Wand2,
     num: 3,
-    title: "手把手教你拍",
-    desc: "换成你的主题，每一镜怎么拍都有照做清单",
+    title: "按脚本拍 + 拍完复盘",
+    desc: "把发布数据回传，AI 复盘为什么爆/没爆，写回你的档案，越拍越准",
     href: "/replicate",
   },
 ];
