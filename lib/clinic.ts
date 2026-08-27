@@ -216,7 +216,13 @@ function normalize(raw: any, input: ClinicInput, benchmarks: ClinicBench[]): Cli
 
 export async function generateClinic(input: ClinicInput): Promise<ClinicResult> {
   const benchmarks = pickBenchmarks(input);
-  if (isConfigured("deepseek")) {
+  // 只有用户提供了真实数据（数值型指标 / 描述 / 文案采样）才走 LLM 精确诊断；
+  // 否则走规则模板做诚实的"方向参考"，避免 LLM 在无数据时编造分数/断言未提供的字段对比
+  const hasData =
+    Number.isFinite(input.engagementRate) || Number.isFinite(input.followers) ||
+    Number.isFinite(input.avgPlays) || Number.isFinite(input.avgLikes) ||
+    Number.isFinite(input.avgComments) || !!input.description?.trim() || !!input.sampleText?.trim();
+  if (hasData && isConfigured("deepseek")) {
     try {
       const benchText = benchmarks
         .map(
@@ -234,7 +240,8 @@ export async function generateClinic(input: ClinicInput): Promise<ClinicResult> 
         "\"differentiation\":[\"降维/差异化破局方向1\",\"方向2\"],\"topics\":\"选题与热点诊断\"," +
         "\"hookDiag\":\"黄金3秒钩子诊断\",\"schedule\":\"更新频率与黄金时段建议\"," +
         "\"todoList\":[\"下周第1件事\",\"第2件事\",\"第3件事\"],\"actions\":[\"按优先级的动作\"]," +
-        "\"dimensions\":[{\"key\":\"interaction\",\"label\":\"互动率\",\"yourValue\":\"你的值\",\"benchValue\":\"对标值\",\"status\":\"ok|gap|danger\",\"advice\":\"建议\"}],\"gaps\":[{\"title\":\"差距\",\"why\":\"为什么\",\"how\":\"怎么改\"}]}";
+        "\"dimensions\":[{\"key\":\"interaction\",\"label\":\"互动率\",\"yourValue\":\"你的值\",\"benchValue\":\"对标值\",\"status\":\"ok|gap|danger\",\"advice\":\"建议\"}],\"gaps\":[{\"title\":\"差距\",\"why\":\"为什么\",\"how\":\"怎么改\"}]}。" +
+        "硬规则：①summary 必须针对本条账号的具体情况给判断，禁止\"内容同质化严重、缺乏差异化\"这类空泛模板句；②只断言用户实际提供的字段，某字段未填（如互动率未填）就说\"未提供\"，不要编造数值对比；③若用户提供了文案采样（sampleText），请在诊断中点名引用采样中的具体句子，给出针对性意见。";
       const user =
         `【我的账号】\n赛道：${input.niche}，类型：${input.contentType === "sell" ? "卖货" : "口播"}，平台：${input.platform || "未填"}\n账号名/链接：${input.account || "未填"}\n粉丝：${input.followers ?? "未填"}万，互动率：${input.engagementRate ?? "未填"}%\n近20条：平均播放 ${input.avgPlays ?? "未填"}，平均点赞 ${input.avgLikes ?? "未填"}，平均评论 ${input.avgComments ?? "未填"}\n近况：${input.description || "未填"}\n文案采样：${input.sampleText || "未填"}\n\n【对标黑马】\n${benchText}`;
       const raw = await chat("deepseek", [

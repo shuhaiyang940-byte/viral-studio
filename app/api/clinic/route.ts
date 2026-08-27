@@ -7,7 +7,8 @@ import { kvGet, kvSet } from "@/lib/kv";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const NICHES = ["生活", "旅游", "美食", "情感", "知识", "商业"];
+// 与 /clinic 页面对齐：页面下拉有 11 个赛道，API 也必须收全，否则选「美妆护肤/搞笑」等会 400
+const NICHES = ["生活", "旅游", "美食", "情感", "知识", "美妆护肤", "穿搭", "母婴", "剧情", "搞笑", "商业"];
 
 /**
  * 账号诊所：POST { niche, contentType, platform?, followers?, engagementRate?, description? }
