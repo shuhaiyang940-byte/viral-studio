@@ -47,18 +47,23 @@ interface PlatformMetrics {
 ```ts
 interface DataSourceAdapter {
   id: "douyin" | "xiaohongshu" | "shipinhao" | "manual";
-  capabilities: ("account" | "posts" | "post_metrics")[];
+  capabilities: ("account" | "posts" | "post_metrics" | "resolve_account")[];
+  resolveAccount(handleOrUrl: string): Promise<{ accountId: string }>;  // /clinic 从 handle/URL 解析账号 id
   fetchAccount(id: string): Promise<AccountSnapshot>;          // 给 /clinic 账号诊断
   fetchPosts(id: string): Promise<PlatformMetrics[]>;          // 给 /review 复盘
-  fetchBenchmarks(niche: string): Promise<PlatformMetrics[]>;  // 给 /find-peer 对标
+  // 注意：竞品/对标数据不来自平台 API —— 开放接口拿不到别人家全量指标。
+  //   benchmarks 由「内部 benchmark 库」提供（可后续用平台授权数据 / 采购数据灌入），
+  //   而不是 adapter 直接 fetch 竞品。
 }
 ```
+
+> **错误处理约定（写 adapter 时补上）**：token 过期要刷新重试；429 限流要退避/排队；接口返回 partial 数据时按字段缺失降级（填 null 而非整体失败），绝不能让一次采集失败导致整个诊断/复盘灰掉。
 
 ## 4. 接入点（现有功能 → 数据源）
 
 - **/clinic 账号诊断**：`fetchAccount` 替换「手填账号数据」。
 - **/review 复盘**：`fetchPosts` 替换「手填 / 粘贴 CSV」（当前 CSV 即 `PlatformMetrics.metrics` 子集）。
-- **/find-peer 对标**：`fetchBenchmarks` 替换「种子对标库」。
+- **/find-peer 对标**：读「内部 benchmark 库」（当前种子对标库），将来用平台授权数据 / 采购数据灌入扩成真实对标库；**不依赖平台 API 直接拉竞品**（开放接口拿不到）。
 - **/strategy 重合度**：对标库向量化 → 硬相似度，替代 `overlap_pct` 的 LLM 自报。
 
 ## 5. 半真 → 真源的迁移策略
