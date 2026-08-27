@@ -20,6 +20,7 @@ export default function StrategyPage() {
   const [saveMsg, setSaveMsg] = React.useState("");
   const [result, setResult] = React.useState<any>(null);
   const [error, setError] = React.useState("");
+  const [quotaUpgrade, setQuotaUpgrade] = React.useState(false);
   const [genStage, setGenStage] = React.useState(0);
   const genTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const GEN_STAGES = ["已提交，正在分析对标账号…", "模型计算中，正在构思原创脚本…", "正在拆分镜与音效…"];
@@ -52,7 +53,7 @@ export default function StrategyPage() {
   };
 
   const generate = async () => {
-    setError(""); setResult(null); setBusy(true);
+    setError(""); setResult(null); setQuotaUpgrade(false); setBusy(true);
     // 点了生成就把当前填写的账号定位落库（即使没手动点保存），让脚本真正贴合账号
     const hasFilled = persona.tags.trim() || persona.resources.trim() || persona.timing.trim() || persona.audience.trim();
     if (hasFilled) await saveCard();
@@ -68,12 +69,18 @@ export default function StrategyPage() {
       if (!r.ok) {
         const err = new Error(d.error || "生成失败") as Error & { status?: number };
         err.status = r.status;
+        (err as any).code = d.code;
         throw err;
       }
       setResult(d);
     } catch (e: any) {
       const status = (e as any)?.status;
-      setError(status && status < 500 ? (e.message || "生成失败") : "网络有点慢，已自动重试仍失败，请稍后再试");
+      if (status === 429 || (e as any)?.code === "QUOTA_EXCEEDED") {
+        setQuotaUpgrade(true);
+        setError("今日免费额度已用完");
+      } else {
+        setError(status && status < 500 ? (e.message || "生成失败") : "网络有点慢，已自动重试仍失败，请稍后再试");
+      }
     } finally {
       if (genTimerRef.current) { clearInterval(genTimerRef.current); genTimerRef.current = null; }
       setBusy(false); setGenStage(0);
@@ -123,6 +130,12 @@ export default function StrategyPage() {
               </div>
             )}
             {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
+            {quotaUpgrade && !busy && (
+              <div className="rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                <p className="text-foreground/90">升级会员解锁更多策略生成、复盘与真实数据诊断。</p>
+                <Button variant="outline" size="sm" className="mt-2" onClick={() => router.push("/pricing")}>查看升级方案</Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
