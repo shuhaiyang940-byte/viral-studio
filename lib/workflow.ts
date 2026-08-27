@@ -23,6 +23,7 @@ export interface StrategyAdvisory {
 export interface WorkflowResult {
   strategy_note: string;
   overlap_pct: number;
+  overlap_note: string;      // 重合度免责声明（AI 估算参考值，避免字段被当硬指标）
   avoid_dirs: string[];
   advantage_used: string[];
   hook: string;
@@ -74,7 +75,7 @@ export async function runStrategyWorkflow(input: {
         "你是短视频「爆款策略顾问」。你会读用户的账号定位档案和对标内容，算重合度、给避开方向、找出用户优势，并给一个原创 brief。" +
         "同时你是一位有 12 年实景操盘经验、有自己审美和判断的资深编导：**尊重用户的目标（涨粉/成交/引流），但不盲从用户给的方法**。" +
         "如果用户的前提或路径有问题，直接点出来并给更好的做法；你和用户原意不一致时，站在经验/数据那一边，不要顺着用户。说话专业、有依据，不为了杠而杠。" +
-        "只返回 JSON：{\"persona_analysis\":\"一句话人设优势分析\",\"overlap_pct\":0-100,\"avoid_dirs\":[\"避开方向1\",\"方向2\"],\"advantage_used\":[\"用到的优势1\",\"优势2\"],\"brief\":\"给编剧的创作brief\",\"strategy_note\":\"给用户看的一段话：重合度XX%、避开哪些、优势在人设/资源/时机、纯模仿不会爆因为…\"," +
+        "只返回 JSON：{\"persona_analysis\":\"一句话人设优势分析\",\"overlap_pct\":0-100,\"avoid_dirs\":[\"避开方向1\",\"方向2\"],\"advantage_used\":[\"用到的优势1\",\"优势2\"],\"brief\":\"给编剧的创作brief\",\"strategy_note\":\"给用户看的一段话：重合度约X%（AI估算参考值，非平台精确数据）、避开哪些、优势在人设/资源/时机、并给一个针对这条内容的具体、不重复的判断——不要照搬'纯模仿不会爆'这类固定句，要说到点子上\"," +
         "\"challenge\":\"点出用户前提/路径的一个问题，无可指摘写'无明显问题'\",\"creator_stance\":\"你对这类内容的创作立场（可与用户原意不同）\",\"insist_angle\":\"即使用户想要别的，你坚持的角度\"}。" +
         "硬规则：①challenge 必须给具体、有依据的理由（可引用对标/赛道/数据/经验），禁止只写\"缺乏差异化\"\"不够独特\"这种空泛判断；真要差异化要具体到\"差在哪一点、怎么做\"。②若用户的内容目标或生意前提有问题（如\"靠投流就能爆\"\"只追热点就行\"），也直接点出来——但尊重他要的结果，挑战的是他判断，不是他的人。③标题禁用数字钩子/震惊体/夸大（\"震惊!\"\"99%做错了\"\"90%的人都在浪费时间\"都算标题党，禁止）；标题可以有力，但不能虚假/耸动。④strategy_note 里重合度写成\"约X%（AI 估算参考值，非平台精确数据）\"。",
     },
@@ -123,11 +124,12 @@ export async function runStrategyWorkflow(input: {
   // ── 角色④：分镜导演（派生分镜 + 声音设计说明）────
   const soundDesign = buildSoundDesign(shots);
   const overlap = clamp01(Number(adv.overlap_pct) || 0);
-  const strategy_note = adv.strategy_note || `你与选定的对标重合度约 ${overlap}%，已避开${(adv.avoid_dirs || []).slice(0, 2).join("、") || "雷同方向"}；你的优势在${(adv.advantage_used || []).slice(0, 2).join("、") || "人设/资源/时机"}，脚本据此展开。纯模仿不会爆。`;
+  const strategy_note = adv.strategy_note || `你与选定的对标重合度约 ${overlap}%（AI 估算参考值，非平台精确数据），已避开${(adv.avoid_dirs || []).slice(0, 2).join("、") || "雷同方向"}；你的优势在${(adv.advantage_used || []).slice(0, 2).join("、") || "人设/资源/时机"}，脚本据此展开。`;
 
   return {
     strategy_note,
     overlap_pct: overlap,
+    overlap_note: "AI 估算参考值，非平台精确数据",
     avoid_dirs: adv.avoid_dirs || [],
     advantage_used: adv.advantage_used || [],
     hook: s.hook || "",
