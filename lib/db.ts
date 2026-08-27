@@ -483,6 +483,15 @@ export function ensureSchema(): Promise<void> {
   if (!_schemaReady) {
     _schemaReady = (async () => {
       const sql = getSql();
+      // 便宜探测：users 表已存在 → 视为 schema 已建，跳过全量 DDL。
+      // 否则 Vercel serverless 冷启动时每次第一个登录/注册请求都要跑几十条建表，
+      // 跨区往返会拖到函数超时挂死（表现为 auth/login 偶发 hang）。
+      try {
+        const probe = await sql.query("SELECT to_regclass('public.users') AS t");
+        if (probe[0]?.t) return;
+      } catch {
+        /* 探测失败（如权限/网络）则继续走全量建表兜底 */
+      }
       // Neon HTTP 单次请求只允许一条语句，必须逐条执行
       const statements = SCHEMA_SQL.split(";")
         .map((s) => s.trim())
