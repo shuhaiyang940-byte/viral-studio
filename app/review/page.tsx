@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { FlaskConical, Save, ListChecks, Sparkles, AlertTriangle } from "lucide-react";
+import { FlaskConical, Save, ListChecks, Sparkles, AlertTriangle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { useSession } from "@/lib/auth";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 type ReviewItem = { id: string; title: string; createdAt: string; payload: any };
 type ScriptItem = { id: string; title: string; hook: string };
@@ -27,10 +27,9 @@ export default function ReviewPage() {
   const [result, setResult] = React.useState<any>(null);
   const [history, setHistory] = React.useState<ReviewItem[]>([]);
   const [learnings, setLearnings] = React.useState<string[]>([]);
-  const [progress, setProgress] = React.useState(0);
   const [stage, setStage] = React.useState(0);
   const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-  const STAGES = ["正在对齐你的账号人设…", "正在对照原脚本与拍后数据…", "正在诊断爆 / 没爆的原因…", "正在写回人设复盘…"];
+  const STAGES = ["已提交，正在对齐你的账号人设…", "模型计算中，正在对照数据诊断…", "正在写回人设复盘…"];
 
   React.useEffect(() => {
     if (loading) return; // 等会话校准完，避免已登录用户被误判为未登录而踢回首页
@@ -63,15 +62,18 @@ export default function ReviewPage() {
       note: note || undefined,
       metrics: Object.fromEntries(Object.entries(metrics).filter(([, v]) => v !== "").map(([k, v]) => [k, Number(v)])),
     };
-    setResult(null); setBusy(true); setProgress(10); setStage(0);
+    setResult(null); setBusy(true); setStage(0);
     timerRef.current = setInterval(() => {
-      setProgress((p) => (p >= 90 ? 90 : p + 6 + Math.floor(Math.random() * 6)));
       setStage((s) => (s + 1) % STAGES.length);
     }, 2200);
     try {
-      const r = await fetch("/api/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const r = await fetchWithRetry("/api/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "复盘失败");
+      if (!r.ok) {
+        const err = new Error(d.error || "复盘失败") as Error & { status?: number };
+        err.status = r.status;
+        throw err;
+      }
       setResult(d);
       // 刷新历史 + 人设复盘
       const r2 = await fetch("/api/review?limit=50");
@@ -80,10 +82,11 @@ export default function ReviewPage() {
       const d3 = await r3.json();
       setLearnings((d3.card?.learnings || []).map((x: string) => x));
     } catch (e: any) {
-      setErr(e.message);
+      const status = (e as any)?.status;
+      setErr(status && status < 500 ? (e.message || "复盘失败") : "网络有点慢，已自动重试仍失败，请稍后再试");
     } finally {
       if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
-      setBusy(false); setProgress(0); setStage(0);
+      setBusy(false); setStage(0);
     }
   };
 
@@ -125,9 +128,10 @@ export default function ReviewPage() {
               <Sparkles className="h-4 w-4" />{busy ? "复盘诊断中…（约 15-30 秒）" : "🔍 开始复盘"}
             </Button>
             {busy && (
-              <div className="space-y-2 pt-1">
-                <Progress value={progress} className="h-1.5" />
-                <p className="text-center text-xs text-muted-foreground"><span aria-live="polite">{STAGES[stage]}</span><span className="ml-1 opacity-70">· {progress}%</span></p>
+              <div className="flex items-center justify-center gap-2 pt-1 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span aria-live="polite">{STAGES[stage]}</span>
+                <span className="opacity-70">约 15-30 秒</span>
               </div>
             )}
             {err && <p role="alert" className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{err}</p>}

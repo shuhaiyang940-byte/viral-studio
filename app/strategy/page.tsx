@@ -2,13 +2,13 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Save, RefreshCw, Music, AlertTriangle, Wand2 } from "lucide-react";
+import { Sparkles, Save, RefreshCw, Music, AlertTriangle, Wand2, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
 import { useSession } from "@/lib/auth";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 export default function StrategyPage() {
   const router = useRouter();
@@ -20,16 +20,18 @@ export default function StrategyPage() {
   const [saveMsg, setSaveMsg] = React.useState("");
   const [result, setResult] = React.useState<any>(null);
   const [error, setError] = React.useState("");
-  const [genProgress, setGenProgress] = React.useState(0);
+  const [personaSaved, setPersonaSaved] = React.useState(false);
+  const [personaWarn, setPersonaWarn] = React.useState("");
   const [genStage, setGenStage] = React.useState(0);
   const genTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-  const GEN_STAGES = ["正在分析对标账号…", "正在计算你的优势与重合度…", "正在构思原创脚本…", "正在拆分镜与音效…"];
+  const GEN_STAGES = ["已提交，正在分析对标账号…", "模型计算中，正在构思原创脚本…", "正在拆分镜与音效…"];
 
   React.useEffect(() => {
     if (loading) return; // 等会话校准完再判断登录态，避免已登录用户被误判为未登录而踢回首页
     if (!session) { router.replace(`/login?redirect=${encodeURIComponent("/strategy")}`); return; }
     fetch("/api/persona-card").then((r) => r.json()).then((d) => {
       const c = d.card;
+      setPersonaSaved(!!c);
       if (c) setPersona({
         tags: (c.personaTags || []).join("，"), resources: (c.resources || []).join("，"),
         timing: c.timing || "", platform: c.platform || "抖音", audience: c.audience || "",
@@ -49,26 +51,35 @@ export default function StrategyPage() {
       const d = await r.json();
       if (!r.ok) throw new Error(d.error || "保存失败");
       setSaveMsg("✓ 账号定位已保存，下次生成会自动读取");
+      setPersonaSaved(true);
+      setPersonaWarn("");
     } catch (e: any) { setError(e.message); }
   };
 
   const generate = async () => {
     setError(""); setResult(null); setBusy(true);
-    setGenProgress(12); setGenStage(0);
+    if (!personaSaved) setPersonaWarn("建议先点「保存」把账号定位存下来，生成的脚本会更贴你的账号；现在将按当前填写临时生成。");
+    setGenStage(0);
     genTimerRef.current = setInterval(() => {
-      setGenProgress((p) => (p >= 90 ? 90 : p + 6 + Math.floor(Math.random() * 6)));
       setGenStage((s) => (s + 1) % GEN_STAGES.length);
     }, 2200);
     try {
-      const r = await fetch("/api/strategy-generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
+      const r = await fetchWithRetry("/api/strategy-generate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({
         reference, product, platform: persona.platform, duration: undefined,
       }) });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || "生成失败");
+      if (!r.ok) {
+        const err = new Error(d.error || "生成失败") as Error & { status?: number };
+        err.status = r.status;
+        throw err;
+      }
       setResult(d);
-    } catch (e: any) { setError(e.message); } finally {
+    } catch (e: any) {
+      const status = (e as any)?.status;
+      setError(status && status < 500 ? (e.message || "生成失败") : "网络有点慢，已自动重试仍失败，请稍后再试");
+    } finally {
       if (genTimerRef.current) { clearInterval(genTimerRef.current); genTimerRef.current = null; }
-      setBusy(false); setGenProgress(0); setGenStage(0);
+      setBusy(false); setGenStage(0);
     }
   };
 
@@ -108,13 +119,14 @@ export default function StrategyPage() {
             <div><label className="mb-1 block text-xs text-muted-foreground">我的产品 / 方向</label><Input value={product} onChange={(e) => setProduct(e.target.value)} placeholder="如：我卖的手工辣酱 / 我做美食探店" /></div>
             <Button onClick={generate} disabled={busy || (!reference && !product)} className="w-full gap-1.5"><Wand2 className="h-4 w-4" />{busy ? "策略生成中…（约 20-40 秒）" : "生成策略原创脚本"}</Button>
             {busy && (
-              <div className="space-y-2 pt-1">
-                <Progress value={genProgress} className="h-1.5" />
-                <p className="text-center text-xs text-muted-foreground">
-                  <span aria-live="polite">{GEN_STAGES[genStage]}</span>
-                  <span className="ml-1 opacity-70">· {genProgress}%</span>
-                </p>
+              <div className="flex items-center justify-center gap-2 pt-1 text-xs text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                <span aria-live="polite">{GEN_STAGES[genStage]}</span>
+                <span className="opacity-70">约 20-40 秒</span>
               </div>
+            )}
+            {personaWarn && !busy && (
+              <p className="rounded-md border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground">{personaWarn}</p>
             )}
             {error && <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{error}</p>}
           </CardContent>
