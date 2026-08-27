@@ -35,13 +35,16 @@ export default function StrategyPage() {
     const diagPersona = sp.get("diagPersona");
     if (diagRef) setReference(diagRef);
     if (diagProduct) setProduct(diagProduct);
-    if (diagPersona) setPersona((p) => ({ ...p, tags: diagPersona }));
     fetch("/api/persona-card").then((r) => r.json()).then((d) => {
       const c = d.card;
-      if (c) setPersona({
-        tags: (c.personaTags || []).join("，"), resources: (c.resources || []).join("，"),
-        timing: c.timing || "", platform: c.platform || "抖音", audience: c.audience || "",
-      });
+      if (c) setPersona((prev) => ({
+        ...prev,
+        tags: prev.tags || (c.personaTags || []).join("，"),   // diag 预填的 tags 优先，DB 只兜底
+        resources: (c.resources || []).join("，") || prev.resources,
+        timing: c.timing || prev.timing,
+        platform: c.platform || prev.platform,
+        audience: c.audience || prev.audience,
+      }));
     }).catch(() => {});
   }, [session, loading, router]);
 
