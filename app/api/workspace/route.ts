@@ -13,6 +13,7 @@ const TYPE_MAP: Record<string, AssetType> = {
   copywriting: "copywriting",
   director: "director",
   edit_plan: "edit_plan",
+  script: "script",
 };
 
 /**

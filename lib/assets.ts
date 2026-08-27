@@ -5,7 +5,7 @@
 
 import { q, hasDatabase } from "./db";
 
-export type AssetType = "analysis" | "script" | "storyboard" | "edit_plan" | "replica" | "copywriting" | "director";
+export type AssetType = "analysis" | "script" | "storyboard" | "edit_plan" | "replica" | "copywriting" | "director" | "review";
 
 export interface AssetRecord {
   id: string;
