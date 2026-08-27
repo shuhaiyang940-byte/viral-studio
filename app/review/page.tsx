@@ -17,12 +17,13 @@ type MetricKey = "plays" | "likes" | "comments" | "completionRate" | "follows" |
 
 // 从粘贴的后台数据/CSV 里识别关键指标（带中文标签），自动回填表单
 const PASTE_KEYS: { k: MetricKey; re: RegExp }[] = [
-  { k: "plays", re: /播放(?:量)?[^\d]*([\d.]+)/ },
-  { k: "likes", re: /点赞(?:数)?[^\d]*([\d.]+)/ },
-  { k: "comments", re: /评论(?:数)?[^\d]*([\d.]+)/ },
-  { k: "completionRate", re: /完播(?:率)?[^\d]*([\d.]+)/ },
-  { k: "follows", re: /涨粉[^\d]*([\d.]+)/ },
-  { k: "conversions", re: /转化[^\d]*([\d.]+)/ },
+  // 字段别名容忍：中文标签 + 常见英文/蛇形字段名都认，方便从不同平台后台直接复制
+  { k: "plays", re: /(?:播放次数|播放量|播放|video_views|play_count|plays?|views)[^\d]*([\d.]+)/i },
+  { k: "likes", re: /(?:点赞数|点赞|likes?|like_count)[^\d]*([\d.]+)/i },
+  { k: "comments", re: /(?:评论数|评论|comments?|comment_count)[^\d]*([\d.]+)/i },
+  { k: "completionRate", re: /(?:完播率|完播|completion_rate|complete_rate|completion)[^\d]*([\d.]+)/i },
+  { k: "follows", re: /(?:涨粉数|涨粉|follows?|new_followers)[^\d]*([\d.]+)/i },
+  { k: "conversions", re: /(?:转化|线索|conversions?|conversion|leads?)[^\d]*([\d.]+)/i },
 ];
 
 export default function ReviewPage() {
