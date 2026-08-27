@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Stethoscope,
   Sparkles,
@@ -11,6 +12,7 @@ import {
   TrendingUp,
   ArrowRight,
   ListChecks,
+  Wand2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -162,13 +164,22 @@ export default function ClinicPage() {
           </CardContent>
         </Card>
       ) : (
-        <ClinicResult r={result} onReset={() => setResult(null)} />
+        <ClinicResult r={result} form={form} onReset={() => setResult(null)} />
       )}
     </div>
   );
 }
 
-function ClinicResult({ r, onReset }: { r: any; onReset: () => void }) {
+function ClinicResult({ r, form, onReset }: { r: any; form: any; onReset: () => void }) {
+  const router = useRouter();
+  const goFix = () => {
+    const q = new URLSearchParams({
+      diagReference: (r.benchmarks?.[0]?.name || "") || "",
+      diagProduct: (form?.description?.trim() || form?.niche || ""),
+      diagPersona: (form?.niche || ""),
+    }).toString();
+    router.push(`/strategy?${q}`);
+  };
   return (
     <div className="space-y-6">
       {/* 健康度 */}
@@ -379,7 +390,10 @@ function ClinicResult({ r, onReset }: { r: any; onReset: () => void }) {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="gradient" className="gap-1.5" onClick={goFix}>
+          <Wand2 className="h-4 w-4" /> 去生成整改脚本
+        </Button>
         <Button asChild variant="outline" className="gap-1.5">
           <Link href="/find-peer">
             <ArrowRight className="h-4 w-4" /> 去挑对标 / 复刻爆款

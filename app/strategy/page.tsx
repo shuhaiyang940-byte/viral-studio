@@ -28,6 +28,14 @@ export default function StrategyPage() {
   React.useEffect(() => {
     if (loading) return; // 等会话校准完再判断登录态，避免已登录用户被误判为未登录而踢回首页
     if (!session) { router.replace(`/login?redirect=${encodeURIComponent("/strategy")}`); return; }
+    // 从账号诊所一键跳转过来：预填/覆盖整改方向（对标、产品方向、人设起点）
+    const sp = new URLSearchParams(window.location.search);
+    const diagRef = sp.get("diagReference");
+    const diagProduct = sp.get("diagProduct");
+    const diagPersona = sp.get("diagPersona");
+    if (diagRef) setReference(diagRef);
+    if (diagProduct) setProduct(diagProduct);
+    if (diagPersona) setPersona((p) => ({ ...p, tags: diagPersona }));
     fetch("/api/persona-card").then((r) => r.json()).then((d) => {
       const c = d.card;
       if (c) setPersona({
