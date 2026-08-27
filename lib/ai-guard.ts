@@ -187,6 +187,9 @@ export async function guardAiRequest(
   req: NextRequest,
   scope: AiScope
 ): Promise<GuardResult> {
+  // 研发 / 评测阶段：默认关闭 IP 限流与封禁，避免评测人员/真实登录用户反复被误封。
+  // 正式上线时在环境变量设 AI_IP_LIMIT_ENABLED=1 才启用（封禁名单 + 滑动窗口 + 连续违规自动封）。
+  if (process.env.AI_IP_LIMIT_ENABLED !== "1") return { ok: true };
   const ip = clientIp(req);
 
   // 1. 已封禁 IP 直接拒绝
