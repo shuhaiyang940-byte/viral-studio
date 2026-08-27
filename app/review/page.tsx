@@ -13,6 +13,17 @@ import { fetchWithRetry } from "@/lib/fetch-retry";
 
 type ReviewItem = { id: string; title: string; createdAt: string; payload: any };
 type ScriptItem = { id: string; title: string; hook: string };
+type MetricKey = "plays" | "likes" | "comments" | "completionRate" | "follows" | "conversions";
+
+// 从粘贴的后台数据/CSV 里识别关键指标（带中文标签），自动回填表单
+const PASTE_KEYS: { k: MetricKey; re: RegExp }[] = [
+  { k: "plays", re: /播放(?:量)?[^\d]*([\d.]+)/ },
+  { k: "likes", re: /点赞(?:数)?[^\d]*([\d.]+)/ },
+  { k: "comments", re: /评论(?:数)?[^\d]*([\d.]+)/ },
+  { k: "completionRate", re: /完播(?:率)?[^\d]*([\d.]+)/ },
+  { k: "follows", re: /涨粉[^\d]*([\d.]+)/ },
+  { k: "conversions", re: /转化[^\d]*([\d.]+)/ },
+];
 
 export default function ReviewPage() {
   const router = useRouter();
@@ -21,6 +32,8 @@ export default function ReviewPage() {
   const [assetId, setAssetId] = React.useState("");
   const [title, setTitle] = React.useState("");
   const [metrics, setMetrics] = React.useState({ plays: "", likes: "", comments: "", completionRate: "", follows: "", conversions: "" });
+  const [pasteText, setPasteText] = React.useState("");
+  const [pasteMsg, setPasteMsg] = React.useState("");
   const [note, setNote] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [err, setErr] = React.useState("");
@@ -92,6 +105,22 @@ export default function ReviewPage() {
 
   const num = (k: keyof typeof metrics) => (v: string) => setMetrics((m) => ({ ...m, [k]: v }));
 
+  const parsePaste = () => {
+    const txt = pasteText;
+    const out: Partial<Record<MetricKey, string>> = {};
+    for (const { k, re } of PASTE_KEYS) {
+      const m = re.exec(txt);
+      if (m) out[k] = m[1];
+    }
+    const found = Object.keys(out).length;
+    if (found) {
+      setMetrics((prev) => ({ ...prev, ...out }));
+      setPasteMsg(`已自动填入 ${found} 项，请核对后提交`);
+    } else {
+      setPasteMsg("没识别到数字，试试格式：播放 3800，点赞 61，评论 40，完播率 7.2，涨粉 12，转化 2");
+    }
+  };
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
       <div className="mb-6 text-center">
@@ -107,6 +136,14 @@ export default function ReviewPage() {
         <Card>
           <CardContent className="space-y-3 p-5">
             <p className="flex items-center gap-2 font-semibold"><Save className="h-4 w-4 text-primary" /> 填报本次作品</p>
+            <div className="rounded-lg border border-border/70 bg-muted/20 p-3">
+              <label className="mb-1 block text-xs font-medium">粘贴后台数据，自动回填（可选）</label>
+              <Textarea value={pasteText} onChange={(e) => { setPasteText(e.target.value); setPasteMsg(""); }} rows={2} placeholder="播放 3800，点赞 61，评论 40，完播率 7.2，涨粉 12，转化 2" />
+              <Button size="sm" variant="outline" className="mt-2 gap-1" onClick={parsePaste}>
+                <Sparkles className="h-3.5 w-3.5" /> 自动填入
+              </Button>
+              {pasteMsg && <p className="mt-1 text-[11px] text-muted-foreground">{pasteMsg}</p>}
+            </div>
             <div>
               <label className="mb-1 block text-xs text-muted-foreground">关联作品 / 脚本（可选）</label>
               <select value={assetId} onChange={(e) => setAssetId(e.target.value)} className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
