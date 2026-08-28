@@ -101,7 +101,7 @@ export async function chat(
   for (const m of candidates) {
       // 每个候选模型独立超时：一个模型超时不会把整个回退链 abort（原共享 timer 导致第一个超时即全灭）。
       const ctrl = new AbortController();
-      const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 30000);
+      const timer = setTimeout(() => ctrl.abort(), opts.timeoutMs ?? 120000);
       let res: Response;
       try {
         res = await fetch(`${cfg.baseURL}/chat/completions`, {

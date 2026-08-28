@@ -9,6 +9,7 @@ import { buildUnderstanding, timelineFactBlock } from "@/lib/video-fact";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 /**
  * 服务器化视频分析：前端把视频直传到对象存储后，带上公网 URL 来这里。

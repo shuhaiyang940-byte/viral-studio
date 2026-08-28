@@ -182,7 +182,7 @@ export async function understandVideoUrl(
           content,
         },
       ],
-      { temperature: 0.3, maxTokens: 1500, timeoutMs: 120000 }
+      { temperature: 0.3, maxTokens: 1500, timeoutMs: 240000 }
     );
     const transcript = (await transcribeWithQwenAudio(videoUrl)) ?? undefined;
     return {
@@ -243,7 +243,7 @@ export async function transcribeWithQwenAudio(
             model: t.model,
             input: { messages: [{ role: "user", content: t.content }] },
           }),
-          signal: AbortSignal.timeout(120000),
+          signal: AbortSignal.timeout(180000),
         }
       );
       if (!res.ok) {
