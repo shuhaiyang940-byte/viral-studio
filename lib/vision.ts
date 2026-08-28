@@ -164,6 +164,12 @@ export async function understandVideoUrl(
 3. 最抓人的视觉元素；
 4. 结论：这条视频的画面上「为什么能留住人」（2-3 条）。
 注意：只描述画面里真实看到的内容，不要脑补没有的信息。`;
+    // 过渡方案 B：data URL（base64 视频）用 { type:"video", video } 直接给千问解析，
+    // 无需 dashscope 去跨云下载 Vercel 上的文件；常规 http(s) URL 仍走 video_url。
+    const media =
+      videoUrl.startsWith("data:")
+        ? { type: "video", video: videoUrl }
+        : { type: "video_url", video_url: { url: videoUrl } };
     const text = await chat(
       "qwen",
       [
@@ -171,7 +177,7 @@ export async function understandVideoUrl(
           role: "user",
           content: [
             { type: "text", text: prompt },
-            { type: "video_url", video_url: { url: videoUrl } },
+            media as any,
           ],
         },
       ],

@@ -16,6 +16,12 @@ const MAX_DURATION_MIN = 10;
 const MAX_VIDEO_COUNT = 5;
 /** 同时分析的视频数上限（避免一次烧太多 AI 成本 + 排队太久） */
 const CONCURRENT_ANALYSIS = 2;
+/**
+ * 过渡方案 B：视频 ≤ 此大小时不走 Vercel Blob，而是直接以 base64 data URL 交给
+ * Qwen（DashScope），绕开「阿里云跨云下载 Vercel 视频超时」。受 Vercel 函数
+ * 4.5MB 请求体限制，故上限设 2.5MB（base64 后约 3.3MB）。国内上线换 OSS 后可放开。
+ */
+const DATA_URL_LIMIT = 2.5 * 1024 * 1024;
 
 interface VideoItem {
   id: string;
@@ -56,6 +62,19 @@ export default function DiagnosisPage() {
     }
     diagLog({ step: "video_start", fileName: file.name, fileSize: file.size });
     setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "uploading", progress: 0 } : it)));
+    // 过渡方案 B：≤2.5MB 的小视频直接以 base64 data URL 交给 Qwen（DashScope 直接解析，
+    // 绕开「阿里云跨云下载 Vercel 视频超时」）。大视频仍走 Blob（国内上线换 OSS 后放开）。
+    if (file.size <= DATA_URL_LIMIT) {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result));
+        r.onerror = () => reject(new Error("读取视频失败"));
+        r.readAsDataURL(file);
+      });
+      diagLog({ step: "local_encode_done", fileName: file.name, fileSize: file.size, ok: true, detail: `base64 ${(dataUrl.length / 1024).toFixed(0)}KB` });
+      onUploadProgress?.(100);
+      return doAnalyze({ videoData: dataUrl, title: file.name, refType: "auto", diag: true }, id, file);
+    }
     // ① 上传到 Blob → 拿公开URL（带真实上传进度）
     diagLog({ step: "ticket_fetch", fileName: file.name, fileSize: file.size });
     const ticket = await fetchWithRetry("/api/analyze/upload-url", { method: "POST" })
@@ -107,10 +126,14 @@ export default function DiagnosisPage() {
       if (!res.ok) throw new Error(data.error || "视频上传失败");
       return data;
     }
-    // ② 分析：明确切到"分析中"阶段（真正耗时在这，Qwen-VL 看视频）
-    setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "analyzing", progress: 100, phase: "① 读取视频画面…（约30~90秒）" } : it)));
+    // ② 分析（大文件走 Blob URL）：复用 doAnalyze，Qwen-VL 看画面 → 转写 → LLM 生成
+    return doAnalyze({ videoUrl: url, title: file.name, refType: "auto", diag: true }, id, file);
+  }
+
+  /** 调用 /api/analyze/url 分析一个视频（小文件走 videoData/data URL，大文件走 videoUrl/blob URL），并推进阶段文案 */
+  async function doAnalyze(body: any, id: string, file: File): Promise<VideoItem["report"]> {
+    setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "analyzing", progress: 100, phase: "① 读取视频画面…（约30~120秒）" } : it)));
     diagLog({ step: "analyze_start", fileName: file.name, fileSize: file.size });
-    // 分析阶段推进：Qwen-VL 看画面 → 转写语音 → LLM 生成报告。按耗时推进，给用户"AI 正在做什么"的进度感。
     const phases = ["① 读取视频画面…", "② 转写语音…", "③ 生成结构化分析…"];
     let pi = 0;
     const phaseTimer = setInterval(() => {
@@ -121,7 +144,7 @@ export default function DiagnosisPage() {
       const res = await fetchWithRetry("/api/analyze/url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoUrl: url, title: file.name, refType: "auto", diag: true }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "视频分析失败");

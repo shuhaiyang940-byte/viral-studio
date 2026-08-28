@@ -36,8 +36,13 @@ export async function POST(req: NextRequest) {
   }
 
   const body = bodyPrelim;
-  const videoUrl = String(body.videoUrl ?? "").trim();
-  if (!/^https?:\/\//i.test(videoUrl)) {
+  // 过渡方案 B：小视频以 base64 data URL 直接传给千问（videoData），绕开跨云下载超时；
+  // 大视频仍用公网 URL（videoUrl）。
+  const isDataUrl = typeof body.videoData === "string" && body.videoData.startsWith("data:");
+  const videoUrl = isDataUrl
+    ? String(body.videoData).trim()
+    : String(body.videoUrl ?? "").trim();
+  if (!videoUrl || !(isDataUrl || /^https?:\/\//i.test(videoUrl))) {
     return NextResponse.json({ error: "缺少有效的视频 URL" }, { status: 400 });
   }
 
