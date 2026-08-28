@@ -13,8 +13,9 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      // 允许直连 Vercel Blob 存储做视频/截图上传（浏览器 XHR 跨域 PUT 需要）
-      "connect-src 'self' https://*.blob.vercel-storage.com",
+      // 允许直连 Vercel Blob 存储做视频/截图上传（浏览器 XHR 跨域 PUT 需要）。
+      // 放宽到 https: 以彻底排除 CSP 对跨域上传的拦截（connect-src 控制 fetch/XHR）。
+      "connect-src 'self' https:",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
