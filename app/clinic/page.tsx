@@ -190,6 +190,7 @@ export default function ClinicPage() {
           access: "public",
           handleUploadUrl: "/api/blob/upload",
           contentType: file.type || "image/png",
+          abortSignal: AbortSignal.timeout(180_000),
         });
         url = blob.url;
       } else {

@@ -38,27 +38,61 @@ export default function DiagnosisPage() {
   const [result, setResult] = React.useState<any>(null);
   const [dragging, setDragging] = React.useState(false);
   const dragCounter = React.useRef(0);
+  // 诊断日志：记录上传/握手/分析每一步（fire-and-forget，绝不阻塞主流程）
+  const sessionIdRef = React.useRef(`diag_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+  const diagLog = React.useCallback((e: { step: string; fileName?: string; fileSize?: number; detail?: string; ok?: boolean }) => {
+    void fetch("/api/diagnosis/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: sessionIdRef.current, ...e }),
+    }).catch(() => {});
+  }, []);
 
   async function analyzeOne(file: File, id: string, onUploadProgress?: (p: number) => void): Promise<VideoItem["report"]> {
     if (file.size > MAX_FILE_MB * 1024 * 1024) {
       throw new Error(`视频超过 ${MAX_FILE_MB}MB 限制`);
     }
+    diagLog({ step: "video_start", fileName: file.name, fileSize: file.size });
     setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "uploading", progress: 0 } : it)));
     // ① 上传到 Blob → 拿公开URL（带真实上传进度）
+    diagLog({ step: "ticket_fetch", fileName: file.name, fileSize: file.size });
     const ticket = await fetchWithRetry("/api/analyze/upload-url", { method: "POST" })
       .then((r) => r.json())
       .catch(() => ({ blobMode: false }));
+    diagLog({ step: "ticket_result", fileName: file.name, fileSize: file.size, ok: !!ticket.blobMode, detail: ticket.blobMode ? "blob 直传" : "本机回退" });
     let url: string;
     if (ticket.blobMode) {
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: "/api/blob/upload",
-        contentType: file.type || "video/mp4",
-        onUploadProgress: (evt) => {
-          onUploadProgress?.(evt.percentage);
-        },
-      });
-      url = blob.url;
+      diagLog({ step: "blob_upload_start", fileName: file.name, fileSize: file.size });
+      let lastP = -1;
+      try {
+        const blob = await upload(file.name, file, {
+          access: "public",
+          handleUploadUrl: "/api/blob/upload",
+          contentType: file.type || "video/mp4",
+          abortSignal: AbortSignal.timeout(180_000),
+          onUploadProgress: (evt) => {
+            const p = evt.percentage;
+            onUploadProgress?.(p);
+            // 节流打进度日志：0% 和每 25% 一个点，便于分辨「真卡住」还是「慢」
+            if (lastP < 0 || p - lastP >= 25) {
+              diagLog({ step: "blob_upload_progress", fileName: file.name, fileSize: file.size, ok: true, detail: `${Math.round(p)}%` });
+              lastP = p;
+            }
+          },
+        });
+        url = blob.url;
+        diagLog({ step: "blob_upload_done", fileName: file.name, fileSize: file.size, ok: true, detail: blob.url });
+      } catch (e: any) {
+        const isTimeout = e?.name === "TimeoutError" || /timed out|abort/i.test(e?.message || "");
+        const isNet = e instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(e?.message || "");
+        const friendly = isTimeout
+          ? "上传超时：视频推送一直被卡住（>3分钟）。这通常是浏览器/网络把到视频存储的跨域上传拦住了，请检查网络、换浏览器，或看右上下载日志里的 blob_upload_error 定位。"
+          : isNet
+          ? "上传被网络/浏览器拦截：无法直连视频存储（*.blob.vercel-storage.com）。请检查是否为代理/VPN 或浏览器拦截，或换一个浏览器重试。"
+          : e?.message || "上传异常";
+        diagLog({ step: "blob_upload_error", fileName: file.name, fileSize: file.size, ok: false, detail: friendly });
+        throw new Error(friendly);
+      }
     } else {
       // 本机/上传模式回退：multipart 上传后服务端分析（无法拿单文件进度，标记 100%）
       onUploadProgress?.(100);
@@ -73,14 +107,21 @@ export default function DiagnosisPage() {
     }
     // ② 分析：明确切到"分析中"阶段（真正耗时在这，Qwen-VL 看视频）
     setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "analyzing", progress: 100 } : it)));
-    const res = await fetchWithRetry("/api/analyze/url", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ videoUrl: url, title: file.name, refType: "auto" }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "视频分析失败");
-    return data;
+    diagLog({ step: "analyze_start", fileName: file.name, fileSize: file.size });
+    try {
+      const res = await fetchWithRetry("/api/analyze/url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ videoUrl: url, title: file.name, refType: "auto" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "视频分析失败");
+      diagLog({ step: "analyze_done", fileName: file.name, fileSize: file.size, ok: true });
+      return data;
+    } catch (e: any) {
+      diagLog({ step: "analyze_error", fileName: file.name, fileSize: file.size, ok: false, detail: e?.message || "分析异常" });
+      throw e;
+    }
   }
 
   async function onFiles(files: FileList | null) {
@@ -98,6 +139,7 @@ export default function DiagnosisPage() {
     const items: { f: File; id: string }[] = [];
     for (const f of accepted) {
       const id = `${f.name}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+      diagLog({ step: "video_add", fileName: f.name, fileSize: f.size });
       items.push({ f, id });
       setVideos((v) => [...v, { id, name: f.name, stage: "uploading", progress: 0 }]);
     }
@@ -114,6 +156,7 @@ export default function DiagnosisPage() {
       setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "done", progress: 100, report } : it)));
     } catch (e: any) {
       setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "error", error: e?.message || "失败" } : it)));
+      diagLog({ step: "process_error", fileName: file.name, fileSize: file.size, ok: false, detail: e?.message || "失败" });
     }
   }
 
@@ -136,16 +179,31 @@ export default function DiagnosisPage() {
 
   async function uploadScreenshot(file: File) {
     setError(null);
+    diagLog({ step: "screenshot_start", fileName: file.name, fileSize: file.size });
     try {
       const ticket = await fetchWithRetry("/api/screenshot-upload-url", { method: "POST" }).then((r) => r.json()).catch(() => ({ blobMode: false }));
       let url: string;
       if (ticket.blobMode) {
-        const blob = await upload(file.name, file, {
-          access: "public",
-          handleUploadUrl: "/api/blob/upload",
-          contentType: file.type || "image/png",
-        });
-        url = blob.url;
+        try {
+          const blob = await upload(file.name, file, {
+            access: "public",
+            handleUploadUrl: "/api/blob/upload",
+            contentType: file.type || "image/png",
+            abortSignal: AbortSignal.timeout(180_000),
+          });
+          url = blob.url;
+          diagLog({ step: "screenshot_blob_done", fileName: file.name, fileSize: file.size, ok: true, detail: blob.url });
+        } catch (e: any) {
+          const isTimeout = e?.name === "TimeoutError" || /timed out|abort/i.test(e?.message || "");
+          const isNet = e instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(e?.message || "");
+          const friendly = isTimeout
+            ? "截图上传超时：可能是网络/浏览器拦截了视频存储的跨域上传，请检查网络或换浏览器。"
+            : isNet
+            ? "截图上传被网络/浏览器拦截：无法直连视频存储（*.blob.vercel-storage.com）。"
+            : e?.message || "截图上传异常";
+          diagLog({ step: "screenshot_blob_error", fileName: file.name, fileSize: file.size, ok: false, detail: friendly });
+          throw e;
+        }
       } else {
         const fd = new FormData();
         fd.append("file", file);
@@ -173,6 +231,7 @@ export default function DiagnosisPage() {
       }
     } catch (e: any) {
       setError(e?.message || "截图上传失败");
+      diagLog({ step: "screenshot_error", fileName: file.name, fileSize: file.size, ok: false, detail: e?.message || "失败" });
     }
   }
 

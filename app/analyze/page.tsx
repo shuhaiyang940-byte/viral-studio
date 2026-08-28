@@ -138,6 +138,7 @@ export default function AnalyzePage() {
                   access: "public",
                   handleUploadUrl: "/api/blob/upload",
                   contentType: file.type || "video/mp4",
+                  abortSignal: AbortSignal.timeout(180_000),
                 });
                 return fetchWithRetry("/api/analyze/url", {
                   method: "POST",
