@@ -60,16 +60,19 @@ async function sliceToDataUrls(ff: string, input: string, outDir: string, want: 
   fs.mkdirSync(outDir, { recursive: true });
   const dur = await getDurationSec(ff, input);
   const seg = Math.max(2, dur / Math.max(1, want));
+  let sliceErr = "";
   try {
     await execFileAsync(ff, [
       "-y", "-i", input, "-f", "segment", "-segment_time", seg.toFixed(3),
       "-reset_timestamps", "1", "-c:v", "libx264", "-preset", "ultrafast", "-crf", "34",
       "-vf", "scale=320:-2", "-an", `${outDir}/seg_%02d.mp4`,
-    ]);
+    ], { maxBuffer: 8 * 1024 * 1024 });
   } catch (e: any) {
-    console.warn("[slice] ffmpeg 切片失败：", e?.message || e);
+    sliceErr = String(e?.stderr || e?.message || e).slice(0, 500);
+    console.warn("[slice] ffmpeg 切片失败：", sliceErr);
   }
   const files = fs.readdirSync(outDir).filter((f) => /^seg_\d+\.mp4$/.test(f)).sort().slice(0, want);
+  if (!files.length) throw new Error("切片失败：未生成片段" + (sliceErr ? " | stderr: " + sliceErr : ""));
   return files.map((f, i) => {
     const b = fs.readFileSync(`${outDir}/${f}`);
     return { i: i + 1, dataUrl: `data:video/mp4;base64,${b.toString("base64")}` };
@@ -174,7 +177,7 @@ export async function POST(req: NextRequest) {
       error: msg.slice(0, 500),
     });
     return NextResponse.json(
-      { error: `大视频切片分析失败：${msg}`, code: "SLICE_ANALYZE_FAILED", detail: msg },
+      { error: "视频分析失败，请重试或换一个更小的视频；详细原因已记录后台日志。", code: "SLICE_ANALYZE_FAILED", detail: msg },
       { status: 500 }
     );
   }
