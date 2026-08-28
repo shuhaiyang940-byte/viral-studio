@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { put } from "@vercel/blob/client";
+import { upload } from "@vercel/blob/client";
 import { fetchWithRetry } from "@/lib/fetch-retry";
 
 const MAX_FILE_MB = 50;
@@ -49,12 +49,11 @@ export default function DiagnosisPage() {
       .then((r) => r.json())
       .catch(() => ({ blobMode: false }));
     let url: string;
-    if (ticket.blobMode && ticket.pathname && ticket.token) {
-      const blob = await put(ticket.pathname, file, {
+    if (ticket.blobMode) {
+      const blob = await upload(file.name, file, {
         access: "public",
-        token: ticket.token,
+        handleUploadUrl: "/api/blob/upload",
         contentType: file.type || "video/mp4",
-        multipart: file.size > 8 * 1024 * 1024,
         onUploadProgress: (evt) => {
           onUploadProgress?.(evt.percentage);
         },
@@ -140,8 +139,12 @@ export default function DiagnosisPage() {
     try {
       const ticket = await fetchWithRetry("/api/screenshot-upload-url", { method: "POST" }).then((r) => r.json()).catch(() => ({ blobMode: false }));
       let url: string;
-      if (ticket.blobMode && ticket.pathname && ticket.token) {
-        const blob = await put(ticket.pathname, file, { access: "public", token: ticket.token, contentType: file.type || "image/png" });
+      if (ticket.blobMode) {
+        const blob = await upload(file.name, file, {
+          access: "public",
+          handleUploadUrl: "/api/blob/upload",
+          contentType: file.type || "image/png",
+        });
         url = blob.url;
       } else {
         const fd = new FormData();

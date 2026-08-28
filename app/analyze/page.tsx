@@ -39,7 +39,7 @@ import { REFERENCE_TYPES, type OnboardingProfile } from "@/lib/types";
 import { mockReferenceSignal } from "@/lib/reference-signal";
 import { useSession } from "@/lib/auth";
 import { fetchQuota, type ClientQuota } from "@/lib/quota-client";
-import { put } from "@vercel/blob/client";
+import { upload } from "@vercel/blob/client";
 import { selectAnalyzeEndpoint } from "@/lib/creation-input";
 import { fetchWithRetry } from "@/lib/fetch-retry";
 
@@ -133,12 +133,11 @@ export default function AnalyzePage() {
               })
                 .then((r) => r.json())
                 .catch(() => ({ blobMode: false }));
-              if (ticket.blobMode && ticket.pathname && ticket.token) {
-                const blob = await put(ticket.pathname, file, {
+              if (ticket.blobMode) {
+                const blob = await upload(file.name, file, {
                   access: "public",
-                  token: ticket.token,
+                  handleUploadUrl: "/api/blob/upload",
                   contentType: file.type || "video/mp4",
-                  multipart: file.size > 8 * 1024 * 1024,
                 });
                 return fetchWithRetry("/api/analyze/url", {
                   method: "POST",

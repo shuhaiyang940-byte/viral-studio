@@ -184,10 +184,11 @@ export default function ClinicPage() {
       const ticketRes = await fetch("/api/screenshot-upload-url", { method: "POST" });
       const ticket = await ticketRes.json().catch(() => ({ blobMode: false }));
       let url: string;
-      if (ticket.blobMode && ticket.pathname && ticket.token) {
-        const blob = await (await import("@vercel/blob/client")).put(ticket.pathname, file, {
+      if (ticket.blobMode) {
+        const { upload: blobUpload } = await import("@vercel/blob/client");
+        const blob = await blobUpload(file.name, file, {
           access: "public",
-          token: ticket.token,
+          handleUploadUrl: "/api/blob/upload",
           contentType: file.type || "image/png",
         });
         url = blob.url;
