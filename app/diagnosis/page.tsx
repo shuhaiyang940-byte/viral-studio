@@ -67,7 +67,10 @@ export default function DiagnosisPage() {
     });
     const publicUrl = `${sig.host}/${sig.key}`;
     diagLog({ step: "oss_upload_done", fileName: file.name, fileSize: file.size, ok: true, detail: publicUrl });
-    return doAnalyze({ videoUrl: publicUrl, title: file.name, refType: "auto", diag: true }, id, file);
+    diagLog({ step: "frames_extract", fileName: file.name, fileSize: file.size });
+    const frames = await extractFrames(publicUrl);
+    diagLog({ step: "frames_result", fileName: file.name, fileSize: file.size, ok: frames.length > 0, detail: `${frames.length} 帧` });
+    return doAnalyze({ videoUrl: publicUrl, title: file.name, refType: "auto", diag: true, frames }, id, file);
   }
 
   /** 用 XHR 把文件 POST 表单直传到 OSS（能拿真实上传进度） */
@@ -97,6 +100,49 @@ export default function DiagnosisPage() {
       xhr.onabort = () => reject(new Error("上传已取消"));
       xhr.ontimeout = () => reject(new Error("上传超时"));
       xhr.send(fd);
+    });
+  }
+
+  /** 浏览器加载 OSS 视频 → 截取几帧 → 返回 base64 图片 dataURL（给千问看图，绕开"海外服务器看视频"不稳） */
+  function extractFrames(url: string, count = 3): Promise<string[]> {
+    return new Promise((resolve) => {
+      const out: string[] = [];
+      let video: HTMLVideoElement | null = null;
+      let done = false;
+      const finish = () => { if (!done) { done = true; resolve(out); } };
+      try {
+        video = document.createElement("video");
+        video.crossOrigin = "anonymous";
+        video.muted = true;
+        video.playsInline = true;
+        video.preload = "auto";
+        video.src = url;
+        video.onerror = finish;
+        video.onloadedmetadata = () => {
+          const total = video?.duration || 0;
+          if (!total) { finish(); return; }
+          const pts = [0.02, 0.5, 0.9].map((p) => Math.max(0.1, Math.min(total - 0.1, total * p))).slice(0, count);
+          let i = 0;
+          const grab = () => {
+            try {
+              const canvas = document.createElement("canvas");
+              canvas.width = video!.videoWidth || 320;
+              canvas.height = video!.videoHeight || 640;
+              const ctx = canvas.getContext("2d");
+              if (ctx) { ctx.drawImage(video!, 0, 0, canvas.width, canvas.height); out.push(canvas.toDataURL("image/jpeg", 0.7)); }
+            } catch { /* 跨域/安全 → 该帧失败 */ }
+          };
+          const next = () => {
+            if (i >= pts.length) { finish(); return; }
+            video!.currentTime = pts[i];
+          };
+          video!.onseeked = () => { grab(); i += 1; next(); };
+          next();
+        };
+        setTimeout(finish, 20000);
+      } catch {
+        finish();
+      }
     });
   }
 

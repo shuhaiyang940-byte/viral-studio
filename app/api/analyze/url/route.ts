@@ -57,7 +57,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const u = await understandVideoUrl(videoUrl, title, refType);
+    const frames = Array.isArray(body.frames) && body.frames.length <= 6
+      ? body.frames.filter((s: any) => typeof s === "string" && s.startsWith("data:image"))
+      : undefined;
+    const u = await understandVideoUrl(videoUrl, title, refType, frames);
     const understanding = buildUnderstanding({
       hasTranscript: !!u.transcript,
       hasVision: u.mode === "real",

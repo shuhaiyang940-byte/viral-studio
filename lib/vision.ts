@@ -139,7 +139,8 @@ export interface UrlUnderstanding {
 export async function understandVideoUrl(
   videoUrl: string,
   title: string,
-  refType?: string
+  refType?: string,
+  frames?: string[] // 视频关键帧（base64 图片 dataURL）。有则用图片给千问，绕开"Vercel→千问看视频"跨境不可靠
 ): Promise<UrlUnderstanding> {
   const mock = process.env.AI_VISION_MOCK === "1" || !isConfigured("qwen");
   if (mock) {
@@ -164,21 +165,21 @@ export async function understandVideoUrl(
 3. 最抓人的视觉元素；
 4. 结论：这条视频的画面上「为什么能留住人」（2-3 条）。
 注意：只描述画面里真实看到的内容，不要脑补没有的信息。`;
-    // 过渡方案 B：data URL（base64 视频）用 { type:"video", video } 直接给千问解析，
-    // 无需 dashscope 去跨云下载 Vercel 上的文件；常规 http(s) URL 仍走 video_url。
-    const media =
-      videoUrl.startsWith("data:")
-        ? { type: "video", video: videoUrl }
-        : { type: "video_url", video_url: { url: videoUrl } };
+    const content: any[] = [{ type: "text", text: prompt }];
+    if (frames && frames.length) {
+      // 关键帧图片给千问（图片调用在 Vercel 上稳定）
+      for (const f of frames) content.push({ type: "image_url", image_url: { url: f } });
+    } else if (videoUrl.startsWith("data:")) {
+      content.push({ type: "video", video: videoUrl });
+    } else {
+      content.push({ type: "video_url", video_url: { url: videoUrl } });
+    }
     const text = await chat(
       "qwen",
       [
         {
           role: "user",
-          content: [
-            { type: "text", text: prompt },
-            media as any,
-          ],
+          content,
         },
       ],
       { temperature: 0.3, maxTokens: 1500, timeoutMs: 120000 }
@@ -187,7 +188,7 @@ export async function understandVideoUrl(
     return {
       summary: text.trim(),
       mode: "real",
-      frameCount: 0,
+      frameCount: frames?.length || 0,
       note: transcript
         ? "已通过视频 URL 直接理解画面，并完成语音转写"
         : "已通过视频 URL 直接理解画面（语音转写未启用或失败）",
