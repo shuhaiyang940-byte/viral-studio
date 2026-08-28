@@ -48,17 +48,15 @@ export async function ensureOssCors(): Promise<void> {
   if (!ossConfigured()) return;
   try {
     const client = ossClient();
-    await client.putBucketCORS({
-      rules: [
-        {
-          allowedOrigin: ["*"],
-          allowedMethod: ["PUT", "POST", "GET", "DELETE", "HEAD"],
-          allowedHeader: ["*"],
-          exposeHeader: ["ETag"],
-          maxAgeSeconds: 3600,
-        },
-      ],
-    });
+    await client.putBucketCORS(process.env.OSS_BUCKET, [
+      {
+        allowedOrigin: ["*"],
+        allowedMethod: ["PUT", "POST", "GET", "DELETE", "HEAD"],
+        allowedHeader: ["*"],
+        exposeHeader: ["ETag"],
+        maxAgeSeconds: 3600,
+      },
+    ]);
   } catch (e: any) {
     console.warn("[oss] 配置 CORS 失败（浏览器直传可能受影响）：", e?.message || e);
   }
