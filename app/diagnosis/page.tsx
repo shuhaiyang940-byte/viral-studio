@@ -141,7 +141,9 @@ export default function DiagnosisPage() {
       setVideos((v) => v.map((it) => (it.id === id ? { ...it, phase: phases[pi] } : it)));
     }, 20000);
     try {
-      const res = await fetchWithRetry("/api/analyze/url", {
+      // 小视频（videoData）走 /api/analyze/url；大视频（videoUrl）走切片接口
+      const endpoint = body.videoUrl ? "/api/diagnosis/slice-analyze" : "/api/analyze/url";
+      const res = await fetchWithRetry(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
