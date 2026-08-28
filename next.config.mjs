@@ -30,6 +30,12 @@ const nextConfig = {
   },
   // ffmpeg-static 是带二进制的外部包，必须让 Vercel 追踪并保留（否则函数里找不到可执行文件）
   serverExternalPackages: ["ffmpeg-static"],
+  experimental: {
+    // 显式把 ffmpeg-static 二进制包含进该函数（Vercel 默认追踪可能忽略大二进制）
+    outputFileTracingIncludes: {
+      "/api/diagnosis/slice-analyze": ["./node_modules/ffmpeg-static/**"],
+    },
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

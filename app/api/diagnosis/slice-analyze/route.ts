@@ -15,9 +15,11 @@ export const maxDuration = 300;
 
 const execFileAsync = promisify(execFile);
 const requireN = createRequire(import.meta.url);
+let ffmpegDiag = "";
 
 /** ffmpeg 可执行路径：优先 ffmpeg-static（Vercel build 时安装），没有则回退系统 ffmpeg */
 function ffmpegBin(): string {
+  ffmpegDiag = "";
   try {
     const s = requireN("ffmpeg-static");
     const p = s && s.default ? s.default : s;
@@ -29,18 +31,18 @@ function ffmpegBin(): string {
         fs.chmodSync(tmp, 0o755);
         execFileSync(tmp, ["-version"], { stdio: "ignore" });
         return tmp;
-      } catch {
-        /* fallthrough */
+      } catch (e: any) {
+        ffmpegDiag = "copy/exec /tmp 失败: " + String(e?.message || e).slice(0, 200);
       }
       try {
         execFileSync(p, ["-version"], { stdio: "ignore" });
         return p;
-      } catch {
-        /* fallthrough */
+      } catch (e: any) {
+        ffmpegDiag += " | 直接执行原路径失败: " + String(e?.message || e).slice(0, 200);
       }
     }
-  } catch {
-    /* fallthrough */
+  } catch (e: any) {
+    ffmpegDiag = "require ffmpeg-static 失败: " + String(e?.message || e).slice(0, 200);
   }
   return "ffmpeg";
 }
@@ -176,7 +178,7 @@ export async function POST(req: NextRequest) {
     };
     return NextResponse.json(report);
   } catch (e: any) {
-    const msg = e?.message || "大视频切片分析异常";
+    const msg = (e?.message || "大视频切片分析异常") + (ffmpegDiag ? " | ffmpegDiag: " + ffmpegDiag : "");
     void recordAiUsage({
       task: "video_analysis:slice",
       engine: "qwen",
