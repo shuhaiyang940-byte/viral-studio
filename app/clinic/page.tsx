@@ -299,9 +299,11 @@ export default function ClinicPage() {
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {preview.platform} · {preview.account}
-                  {preview.accountKey && <span className="text-muted-foreground/70">（标识：{preview.accountKey}）</span>}
+                  {preview.hasAccountKey && preview.accountKey && (
+                    <span className="text-muted-foreground/70">（账号标识：{preview.accountKey.slice(0, 16)}…）</span>
+                  )}
                 </p>
-                {preview.signals?.length > 0 ? (
+                {preview.hasSignals && preview.signals?.length > 0 ? (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {preview.signals.map((s: any, i: number) => (
                       <Badge key={i} variant="secondary" className="text-[11px]">
@@ -312,9 +314,11 @@ export default function ClinicPage() {
                 ) : (
                   <p className="mt-2 text-xs text-muted-foreground">{preview.note}</p>
                 )}
-                <p className="mt-2 text-[11px] text-muted-foreground">
-                  请确认是「你自己的账号」。同平台可能有重名账号，认准上面识别出的标识。
-                </p>
+                {preview.hasAccountKey && !preview.hasSignals && (
+                  <p className="mt-2 rounded-md border border-warning/30 bg-warning/5 px-2.5 py-1.5 text-[11px] text-muted-foreground">
+                    仅凭账号无法做针对性数据诊断。请补一项真实数据（粉丝/播放等），或上传账号数据截图，AI 会自动读取并回填。
+                  </p>
+                )}
               </div>
             )}
 
@@ -423,6 +427,32 @@ export default function ClinicPage() {
 
 function ClinicResult({ r, form, onReset }: { r: any; form: any; onReset: () => void }) {
   const router = useRouter();
+  // 缺数据：不让用户看到"空谈模板"，改为明确的补数据引导
+  if (r.needsData) {
+    return (
+      <Card className="border-warning/40">
+        <CardContent className="space-y-4 p-8 text-center">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-warning/10 text-warning">
+            <AlertTriangle className="h-7 w-7" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold">还差一点数据，诊断才能有针对性</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              你填了账号，但缺少能支撑判断的真实数据。没有数据我不会凭空编一份报告——那样对你没价值。
+            </p>
+          </div>
+          <ul className="mx-auto max-w-md space-y-2 text-left text-sm text-muted-foreground">
+            <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> 补一项账号数据：粉丝量 / 互动率 / 平均播放、点赞、评论、转发（任选几项）</li>
+            <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> 或上传账号数据截图（主页/数据页），AI 会自动读取并回填</li>
+            <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> 补完后再次点击「开始深度诊断」即可得到针对你账号的分析</li>
+          </ul>
+          <Button onClick={onReset} variant="gradient" className="gap-1.5">
+            <Wand2 className="h-4 w-4" /> 去补充数据 / 上传截图
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
   const goFix = () => {
     const q = new URLSearchParams({
       diagReference: (r.benchmarks?.[0]?.name || "") || "",

@@ -7,8 +7,12 @@
 import type { DataSourceId } from "@/lib/data-platform/types";
 
 export interface AccountPreview {
-  /** 是否有可确认的账号身份信息 */
+  /** 是否识别到账号（有可作为唯一标识的 accountKey） */
   recognized: boolean;
+  /** 是否有可诊断的数据信号（粉丝/播放/评论等） */
+  hasSignals: boolean;
+  /** 账号标识是否可识别（区别于有无数据） */
+  hasAccountKey: boolean;
   platform: string;
   /** 归一化平台 id（用于数据源判断） */
   platformKey: string;
@@ -70,17 +74,24 @@ export function buildAccountPreview(input: {
   const account = input.account.trim();
   const accountKey = extractAccountKey(platform, account);
   const signals = input.signals?.length ? input.signals : [];
-  const recognized = signals.length > 0;
+  const hasAccountKey = accountKey.length > 0;
+  const recognized = hasAccountKey;
+  const hasSignals = signals.length > 0;
   return {
     recognized,
+    hasSignals,
+    hasAccountKey,
     platform,
     platformKey,
     account,
     accountKey,
     signals,
-    note: recognized
-      ? "已识别到账号信息，请确认是否为你自己的账号（同平台可能有重名账号）。"
-      : "未识别到账号数据。建议补充账号数据或上传截图，以便确认账号身份。",
+    note:
+      hasSignals
+        ? "已识别到账号与部分数据，请确认是否为你自己的账号（同平台可能有重名账号）。"
+        : hasAccountKey
+          ? "已识别到账号（可确认身份）。想得到针对性诊断，请补充账号数据或上传截图；仅填账号无法做数据诊断。"
+          : "无法识别到账号标识，请确认账号名/链接是否正确。",
     source: input.source ?? "manual",
   };
 }

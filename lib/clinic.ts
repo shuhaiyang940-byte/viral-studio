@@ -76,6 +76,8 @@ export interface ClinicResult {
   dataSource: DataSourceId;
   /** 数据来源展示名 */
   dataSourceLabel: string;
+  /** 是否缺少数据（无法做针对性诊断，需补数据/传截图） */
+  needsData: boolean;
   /** 内容真实性 / 疑似刷量检测 */
   organic: { score: number; signals: { key: string; label: string; redFlag: boolean; detail: string; level: string }[]; note: string };
   /** 全局战略观：赛道红海度 */
@@ -127,6 +129,16 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
+/** 是否具备「可做针对性诊断」的真实数据信号（与 hasData 一致） */
+export function hasRealDataSignal(input: ClinicInput): boolean {
+  return (
+    Number.isFinite(input.engagementRate) || Number.isFinite(input.followers) ||
+    Number.isFinite(input.avgPlays) || Number.isFinite(input.avgLikes) ||
+    Number.isFinite(input.avgComments) || Number.isFinite(input.avgShares) ||
+    !!input.description?.trim() || !!input.sampleText?.trim()
+  );
+}
+
 /** 无 LLM 时的规则模板：顾问级报告兜底（保证永远可生成且结构完整） */
 function buildTemplateResult(input: ClinicInput, benchmarks: ClinicBench[]): ClinicResult {
   const hasEng = Number.isFinite(input.engagementRate);
@@ -156,32 +168,36 @@ function buildTemplateResult(input: ClinicInput, benchmarks: ClinicBench[]): Cli
     shares: input.avgShares,
     followers: input.followers,
   } as OrganicCheckInput);
+  const needsData = !hasRealDataSignal(input);
   return {
     score,
-    summary: hasEng
-      ? `你的账号卡在「能发但没破圈」：数据不差，但离黑马对标还差一口气的「差异化」。`
-      : "补上近 20 条互动数据与文案采样，我能给你更精准的破局方案；当前先按通用的三条动作走。",
+    summary: needsData
+      ? "缺少账号真实数据，先补数据或传截图，才能做针对性诊断。"
+      : hasEng
+        ? `你的账号卡在「能发但没破圈」：数据不差，但离黑马对标还差一口气的「差异化」。`
+        : "补上近 20 条互动数据与文案采样，我能给你更精准的破局方案。",
     sourceNote: dataQualityNote(dq),
     dataQuality: dq,
     dataSource: input.dataSource?.source ?? "manual",
     dataSourceLabel: dataQualityLabel(dq),
+    needsData,
     organic,
-    redOcean: {
-      level: "红海蓝海交界",
-      detail: `${input.niche}赛道竞争者众多，但同质化严重；真正稀缺的是「有辨识度的人设 + 能落地的干货」。`,
-    },
-    homogen: {
-      alert: "你现在的内容，和市面上 70% 的账号长得一样：一样的开头、一样的配乐、一样的语气。",
-      consequence: "继续这样，用户永远记不住你，只能靠算法随机推流，播放量长期在低位徘徊，越做越挫败。",
-    },
-    differentiation: [
-      `切入细分人群：把「${input.niche}」再切开，只服务一个具体人群（如刚入行的新手 / 预算有限的小店）。`,
-      "换表达形式：从「平铺直叙讲干货」改成「强剧情 / 强反差 / 真人出镜」中的一种，先做一版不同的。",
-    ],
-    topics: "选题偏大路货，建议盯最近 7 天爆点，别碰去年就炒冷饭的话题。",
-    hookDiag: "前 3 秒大概率还在自我介绍，浪费了黄金窗口；换成「反常识 / 痛点直击」开头。",
-    schedule: "先固定每周 2~3 条，选 18:00-21:00 发布；数据稳定后再加更。",
-    todoList: [
+    redOcean: needsData
+      ? { level: "需要数据", detail: "缺少你账号的真实数据（互动/播放/评论等），暂无法判断赛道红海度。请补数据或上传截图。" }
+      : { level: "红海蓝海交界", detail: `${input.niche}赛道竞争者众多，但同质化严重；真正稀缺的是「有辨识度的人设 + 能落地的干货」。` },
+    homogen: needsData
+      ? { alert: "缺少数据，暂无法判断你的内容是否同质化。", consequence: "请先补账号数据或上传截图，再做针对性判断。" }
+      : { alert: "你现在的内容，和市面上 70% 的账号长得一样：一样的开头、一样的配乐、一样的语气。", consequence: "继续这样，用户永远记不住你，只能靠算法随机推流，播放量长期在低位徘徊，越做越挫败。" },
+    differentiation: needsData
+      ? ["补数据后，这里会给出针对你的差异化破局方向。"]
+      : [
+          `切入细分人群：把「${input.niche}」再切开，只服务一个具体人群（如刚入行的新手 / 预算有限的小店）。`,
+          "换表达形式：从「平铺直叙讲干货」改成「强剧情 / 强反差 / 真人出镜」中的一种，先做一版不同的。",
+        ],
+    topics: needsData ? "缺数据，暂无法做选题与热点诊断。" : "选题偏大路货，建议盯最近 7 天爆点，别碰去年就炒冷饭的话题。",
+    hookDiag: needsData ? "缺数据，暂无法判断你前 3 秒钩子表现。" : "前 3 秒大概率还在自我介绍，浪费了黄金窗口；换成「反常识 / 痛点直击」开头。",
+    schedule: needsData ? "补数据后会给建议。" : "先固定每周 2~3 条，选 18:00-21:00 发布；数据稳定后再加更。",
+    todoList: needsData ? ["补账号真实数据（粉丝/互动/播放）", "或上传账号数据截图，让 AI 自动读取"] : [
       "砍掉开场白废话，前 1 秒直接抛冲突或结果。",
       "统一封面与标题风格，让主页像同一个账号。",
       "挑一条黑马对标，用「爆款搬运」套它的骨架做一版。",
@@ -216,6 +232,7 @@ function normalize(raw: any, input: ClinicInput, benchmarks: ClinicBench[]): Cli
     shares: input.avgShares,
     followers: input.followers,
   } as OrganicCheckInput);
+  const needsData = !hasRealDataSignal(input);
   const dims = (Array.isArray(raw?.dimensions) ? raw.dimensions : []).map((d: any) => ({
     key: String(d.key || "x"),
     label: String(d.label || ""),
@@ -231,6 +248,7 @@ function normalize(raw: any, input: ClinicInput, benchmarks: ClinicBench[]): Cli
     dataQuality: dq,
     dataSource: input.dataSource?.source ?? "manual",
     dataSourceLabel: dataQualityLabel(dq),
+    needsData,
     organic,
     redOcean: { level: str(raw?.redOcean?.level, "红海蓝海交界"), detail: str(raw?.redOcean?.detail, "赛道饱和，需要差异化。") },
     homogen: { alert: str(raw?.homogen?.alert, "内容同质化明显。"), consequence: str(raw?.homogen?.consequence, "长期难以破圈。") },
