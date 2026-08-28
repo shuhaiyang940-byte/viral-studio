@@ -11,13 +11,19 @@ import { Progress } from "@/components/ui/progress";
 import { put } from "@vercel/blob/client";
 import { fetchWithRetry } from "@/lib/fetch-retry";
 
-const MAX_FILE_MB = 200;
+const MAX_FILE_MB = 50;
 const MAX_DURATION_MIN = 10;
+const MAX_VIDEO_COUNT = 5;
+/** 同时分析的视频数上限（避免一次烧太多 AI 成本 + 排队太久） */
+const CONCURRENT_ANALYSIS = 2;
 
 interface VideoItem {
   id: string;
   name: string;
-  status: "uploading" | "analyzing" | "done" | "error";
+  /** 当前阶段 */
+  stage: "uploading" | "analyzing" | "done" | "error";
+  /** 上传进度 0-100 */
+  progress: number;
   report?: any;
   error?: string;
 }
@@ -30,12 +36,15 @@ export default function DiagnosisPage() {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [result, setResult] = React.useState<any>(null);
+  const [dragging, setDragging] = React.useState(false);
+  const dragCounter = React.useRef(0);
 
-  async function analyzeOne(file: File): Promise<VideoItem["report"]> {
+  async function analyzeOne(file: File, id: string, onUploadProgress?: (p: number) => void): Promise<VideoItem["report"]> {
     if (file.size > MAX_FILE_MB * 1024 * 1024) {
       throw new Error(`视频超过 ${MAX_FILE_MB}MB 限制`);
     }
-    // 上传到 Blob → 公网URL → Qwen-VL 分析
+    setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "uploading", progress: 0 } : it)));
+    // ① 上传到 Blob → 拿公开URL（带真实上传进度）
     const ticket = await fetchWithRetry("/api/analyze/upload-url", { method: "POST" })
       .then((r) => r.json())
       .catch(() => ({ blobMode: false }));
@@ -46,10 +55,14 @@ export default function DiagnosisPage() {
         token: ticket.token,
         contentType: file.type || "video/mp4",
         multipart: file.size > 8 * 1024 * 1024,
+        onUploadProgress: (evt) => {
+          onUploadProgress?.(evt.percentage);
+        },
       });
       url = blob.url;
     } else {
-      // 本机/上传模式回退：multipart 上传后服务端分析
+      // 本机/上传模式回退：multipart 上传后服务端分析（无法拿单文件进度，标记 100%）
+      onUploadProgress?.(100);
       const fd = new FormData();
       fd.append("video", file);
       fd.append("title", file.name);
@@ -59,6 +72,8 @@ export default function DiagnosisPage() {
       if (!res.ok) throw new Error(data.error || "视频上传失败");
       return data;
     }
+    // ② 分析：明确切到"分析中"阶段（真正耗时在这，Qwen-VL 看视频）
+    setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "analyzing", progress: 100 } : it)));
     const res = await fetchWithRetry("/api/analyze/url", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -71,18 +86,53 @@ export default function DiagnosisPage() {
 
   async function onFiles(files: FileList | null) {
     if (!files) return;
-    const list = Array.from(files);
-    for (const f of list) {
+    const list = Array.from(files).filter((f) => f.type.startsWith("video/"));
+    const currentCount = videos.length;
+    const room = MAX_VIDEO_COUNT - currentCount;
+    if (room <= 0) {
+      setError(`最多上传 ${MAX_VIDEO_COUNT} 个视频，你已达上限，请先移除后再传`);
+      return;
+    }
+    const accepted = list.slice(0, room);
+    setError(list.length > room ? `最多 ${MAX_VIDEO_COUNT} 个视频，已保留前 ${room} 个` : null);
+    // 为每个文件创建一个自增 id，先 push 列表，再启动处理
+    const items: { f: File; id: string }[] = [];
+    for (const f of accepted) {
       const id = `${f.name}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-      setVideos((v) => [...v, { id, name: f.name, status: "uploading" }]);
-      setError(null);
-      try {
-        const report = await analyzeOne(f);
-        setVideos((v) => v.map((it) => (it.id === id ? { ...it, status: "done", report } : it)));
-      } catch (e: any) {
-        setVideos((v) => v.map((it) => (it.id === id ? { ...it, status: "error", error: e?.message || "失败" } : it)));
+      items.push({ f, id });
+      setVideos((v) => [...v, { id, name: f.name, stage: "uploading", progress: 0 }]);
+    }
+    // 并发分析：同一时刻最多 CONCURRENT_ANALYSIS 个进入"分析中"，避免一次烧太多
+    await runWithConcurrency(items, processOne, CONCURRENT_ANALYSIS);
+  }
+
+  /** 处理单个视频：上传（带进度）→ 分析（限并发）→ 更新状态 */
+  async function processOne(file: File, id: string) {
+    try {
+      const report = await analyzeOne(file, id, (p) => {
+        setVideos((v) => v.map((it) => (it.id === id ? { ...it, progress: p } : it)));
+      });
+      setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "done", progress: 100, report } : it)));
+    } catch (e: any) {
+      setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "error", error: e?.message || "失败" } : it)));
+    }
+  }
+
+  /** 并发池：同一时刻最多 limit 个任务在跑，其余排队 */
+  async function runWithConcurrency(
+    items: { f: File; id: string }[],
+    worker: (f: File, id: string) => Promise<void>,
+    limit: number
+  ) {
+    let cursor = 0;
+    async function run() {
+      while (cursor < items.length) {
+        const it = items[cursor++];
+        await worker(it.f, it.id);
       }
     }
+    const n = Math.min(limit, items.length);
+    await Promise.all(Array.from({ length: n }, () => run()));
   }
 
   async function uploadScreenshot(file: File) {
@@ -124,7 +174,7 @@ export default function DiagnosisPage() {
   }
 
   async function runDiagnosis() {
-    const reports = videos.filter((v) => v.status === "done" && v.report).map((v) => v.report);
+    const reports = videos.filter((v) => v.stage === "done" && v.report).map((v) => v.report);
     if (reports.length === 0) {
       setError("请先上传至少 1 个视频");
       return;
@@ -158,6 +208,7 @@ export default function DiagnosisPage() {
     }
   }
 
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
       <div className="mb-8 text-center">
@@ -173,11 +224,18 @@ export default function DiagnosisPage() {
         <CardContent className="space-y-4 p-6">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">1</span>
-            <Clapperboard className="h-4 w-4 text-primary" /> 上传视频（越多越准，建议 3~10 个）
+            <Clapperboard className="h-4 w-4 text-primary" /> 上传视频（最多 {MAX_VIDEO_COUNT} 个，越多越准）
           </div>
-          <div className="rounded-lg border border-dashed border-border/80 p-5 text-center">
+          <div
+            className={`rounded-lg border border-dashed p-5 text-center transition-colors ${dragging ? "border-primary bg-primary/5" : "border-border/80"}`}
+            onDragEnter={(e) => { e.preventDefault(); dragCounter.current += 1; setDragging(true); }}
+            onDragOver={(e) => e.preventDefault()}
+            onDragLeave={(e) => { e.preventDefault(); dragCounter.current -= 1; if (dragCounter.current <= 0) { dragCounter.current = 0; setDragging(false); } }}
+            onDrop={(e) => { e.preventDefault(); dragCounter.current = 0; setDragging(false); onFiles(e.dataTransfer.files); }}
+          >
             <Upload className="mx-auto h-6 w-6 text-muted-foreground" />
-            <p className="mt-2 text-sm text-muted-foreground">单个视频 ≤ {MAX_FILE_MB}MB、时长 ≤ {MAX_DURATION_MIN} 分钟</p>
+            <p className="mt-2 text-sm text-muted-foreground">拖拽视频到这里，或点击选择</p>
+            <p className="mt-1 text-xs text-muted-foreground">单个 ≤ {MAX_FILE_MB}MB、时长 ≤ {MAX_DURATION_MIN} 分钟、最多 {MAX_VIDEO_COUNT} 个</p>
             <label className="mt-3 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-border px-4 py-2 text-sm hover:border-foreground/30">
               <Upload className="h-4 w-4" /> 上传视频
               <input type="file" accept="video/*" multiple className="hidden" onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
@@ -186,12 +244,24 @@ export default function DiagnosisPage() {
           {videos.length > 0 && (
             <ul className="space-y-2">
               {videos.map((v, i) => (
-                <li key={i} className="flex items-center gap-2 rounded-md border border-border/70 px-3 py-2 text-sm">
-                  {v.status === "uploading" || v.status === "analyzing" ? <Loader2 className="h-4 w-4 animate-spin text-primary" /> : v.status === "done" ? <Check className="h-4 w-4 text-success" /> : <AlertTriangle className="h-4 w-4 text-destructive" />}
-                  <span className="flex-1 truncate">{v.name}</span>
-                  <Badge variant={v.status === "done" ? "success" : v.status === "error" ? "warning" : "secondary"}>
-                    {v.status === "uploading" ? "上传中…" : v.status === "done" ? (v.report?.visual?.mode === "real" ? "已真实分析" : "分析完成(演示)") : "失败"}
-                  </Badge>
+                <li key={i} className="rounded-md border border-border/70 px-3 py-2 text-sm">
+                  <div className="flex items-center gap-2">
+                    {v.stage === "done" ? <Check className="h-4 w-4 shrink-0 text-success" /> : v.stage === "error" ? <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" /> : <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
+                    <span className="flex-1 truncate">{v.name}</span>
+                    <Badge variant={v.stage === "done" ? "success" : v.stage === "error" ? "warning" : "secondary"}>
+                      {v.stage === "uploading" ? `上传中 ${v.progress}%` : v.stage === "analyzing" ? "AI 分析中…" : v.stage === "done" ? (v.report?.visual?.mode === "real" ? "已真实分析" : "分析完成(演示)") : "失败"}
+                    </Badge>
+                  </div>
+                  {(v.stage === "uploading" || v.stage === "analyzing") && (
+                    <Progress
+                      value={v.stage === "analyzing" ? 100 : Math.max(1, v.progress)}
+                      className="mt-2 h-1.5"
+                      indicatorClassName={v.stage === "analyzing" ? "animate-pulse bg-primary" : "bg-primary"}
+                    />
+                  )}
+                  {v.stage === "analyzing" && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">正在让 AI 看视频（约 30~90 秒），请稍候…</p>
+                  )}
                   {v.error && <span className="text-xs text-destructive">{v.error}</span>}
                 </li>
               ))}
