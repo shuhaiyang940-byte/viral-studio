@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { upload } from "@vercel/blob/client";
 import { fetchWithRetry } from "@/lib/fetch-retry";
 
 const MAX_FILE_MB = 50;
@@ -16,12 +15,6 @@ const MAX_DURATION_MIN = 10;
 const MAX_VIDEO_COUNT = 5;
 /** 同时分析的视频数上限（避免一次烧太多 AI 成本 + 排队太久） */
 const CONCURRENT_ANALYSIS = 2;
-/**
- * 过渡方案 B：视频 ≤ 此大小时不走 Vercel Blob，而是直接以 base64 data URL 交给
- * Qwen（DashScope），绕开「阿里云跨云下载 Vercel 视频超时」。受 Vercel 函数
- * 4.5MB 请求体限制，故上限设 2.5MB（base64 后约 3.3MB）。国内上线换 OSS 后可放开。
- */
-const DATA_URL_LIMIT = 2.5 * 1024 * 1024;
 
 interface VideoItem {
   id: string;
@@ -62,72 +55,43 @@ export default function DiagnosisPage() {
     }
     diagLog({ step: "video_start", fileName: file.name, fileSize: file.size });
     setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "uploading", progress: 0 } : it)));
-    // 过渡方案 B：≤2.5MB 的小视频直接以 base64 data URL 交给 Qwen（DashScope 直接解析，
-    // 绕开「阿里云跨云下载 Vercel 视频超时」）。大视频仍走 Blob（国内上线换 OSS 后放开）。
-    if (file.size <= DATA_URL_LIMIT) {
-      const dataUrl = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(String(r.result));
-        r.onerror = () => reject(new Error("读取视频失败"));
-        r.readAsDataURL(file);
-      });
-      diagLog({ step: "local_encode_done", fileName: file.name, fileSize: file.size, ok: true, detail: `base64 ${(dataUrl.length / 1024).toFixed(0)}KB` });
-      onUploadProgress?.(100);
-      return doAnalyze({ videoData: dataUrl, title: file.name, refType: "auto", diag: true }, id, file);
-    }
-    // ① 上传到 Blob → 拿公开URL（带真实上传进度）
-    diagLog({ step: "ticket_fetch", fileName: file.name, fileSize: file.size });
-    const ticket = await fetchWithRetry("/api/analyze/upload-url", { method: "POST" })
+    // 上传到阿里云 OSS（前端直传，绕开 Vercel 4.5MB body 限制；千问内网直拉 OSS 不再超时）
+    const contentType = file.type || "video/mp4";
+    diagLog({ step: "oss_signature", fileName: file.name, fileSize: file.size });
+    const sig = await fetchWithRetry(`/api/oss/put-signature?dir=videos&contentType=${encodeURIComponent(contentType)}`)
       .then((r) => r.json())
-      .catch(() => ({ blobMode: false }));
-    diagLog({ step: "ticket_result", fileName: file.name, fileSize: file.size, ok: !!ticket.blobMode, detail: ticket.blobMode ? "blob 直传" : "本机回退" });
-    let url: string;
-    if (ticket.blobMode) {
-      diagLog({ step: "blob_upload_start", fileName: file.name, fileSize: file.size });
-      let lastP = -1;
-      try {
-        const blob = await upload(file.name, file, {
-          access: "public",
-          handleUploadUrl: "/api/blob/upload",
-          contentType: file.type || "video/mp4",
-          abortSignal: AbortSignal.timeout(180_000),
-          onUploadProgress: (evt) => {
-            const p = evt.percentage;
-            onUploadProgress?.(p);
-            // 节流打进度日志：0% 和每 25% 一个点，便于分辨「真卡住」还是「慢」
-            if (lastP < 0 || p - lastP >= 25) {
-              diagLog({ step: "blob_upload_progress", fileName: file.name, fileSize: file.size, ok: true, detail: `${Math.round(p)}%` });
-              lastP = p;
-            }
-          },
-        });
-        url = blob.url;
-        diagLog({ step: "blob_upload_done", fileName: file.name, fileSize: file.size, ok: true, detail: blob.url });
-      } catch (e: any) {
-        const isTimeout = e?.name === "TimeoutError" || /timed out|abort/i.test(e?.message || "");
-        const isNet = e instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(e?.message || "");
-        const friendly = isTimeout
-          ? "上传超时：视频推送一直被卡住（>3分钟）。这通常是浏览器/网络把到视频存储的跨域上传拦住了，请检查网络、换浏览器，或看右上下载日志里的 blob_upload_error 定位。"
-          : isNet
-          ? "上传被网络/浏览器拦截：无法直连视频存储（*.blob.vercel-storage.com）。请检查是否为代理/VPN 或浏览器拦截，或换一个浏览器重试。"
-          : e?.message || "上传异常";
-        diagLog({ step: "blob_upload_error", fileName: file.name, fileSize: file.size, ok: false, detail: friendly });
-        throw new Error(friendly);
-      }
-    } else {
-      // 本机/上传模式回退：multipart 上传后服务端分析（无法拿单文件进度，标记 100%）
-      onUploadProgress?.(100);
-      const fd = new FormData();
-      fd.append("video", file);
-      fd.append("title", file.name);
-      fd.append("requestId", `diag_${Date.now()}`);
-      const res = await fetchWithRetry("/api/analyze/upload", { method: "POST", body: fd });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || "视频上传失败");
-      return data;
-    }
-    // ② 分析（大文件走 Blob URL）：复用 doAnalyze，Qwen-VL 看画面 → 转写 → LLM 生成
-    return doAnalyze({ videoUrl: url, title: file.name, refType: "auto", diag: true }, id, file);
+      .catch(() => ({}));
+    diagLog({ step: "oss_signature_result", fileName: file.name, fileSize: file.size, ok: !!sig.putUrl, detail: sig.putUrl ? "ok" : "fail" });
+    if (!sig.putUrl) throw new Error("获取上传地址失败（OSS 未配置）");
+    await putToOss(sig.putUrl, file, contentType, onUploadProgress, (progress) => {
+      diagLog({ step: "oss_upload_progress", fileName: file.name, fileSize: file.size, ok: true, detail: `${Math.round(progress)}%` });
+    });
+    diagLog({ step: "oss_upload_done", fileName: file.name, fileSize: file.size, ok: true, detail: sig.publicUrl });
+    return doAnalyze({ videoUrl: sig.publicUrl, title: file.name, refType: "auto", diag: true }, id, file);
+  }
+
+  /** 用 XHR 把文件 PUT 到 OSS 预签名 URL（能拿真实上传进度） */
+  function putToOss(putUrl: string, file: File, contentType: string, onProgress?: (p: number) => void, onLog?: (p: number) => void): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", putUrl, true);
+      xhr.setRequestHeader("Content-Type", contentType || "application/octet-stream");
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) {
+          const p = (e.loaded / e.total) * 100;
+          onProgress?.(p);
+          onLog?.(p);
+        }
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error(`上传失败（HTTP ${xhr.status}）`));
+      };
+      xhr.onerror = () => reject(new Error("上传网络错误，请检查网络"));
+      xhr.onabort = () => reject(new Error("上传已取消"));
+      xhr.ontimeout = () => reject(new Error("上传超时"));
+      xhr.send(file);
+    });
   }
 
   /** 调用 /api/analyze/url 分析一个视频（小文件走 videoData/data URL，大文件走 videoUrl/blob URL），并推进阶段文案 */
@@ -141,9 +105,7 @@ export default function DiagnosisPage() {
       setVideos((v) => v.map((it) => (it.id === id ? { ...it, phase: phases[pi] } : it)));
     }, 20000);
     try {
-      // 小视频（videoData）走 /api/analyze/url；大视频（videoUrl）走切片接口
-      const endpoint = body.videoUrl ? "/api/diagnosis/slice-analyze" : "/api/analyze/url";
-      const res = await fetchWithRetry(endpoint, {
+      const res = await fetchWithRetry("/api/analyze/url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -217,37 +179,14 @@ export default function DiagnosisPage() {
     setError(null);
     diagLog({ step: "screenshot_start", fileName: file.name, fileSize: file.size });
     try {
-      const ticket = await fetchWithRetry("/api/screenshot-upload-url", { method: "POST" }).then((r) => r.json()).catch(() => ({ blobMode: false }));
-      let url: string;
-      if (ticket.blobMode) {
-        try {
-          const blob = await upload(file.name, file, {
-            access: "public",
-            handleUploadUrl: "/api/blob/upload",
-            contentType: file.type || "image/png",
-            abortSignal: AbortSignal.timeout(180_000),
-          });
-          url = blob.url;
-          diagLog({ step: "screenshot_blob_done", fileName: file.name, fileSize: file.size, ok: true, detail: blob.url });
-        } catch (e: any) {
-          const isTimeout = e?.name === "TimeoutError" || /timed out|abort/i.test(e?.message || "");
-          const isNet = e instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(e?.message || "");
-          const friendly = isTimeout
-            ? "截图上传超时：可能是网络/浏览器拦截了视频存储的跨域上传，请检查网络或换浏览器。"
-            : isNet
-            ? "截图上传被网络/浏览器拦截：无法直连视频存储（*.blob.vercel-storage.com）。"
-            : e?.message || "截图上传异常";
-          diagLog({ step: "screenshot_blob_error", fileName: file.name, fileSize: file.size, ok: false, detail: friendly });
-          throw e;
-        }
-      } else {
-        const fd = new FormData();
-        fd.append("file", file);
-        const up = await fetchWithRetry("/api/screenshot-upload", { method: "POST", body: fd });
-        const d = await up.json().catch(() => ({}));
-        if (!up.ok) throw new Error(d.error || "上传失败");
-        url = d.url;
-      }
+      const contentType = file.type || "image/png";
+      const sig = await fetchWithRetry(`/api/oss/put-signature?dir=images&contentType=${encodeURIComponent(contentType)}`)
+        .then((r) => r.json())
+        .catch(() => ({}));
+      if (!sig.putUrl) throw new Error("截图上传配置失败（OSS 未配置）");
+      await putToOss(sig.putUrl, file, contentType);
+      const url = sig.publicUrl;
+      diagLog({ step: "screenshot_oss_done", fileName: file.name, fileSize: file.size, ok: true, detail: url });
       setScreenshots((s) => [...s, { url }]);
       // 尝试从截图识别数据回填
       const pr = await fetchWithRetry("/api/screenshot-parse", {
