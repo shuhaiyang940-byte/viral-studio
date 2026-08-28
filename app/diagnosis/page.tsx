@@ -55,27 +55,33 @@ export default function DiagnosisPage() {
     }
     diagLog({ step: "video_start", fileName: file.name, fileSize: file.size });
     setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "uploading", progress: 0 } : it)));
-    // 上传到阿里云 OSS（前端直传，绕开 Vercel 4.5MB body 限制；千问内网直拉 OSS 不再超时）
-    const contentType = file.type || "video/mp4";
-    diagLog({ step: "oss_signature", fileName: file.name, fileSize: file.size });
-    const sig = await fetchWithRetry(`/api/oss/put-signature?dir=videos&contentType=${encodeURIComponent(contentType)}`)
+    // 上传到阿里云 OSS（前端 POST 表单直传，绕开 Vercel 4.5MB body 限制；千问内网直拉 OSS 不再超时）
+    diagLog({ step: "oss_policy", fileName: file.name, fileSize: file.size });
+    const sig = await fetchWithRetry(`/api/oss/policy?dir=videos`)
       .then((r) => r.json())
       .catch(() => ({}));
-    diagLog({ step: "oss_signature_result", fileName: file.name, fileSize: file.size, ok: !!sig.putUrl, detail: sig.putUrl ? "ok" : "fail" });
-    if (!sig.putUrl) throw new Error("获取上传地址失败（OSS 未配置）");
-    await putToOss(sig.putUrl, file, contentType, onUploadProgress, (progress) => {
+    diagLog({ step: "oss_policy_result", fileName: file.name, fileSize: file.size, ok: !!sig.host, detail: sig.host ? "ok" : "fail" });
+    if (!sig.host) throw new Error("获取上传地址失败（OSS 未配置）");
+    await putToOss(sig, file, onUploadProgress, (progress) => {
       diagLog({ step: "oss_upload_progress", fileName: file.name, fileSize: file.size, ok: true, detail: `${Math.round(progress)}%` });
     });
-    diagLog({ step: "oss_upload_done", fileName: file.name, fileSize: file.size, ok: true, detail: sig.publicUrl });
-    return doAnalyze({ videoUrl: sig.publicUrl, title: file.name, refType: "auto", diag: true }, id, file);
+    const publicUrl = `${sig.host}/${sig.key}`;
+    diagLog({ step: "oss_upload_done", fileName: file.name, fileSize: file.size, ok: true, detail: publicUrl });
+    return doAnalyze({ videoUrl: publicUrl, title: file.name, refType: "auto", diag: true }, id, file);
   }
 
-  /** 用 XHR 把文件 PUT 到 OSS 预签名 URL（能拿真实上传进度） */
-  function putToOss(putUrl: string, file: File, contentType: string, onProgress?: (p: number) => void, onLog?: (p: number) => void): Promise<void> {
+  /** 用 XHR 把文件 POST 表单直传到 OSS（能拿真实上传进度） */
+  function putToOss(policy: any, file: File, onProgress?: (p: number) => void, onLog?: (p: number) => void): Promise<void> {
     return new Promise((resolve, reject) => {
+      const fd = new FormData();
+      fd.append("key", policy.key);
+      fd.append("policy", policy.policy);
+      fd.append("OSSAccessKeyId", policy.OSSAccessKeyId);
+      fd.append("signature", policy.signature);
+      fd.append("success_action_status", "200");
+      fd.append("file", file);
       const xhr = new XMLHttpRequest();
-      xhr.open("PUT", putUrl, true);
-      xhr.setRequestHeader("Content-Type", contentType || "application/octet-stream");
+      xhr.open("POST", policy.host, true);
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) {
           const p = (e.loaded / e.total) * 100;
@@ -90,7 +96,7 @@ export default function DiagnosisPage() {
       xhr.onerror = () => reject(new Error("上传网络错误，请检查网络"));
       xhr.onabort = () => reject(new Error("上传已取消"));
       xhr.ontimeout = () => reject(new Error("上传超时"));
-      xhr.send(file);
+      xhr.send(fd);
     });
   }
 
@@ -179,13 +185,12 @@ export default function DiagnosisPage() {
     setError(null);
     diagLog({ step: "screenshot_start", fileName: file.name, fileSize: file.size });
     try {
-      const contentType = file.type || "image/png";
-      const sig = await fetchWithRetry(`/api/oss/put-signature?dir=images&contentType=${encodeURIComponent(contentType)}`)
+      const sig = await fetchWithRetry(`/api/oss/policy?dir=images`)
         .then((r) => r.json())
         .catch(() => ({}));
-      if (!sig.putUrl) throw new Error("截图上传配置失败（OSS 未配置）");
-      await putToOss(sig.putUrl, file, contentType);
-      const url = sig.publicUrl;
+      if (!sig.host) throw new Error("截图上传配置失败（OSS 未配置）");
+      await putToOss(sig, file);
+      const url = `${sig.host}/${sig.key}`;
       diagLog({ step: "screenshot_oss_done", fileName: file.name, fileSize: file.size, ok: true, detail: url });
       setScreenshots((s) => [...s, { url }]);
       // 尝试从截图识别数据回填

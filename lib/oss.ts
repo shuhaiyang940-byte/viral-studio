@@ -1,5 +1,6 @@
 // 阿里云 OSS 接入（服务端）：视频/截图上传走 OSS，千问内网直拉 OSS URL，解决跨云下载超时。
 import { createRequire } from "node:module";
+import { randomUUID } from "node:crypto";
 
 const requireN = createRequire(import.meta.url);
 
@@ -67,4 +68,29 @@ export async function ossPut(key: string, body: Buffer, contentType?: string): P
   const client = ossClient();
   const res = await client.put(key, body, contentType ? { mime: contentType } : {});
   return `${ossHost()}/${key}`;
+}
+
+/**
+ * 生成 OSS POST 表单直传 policy（前端 form 直传 OSS，绕开 Vercel 4.5MB 限制，
+ * 也规避 ali-oss signatureUrl 的 PUT+Content-Type 签名 bug）。
+ */
+export async function createPostPolicy(dir: "videos" | "images", ext: string) {
+  const client = ossClient();
+  const key = `${dir}/${randomUUID()}.${ext}`;
+  const expiration = new Date(Date.now() + 3600 * 1000).toISOString();
+  const policyData = {
+    expiration,
+    conditions: [
+      ["content-length-range", 0, 105 * 1024 * 1024],
+      ["starts-with", "$key", `${dir}/`],
+    ],
+  };
+  const sig = client.calculatePostSignature(policyData);
+  return {
+    host: ossHost(),
+    key,
+    OSSAccessKeyId: sig.OSSAccessKeyId,
+    signature: sig.Signature,
+    policy: sig.policy,
+  };
 }
