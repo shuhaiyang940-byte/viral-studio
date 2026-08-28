@@ -178,12 +178,14 @@ export async function checkAnalyzeQuota(
   req: NextRequest,
   opts?: { mode?: "normal" | "diag" }
 ): Promise<QuotaCheck> {
-  const { userKey, ipKey, limit, isPro } = await getQuotaForReq(req);
+  const { userKey, ipKey, limit, isPro, tier } = await getQuotaForReq(req);
   void isPro; // 档位差异已由 limit 体现（免费 1 / 创作者 5 / 进阶+ 不限）
   const isDiag = opts?.mode === "diag";
   const diagLimit = isDiag
     ? userKey
-      ? intEnv("DIAG_DAILY_ANALYZE", 10)
+      ? tier !== "free"
+        ? null // 非免费账号：诊断不限次（避免免费档"每天1次"撑不起多视频诊断）
+        : intEnv("DIAG_DAILY_ANALYZE", 10)
       : intEnv("ANON_DIAG_DAILY_ANALYZE", 5)
     : null;
   const effLimit = isDiag ? diagLimit : limit;
