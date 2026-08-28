@@ -28,6 +28,8 @@ const nextConfig = {
   images: {
     remotePatterns: [{ protocol: "https", hostname: "**" }],
   },
+  // ffmpeg-static 是带二进制的外部包，必须让 Vercel 追踪并保留（否则函数里找不到可执行文件）
+  serverExternalPackages: ["ffmpeg-static"],
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

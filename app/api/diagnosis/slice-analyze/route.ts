@@ -22,7 +22,16 @@ function ffmpegBin(): string {
     const s = requireN("ffmpeg-static");
     const p = s && s.default ? s.default : s;
     if (typeof p === "string" && p.length) {
-      // 验证二进制确实可执行（Vercel 上正常；本地沙箱可能被安全策略拦 → 回退系统 ffmpeg）
+      // Vercel 打包可能丢执行位/限制从 node_modules spawn → 复制到可写的 /tmp 并 chmod 755 再执行
+      const tmp = "/tmp/ffmpeg-vs-bin";
+      try {
+        fs.copyFileSync(p, tmp);
+        fs.chmodSync(tmp, 0o755);
+        execFileSync(tmp, ["-version"], { stdio: "ignore" });
+        return tmp;
+      } catch {
+        /* fallthrough */
+      }
       try {
         execFileSync(p, ["-version"], { stdio: "ignore" });
         return p;
