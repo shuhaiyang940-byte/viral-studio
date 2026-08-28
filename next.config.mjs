@@ -13,7 +13,8 @@ const securityHeaders = [
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: blob: https:",
       "font-src 'self' data:",
-      "connect-src 'self'",
+      // 允许直连 Vercel Blob 存储做视频/截图上传（浏览器 XHR 跨域 PUT 需要）
+      "connect-src 'self' https://*.blob.vercel-storage.com",
       "frame-ancestors 'none'",
       "base-uri 'self'",
       "form-action 'self'",
