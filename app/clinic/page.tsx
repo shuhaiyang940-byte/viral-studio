@@ -442,12 +442,14 @@ function ClinicResult({ r, form, onReset }: { r: any; form: any; onReset: () => 
             </p>
           </div>
           <ul className="mx-auto max-w-md space-y-2 text-left text-sm text-muted-foreground">
-            <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> 补一项账号数据：粉丝量 / 互动率 / 平均播放、点赞、评论、转发（任选几项）</li>
-            <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> 或上传账号数据截图（主页/数据页），AI 会自动读取并回填</li>
-            <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> 补完后再次点击「开始深度诊断」即可得到针对你账号的分析</li>
+            <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> 上传你的视频（3~10个），系统真实分析内容质量、钩子、结构</li>
+            <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> 或上传账号后台数据截图（主页/数据页），AI 自动读取回填</li>
+            <li className="flex gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-success" /> 系统从视频+数据里提取证据，给出有据可查的针对性诊断</li>
           </ul>
-          <Button onClick={onReset} variant="gradient" className="gap-1.5">
+          <Button asChild variant="gradient" className="gap-1.5">
+            <Link href="/diagnosis">
             <Wand2 className="h-4 w-4" /> 去补充数据 / 上传截图
+            </Link>
           </Button>
         </CardContent>
       </Card>
