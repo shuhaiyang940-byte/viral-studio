@@ -3,6 +3,7 @@ import { analyzeVideo } from "@/lib/ai";
 import { understandVideoUrl } from "@/lib/vision";
 import { guardAiRequest } from "@/lib/ai-guard";
 import { checkAnalyzeQuota } from "@/lib/quota-server";
+import { recordAiUsage } from "@/lib/ai-usage";
 import type { OnboardingProfile } from "@/lib/types";
 import { buildUnderstanding, timelineFactBlock } from "@/lib/video-fact";
 
@@ -50,29 +51,45 @@ export async function POST(req: NextRequest) {
     profile = undefined;
   }
 
-  const u = await understandVideoUrl(videoUrl, title, refType);
-  const understanding = buildUnderstanding({
-    hasTranscript: !!u.transcript,
-    hasVision: u.mode === "real",
-    hasOcr: false,
-    // 本端点未探测时长/转写时长，无法量化覆盖；由 buildUnderstanding 如实标记 PARTIAL/NONE
-  });
-  const timelineText = timelineFactBlock(understanding);
-  const report = await analyzeVideo({
-    source: videoUrl,
-    title,
-    profile,
-    refType,
-    visualSummary: u.summary,
-    transcript: u.transcript,
-    timelineText,
-  });
-  report.visual = {
-    mode: u.mode,
-    frameCount: u.frameCount,
-    note: u.note,
-    transcript: u.transcript,
-  };
-  report.understanding = understanding;
-  return NextResponse.json(report);
+  try {
+    const u = await understandVideoUrl(videoUrl, title, refType);
+    const understanding = buildUnderstanding({
+      hasTranscript: !!u.transcript,
+      hasVision: u.mode === "real",
+      hasOcr: false,
+      // 本端点未探测时长/转写时长，无法量化覆盖；由 buildUnderstanding 如实标记 PARTIAL/NONE
+    });
+    const timelineText = timelineFactBlock(understanding);
+    const report = await analyzeVideo({
+      source: videoUrl,
+      title,
+      profile,
+      refType,
+      visualSummary: u.summary,
+      transcript: u.transcript,
+      timelineText,
+    });
+    report.visual = {
+      mode: u.mode,
+      frameCount: u.frameCount,
+      note: u.note,
+      transcript: u.transcript,
+    };
+    report.understanding = understanding;
+    return NextResponse.json(report);
+  } catch (e: any) {
+    const msg = e?.message || "视频分析异常";
+    void recordAiUsage({
+      task: "video_analysis",
+      engine: "qwen",
+      model: process.env.QWEN_VL_MODEL || "qwen-vl-max",
+      endpoint: "/api/analyze/url",
+      status: "error",
+      error: msg.slice(0, 500),
+    });
+    return NextResponse.json(
+      { error: `视频分析失败：${msg}`, code: "ANALYZE_FAILED", detail: msg },
+      { status: 500 }
+    );
+  }
 }
