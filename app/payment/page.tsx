@@ -83,6 +83,9 @@ export default function PaymentPage() {
   const [paid, setPaid] = React.useState(false);
   const [paying, setPaying] = React.useState(false);
   const [payError, setPayError] = React.useState<string | null>(null);
+  const [payMode, setPayMode] = React.useState<"demo" | "real" | "unknown">("unknown");
+  const [qrCodeUrl, setQrCodeUrl] = React.useState<string | null>(null);
+  const [activeOrderId, setActiveOrderId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     setMounted(true);
@@ -104,6 +107,27 @@ export default function PaymentPage() {
     setPaying(true);
     setPayError(null);
     try {
+      // 真实支付：走 /api/billing/order，返回可扫描的二维码链接；未接支付时该接口返回 mode:"demo"。
+      const orderRes = await fetch("/api/billing/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier }),
+      });
+      const orderData = await orderRes.json().catch(() => ({}));
+      if (orderData.mode === "real" && orderData.qrCodeUrl) {
+        setPayMode("real");
+        setQrCodeUrl(orderData.qrCodeUrl);
+        setActiveOrderId(orderData.orderId);
+        setPaying(false);
+        return; // 切换到真实二维码轮询（此处凭据为占位，前端可轮询 /api/billing/order?orderId 查状态）
+      }
+      if (orderData.mode === "real") {
+        setPayError(orderData.error || "下单失败，请稍后重试");
+        setPaying(false);
+        return;
+      }
+      // 未接真实支付 → 走演示（需服务端 ALLOW_DEMO_UPGRADE=1，否则如实报错）
+      setPayMode("demo");
       const res = await fetch("/api/billing/demo-upgrade", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -292,9 +316,19 @@ export default function PaymentPage() {
               </div>
 
               <div className="mt-5 flex flex-1 flex-col items-center justify-center gap-3">
-                <FakeQR brand={method} />
+                {qrCodeUrl && payMode === "real" ? (
+                  <img
+                    src={qrCodeUrl}
+                    alt={`${method === "wechat" ? "微信" : "支付宝"}支付二维码`}
+                    className="h-[180px] w-[180px] rounded-lg bg-card p-3 shadow-sm"
+                  />
+                ) : (
+                  <FakeQR brand={method} />
+                )}
                 <p className="text-xs text-muted-foreground">
-                  请使用{method === "wechat" ? "微信" : "支付宝"}扫码（演示二维码，无需真实支付）
+                  {payMode === "real"
+                    ? `请使用${method === "wechat" ? "微信" : "支付宝"}扫码完成支付`
+                    : `请使用${method === "wechat" ? "微信" : "支付宝"}扫码（演示二维码，无需真实支付）`}
                 </p>
               </div>
 
@@ -310,7 +344,12 @@ export default function PaymentPage() {
                     className="mt-3 w-full gap-2"
                     variant="gradient"
                   >
-                    <Check className="h-4 w-4" /> {paying ? "开通中…" : "模拟支付成功（演示）"}
+                    <Check className="h-4 w-4" />{" "}
+                    {paying
+                      ? "开通中…"
+                      : payMode === "real"
+                        ? "生成支付二维码"
+                        : "模拟支付成功（演示）"}
                   </Button>
                   {payError && (
                     <p role="alert" className="mt-2 rounded-md bg-destructive/10 px-3 py-2 text-center text-xs text-destructive">

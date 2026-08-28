@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "视频分析需先登录（防止资源滥用）" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "为了您的体验，请先登录", code: "UN_AUTHED" }, { status: 401 });
   const requestId = typeof body.requestId === "string" ? body.requestId : undefined;
 
   // 重复提交保护（requestId 幂等）：同 requestId 在 5 分钟内正在处理 → 拒绝

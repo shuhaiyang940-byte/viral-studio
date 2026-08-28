@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { friendlyError } from "@/lib/ui-error";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 /** 内置体验爆款：一条「美食卖货」通用爆款，用来 0 门槛演示全流程 */
 const DEMO_PLAYBOOK = {
@@ -37,7 +38,7 @@ export default function DemoPage() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/repurpose", {
+      const res = await fetchWithRetry("/api/repurpose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

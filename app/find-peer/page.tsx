@@ -25,6 +25,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -208,7 +209,7 @@ export default function FindPeerPage() {
     setRepBusy(true);
     setRepError(null);
     try {
-      const res = await fetch("/api/repurpose", {
+      const res = await fetchWithRetry("/api/repurpose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

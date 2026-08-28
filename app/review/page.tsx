@@ -181,6 +181,13 @@ export default function ReviewPage() {
             <Card className="border-primary/30">
               <CardContent className="space-y-3 p-5">
                 <div className="flex items-center gap-2 font-semibold"><Sparkles className="h-4 w-4 text-primary" />复盘结论</div>
+                <Badge
+                  variant={result.conclusion?.dataQuality === "platform" ? "success" : result.conclusion?.dataQuality === "estimated" ? "secondary" : "outline"}
+                  className="mt-1 gap-1.5 text-[11px]"
+                >
+                  <span className="inline-block h-1.5 w-1.5 rounded-full bg-current" />
+                  {result.conclusion?.dataSourceLabel || (result.conclusion?.dataQuality === "none" ? "暂无拍后数据" : "数据依据")}
+                </Badge>
                 <p className="text-sm">{result.conclusion?.summary}</p>
                 {result.conclusion?.diagnosis?.length > 0 && (
                   <ul className="space-y-1 text-sm">

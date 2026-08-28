@@ -7,6 +7,9 @@
 import { BENCHMARKS, blackHorseIndex, type IdeaType } from "@/lib/benchmarks";
 import { chat, isConfigured } from "@/lib/llm";
 import { allowMockFallback, aiFailure, AI_ANALYSIS_FAILED } from "@/lib/ai-fallback";
+import type { AccountSnapshot, DataQuality, DataSourceId } from "@/lib/data-platform/types";
+import { dataQualityLabel, dataQualityNote } from "@/lib/data-platform/types";
+import { checkOrganic, type OrganicCheckInput } from "@/lib/organic-check";
 
 export interface ClinicInput {
   /** 赛道：生活 / 旅游 / 美食 / 情感 / 知识 / 商业 */
@@ -27,10 +30,14 @@ export interface ClinicInput {
   avgLikes?: number;
   /** 近 20 条：平均评论（可选） */
   avgComments?: number;
+  /** 近 20 条：平均转发（可选） */
+  avgShares?: number;
   /** 我的账号近况 / 选题描述（可选） */
   description?: string;
   /** 文案采样（近 1-3 条真实文案，可选） */
   sampleText?: string;
+  /** 数据来源快照（含可信度；缺省视为 manual/none） */
+  dataSource?: AccountSnapshot;
 }
 
 export interface ClinicDim {
@@ -63,6 +70,14 @@ export interface ClinicResult {
   summary: string;
   /** 诚实说明：诊断基于什么（真实数据 or 你填写的资料） */
   sourceNote: string;
+  /** 数据可信度等级：platform=真实 / estimated=手填估算 / none=无数据 */
+  dataQuality: DataQuality;
+  /** 数据来源 id */
+  dataSource: DataSourceId;
+  /** 数据来源展示名 */
+  dataSourceLabel: string;
+  /** 内容真实性 / 疑似刷量检测 */
+  organic: { score: number; signals: { key: string; label: string; redFlag: boolean; detail: string; level: string }[]; note: string };
   /** 全局战略观：赛道红海度 */
   redOcean: { level: string; detail: string };
   /** 同质化预警 + 后果 */
@@ -133,14 +148,24 @@ function buildTemplateResult(input: ClinicInput, benchmarks: ClinicBench[]): Cli
       advice: gap < -1 ? "钩子不够狠，前 3 秒没把人留住。" : "互动在健康区间，重点拉内容结构。",
     });
   }
+  const dq = input.dataSource?.quality ?? "none";
+  const organic = checkOrganic({
+    plays: input.avgPlays,
+    likes: input.avgLikes,
+    comments: input.avgComments,
+    shares: input.avgShares,
+    followers: input.followers,
+  } as OrganicCheckInput);
   return {
     score,
     summary: hasEng
       ? `你的账号卡在「能发但没破圈」：数据不差，但离黑马对标还差一口气的「差异化」。`
       : "补上近 20 条互动数据与文案采样，我能给你更精准的破局方案；当前先按通用的三条动作走。",
-    sourceNote: hasEng
-      ? "说明：本结果基于你填写的近 20 条数据与文案采样给出，仅作参考；并非抓取该账号的真实平台数据。"
-      : "说明：本结果仅基于你填写的账号/赛道信息给出，**未接入该账号的真实粉丝/互动/内容数据**，不是真实账号数据诊断，仅供参考。",
+    sourceNote: dataQualityNote(dq),
+    dataQuality: dq,
+    dataSource: input.dataSource?.source ?? "manual",
+    dataSourceLabel: dataQualityLabel(dq),
+    organic,
     redOcean: {
       level: "红海蓝海交界",
       detail: `${input.niche}赛道竞争者众多，但同质化严重；真正稀缺的是「有辨识度的人设 + 能落地的干货」。`,
@@ -183,6 +208,14 @@ function strArr(v: unknown, fb: string[]): string[] {
 
 function normalize(raw: any, input: ClinicInput, benchmarks: ClinicBench[]): ClinicResult {
   const score = clamp(Math.round(Number(raw?.score ?? 55)), 0, 100);
+  const dq = input.dataSource?.quality ?? "none";
+  const organic = checkOrganic({
+    plays: input.avgPlays,
+    likes: input.avgLikes,
+    comments: input.avgComments,
+    shares: input.avgShares,
+    followers: input.followers,
+  } as OrganicCheckInput);
   const dims = (Array.isArray(raw?.dimensions) ? raw.dimensions : []).map((d: any) => ({
     key: String(d.key || "x"),
     label: String(d.label || ""),
@@ -194,7 +227,11 @@ function normalize(raw: any, input: ClinicInput, benchmarks: ClinicBench[]): Cli
   return {
     score,
     summary: str(raw?.summary, "数据还不够全，先给出可执行的粗诊断。"),
-    sourceNote: str(raw?.sourceNote, "说明：本诊断基于你填写的资料（未接入真实账号数据），仅供方向参考，不是真实数据诊断。"),
+    sourceNote: str(raw?.sourceNote, dataQualityNote(dq)),
+    dataQuality: dq,
+    dataSource: input.dataSource?.source ?? "manual",
+    dataSourceLabel: dataQualityLabel(dq),
+    organic,
     redOcean: { level: str(raw?.redOcean?.level, "红海蓝海交界"), detail: str(raw?.redOcean?.detail, "赛道饱和，需要差异化。") },
     homogen: { alert: str(raw?.homogen?.alert, "内容同质化明显。"), consequence: str(raw?.homogen?.consequence, "长期难以破圈。") },
     differentiation: strArr(raw?.differentiation, ["切入细分人群", "换表达形式做差异化"]),

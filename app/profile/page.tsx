@@ -31,6 +31,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import { BETA_OPEN } from "@/lib/beta";
 
+/** 把配额重置的 ISO 时刻按本地时区展示（我国时区 = 次日 08:00） */
+function resetHint(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "每日重置";
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `每日 ${hh}:${mm} 重置`;
+}
+
 export default function ProfilePage() {
   const [reports, setReports] = React.useState<AnalysisReport[]>([]);
   const [storyboards, setStoryboards] = React.useState<Storyboard[]>([]);
@@ -139,6 +148,15 @@ export default function ProfilePage() {
                         ? `今日剩余分析次数：${quota.remaining ?? 0} / ${quota.limit}`
                         : "今日剩余分析次数：加载中…"}
                 </p>
+                {quota && (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {quota.generation?.map((g) => {
+                      const label = g.operation === "strategy" ? "脚本" : g.operation === "review" ? "复盘" : g.operation;
+                      return `${label} ${g.remaining ?? 0}/${g.limit}`;
+                    }).join(" · ") || "生成额度：—"}
+                    {quota.resetAt ? ` · ${resetHint(quota.resetAt)}` : ""}
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">

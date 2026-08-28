@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -168,7 +169,7 @@ function ReengineerInner() {
       bgm: result.storyboard?.bgm,
       soundDesign: result.storyboard?.soundDesign,
     };
-    const res = await fetch("/api/viral-engine/export", {
+    const res = await fetchWithRetry("/api/viral-engine/export", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, payload }),

@@ -4,6 +4,8 @@
 import { chat, isConfigured } from "./llm";
 import { aiFailure, AI_ANALYSIS_FAILED } from "./ai-fallback";
 import type { PersonaCard } from "./persona";
+import type { DataQuality, DataSourceId } from "@/lib/data-platform/types";
+import { dataQualityLabel, dataQualityNote } from "@/lib/data-platform/types";
 
 export interface ReviewMetrics {
   plays?: number;
@@ -20,6 +22,9 @@ export interface ReviewResult {
   why: string;
   nextSteps: string[];
   learning: string;
+  dataQuality: DataQuality;
+  dataSource: DataSourceId;
+  dataSourceLabel: string;
 }
 
 function s(v: unknown, fallback = ""): string {
@@ -35,6 +40,7 @@ export async function runReview(input: {
   metrics: ReviewMetrics;
   note?: string;
   platform?: string;
+  dataSource?: DataSourceId;
 }): Promise<ReviewResult> {
   if (!isConfigured("deepseek")) {
     throw aiFailure(AI_ANALYSIS_FAILED, "数据复盘需要 DeepSeek 配置");
@@ -59,6 +65,10 @@ export async function runReview(input: {
     : "无关联脚本（仅凭数据与账号诊断）。";
 
   const m = input.metrics;
+  const hasMetrics =
+    [m.plays, m.likes, m.comments, m.completionRate, m.follows, m.conversions]
+      .some((v) => v !== undefined && v !== null && Number.isFinite(v));
+  const dq: DataQuality = input.dataSource && input.dataSource !== "manual" ? "platform" : hasMetrics ? "estimated" : "none";
   const metricsTxt = [
     `播放${m.plays ?? "未填"}`,
     `点赞${m.likes ?? "未填"}`,
@@ -87,5 +97,8 @@ export async function runReview(input: {
     why: s(parsed?.why, "暂未给出原因分析。"),
     nextSteps: arr(parsed?.nextSteps),
     learning: s(parsed?.learning, ""),
+    dataQuality: dq,
+    dataSource: input.dataSource ?? "manual",
+    dataSourceLabel: dataQualityLabel(dq),
   };
 }

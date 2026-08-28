@@ -40,3 +40,24 @@ export async function createVideoUploadTicket(): Promise<UploadTicket> {
     return { blobMode: false };
   }
 }
+
+/** 通用图片上传票据（账号截图 / 补充素材等；比视频更小，走 Blob 或本机） */
+export async function createImageUploadTicket(opts?: { pathPrefix?: string }): Promise<UploadTicket> {
+  const prefix = opts?.pathPrefix || "images";
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    return { blobMode: false };
+  }
+  try {
+    const pathname = `${prefix}/${randomUUID()}.png`;
+    const token = await generateClientTokenFromReadWriteToken({
+      pathname,
+      addRandomSuffix: true,
+      allowedContentTypes: ["image/png", "image/jpeg", "image/webp", "image/heic"],
+      maximumSizeInBytes: 20 * 1024 * 1024,
+    });
+    return { blobMode: true, pathname, token };
+  } catch (e) {
+    console.warn("[upload] 图片 Blob 令牌签发失败，回退本机上传：", e);
+    return { blobMode: false };
+  }
+}

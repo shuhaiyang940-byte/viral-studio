@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 import { Input } from "@/components/ui/input";
 import { PLAYBOOKS, type Playbook } from "@/lib/benchmarks";
 import { SideBySideScriptEditor, type EditorMine, type EditorSkeleton } from "@/components/side-by-side-editor";
@@ -56,7 +57,7 @@ function StudioInner() {
     setBusy(true);
     setError(null);
     try {
-      const res = await fetch("/api/repurpose", {
+      const res = await fetchWithRetry("/api/repurpose", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -92,7 +93,7 @@ function StudioInner() {
       bgm: (mine.shots?.[0]?.sfx || "").replace("轻铺底 BGM", ""),
       soundDesign: mine.soundDesign,
     };
-    const res = await fetch("/api/viral-engine/export", {
+    const res = await fetchWithRetry("/api/viral-engine/export", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, payload }),

@@ -74,3 +74,53 @@ interface DataSourceAdapter {
 3. **现有前端表单、页面结构、`/review` 写回人设逻辑全部不用动**。
 
 这样从「半真」到「真回流」是增量替换，不是重构。
+
+## 6. 现有 API 字段契约（前端 ⇄ 后端 对齐）
+
+### 6.1 `POST /api/clinic`（账号诊断）
+
+只接受**扁平字段**（禁止嵌套包裹，如 `accountData` / `metrics` / `data`）：
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `niche` | string | 是 | 11 赛道之一：生活/旅游/美食/情感/知识/美妆护肤/穿搭/母婴/剧情/搞笑/商业 |
+| `contentType` | string | 是 | `sell`（卖货）/ `talk`（口播） |
+| `platform` | string | 否 | 抖音/小红书/视频号/B站/TikTok |
+| `account` | string | 否 | 账号名 / 主页链接 |
+| `followers` | number | 否 | 粉丝量（万） |
+| `engagementRate` | number | 否 | 互动率（%） |
+| `avgPlays` | number | 否 | 近 20 条平均播放 |
+| `avgLikes` | number | 否 | 近 20 条平均点赞 |
+| `avgComments` | number | 否 | 近 20 条平均评论 |
+| `description` | string | 否 | 账号近况 / 选题描述 |
+| `sampleText` | string | 否 | 文案采样（近 1-3 条真实文案） |
+
+> 如提交未知键（含嵌套结构）→ `400 INVALID_FIELDS`，绝不会静默降级为模板假诊断。
+
+### 6.2 `POST /api/review`（数据复盘）
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| `assetId` | string | 否 | 关联策略脚本资源 id |
+| `title` | string | 否 | 复盘标题（≤120 字符） |
+| `note` | string | 否 | 备注（**必须是纯字符串**；传对象/数组 → `400 INVALID_NOTE`，避免中文键污染 LLM 上下文） |
+| `metrics` | object | 否 | 拍后数据，**仅接受英文键**：`plays` / `likes` / `comments` / `completionRate` / `follows` / `conversions`，其余键（含中文键）一律忽略 |
+
+> 含义：后端只认 English metric 键，中文键在数值层被丢弃。粘贴 CSV 时由前端 `PASTE_KEYS` 完成「中文→英文」映射后再提交。
+
+### 6.3 `GET /api/quota`（配额）
+
+返回分析配额 + 生成类配额（按 `operation` 分组：`strategy` / `review`）+ 重置时刻：
+
+```ts
+{
+  quota: {
+    limit: number | null,        // 分析每日上限；null = 不限（会员）
+    used: number,
+    remaining: number | null,
+    isPro: boolean,
+    generation: { operation: "strategy" | "review"; limit: number; used: number; remaining: number }[],
+    resetAt: string              // 下一个 UTC 0 点（= 我国次日 08:00）的 ISO 时间
+  }
+}
+```

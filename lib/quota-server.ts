@@ -18,6 +18,9 @@ function intEnv(name: string, fallback: number): number {
 
 export const ANON_DAILY_ANALYZE = intEnv("ANON_DAILY_ANALYZE", 3);
 
+/** 生成类操作枚举（用于配额展示；consumeGenerationQuota 按 operation 计数） */
+export const GENERATION_OPS = ["strategy", "review"] as const;
+
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -63,7 +66,7 @@ async function increment(key: string): Promise<number> {
 /** 取当前用户/匿名 IP 的配额主体信息 */
 export async function getQuotaForReq(
   req: NextRequest
-): Promise<{ userKey: string | null; ipKey: string; limit: number | null; isPro: boolean }> {
+): Promise<{ userKey: string | null; ipKey: string; limit: number | null; isPro: boolean; tier: string | null }> {
   const user = await getCurrentUser();
   if (user) {
     // 会员等级以数据库为准（JWT 是签发时快照，demo-upgrade 后可能滞后）
@@ -86,6 +89,7 @@ export async function getQuotaForReq(
       ipKey: `analyze:ip:${clientIp(req)}:`,
       limit: ent.dailyAnalyze,
       isPro,
+      tier,
     };
   }
   return {
@@ -93,15 +97,70 @@ export async function getQuotaForReq(
     ipKey: `analyze:ip:${clientIp(req)}:`,
     limit: ANON_DAILY_ANALYZE,
     isPro: false,
+    tier: null,
   };
 }
 
-/** 只读配额（供 /api/quota 展示） */
+/** 下一个配额重置时刻（UTC 0 点 = 我国时区次日 08:00）。返回 ISO 字符串，前端按本地时区展示。 */
+function nextResetAtIso(): string {
+  const now = new Date();
+  const nextUtcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1, 0, 0, 0));
+  return nextUtcMidnight.toISOString();
+}
+
+export interface GenerationQuotaInfo {
+  /** operation 名（strategy / review 等） */
+  operation: string;
+  /** 每小时/每日上限；null 表示不限 */
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+}
+
+export interface QuotaInfo {
+  /** null 表示不限次（会员） */
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  /** 是否登录（会员判断依据） */
+  isPro: boolean;
+  /** 生成类（脚本/复盘等）额度，按 operation 分组 */
+  generation: GenerationQuotaInfo[];
+  /** 配额重置时刻（ISO，前端按本地时区展示 = 我国次日 08:00） */
+  resetAt: string;
+}
+
+/** 读取指定用户各"生成类"操作的配额使用情况（仅登录态；匿名无生成配额展示） */
+async function readGenerationQuota(
+  userId: string,
+  tier: string | null | undefined
+): Promise<GenerationQuotaInfo[]> {
+  const out: GenerationQuotaInfo[] = [];
+  const lim = generateLimitFor(tier);
+  for (const operation of GENERATION_OPS) {
+    const key = `gen:${operation}:user:${userId}:`;
+    const used = await readCount(key);
+    out.push({
+      operation,
+      limit: lim,
+      used,
+      remaining: used >= lim ? 0 : lim - used,
+    });
+  }
+  return out;
+}
+
+/** 只读配额（供 /api/quota 展示）：分析额度 + 生成额度 + 重置时刻 */
 export async function getQuotaInfo(req: NextRequest): Promise<QuotaInfo> {
-  const { userKey, ipKey, limit, isPro } = await getQuotaForReq(req);
-  if (limit === null) return { limit: null, used: 0, remaining: null, isPro: true };
+  const { userKey, ipKey, limit, isPro, tier } = await getQuotaForReq(req);
+  const generation = userKey
+    ? await readGenerationQuota(userKey.split(":")[2], tier)
+    : [];
+  if (limit === null) {
+    return { limit: null, used: 0, remaining: null, isPro: true, generation, resetAt: nextResetAtIso() };
+  }
   const used = await readCount(userKey ?? ipKey);
-  return { limit, used, remaining: Math.max(0, limit - used), isPro };
+  return { limit, used, remaining: Math.max(0, limit - used), isPro, generation, resetAt: nextResetAtIso() };
 }
 
 export type QuotaCheck =

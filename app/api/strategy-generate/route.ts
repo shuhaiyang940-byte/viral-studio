@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
   const g = await guardAiRequest(req, "creative");
   if (!g.ok) return g.res;
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "为了您的体验，请先登录", code: "UN_AUTHED" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const reference = String(body.reference || "").trim().slice(0, 2000);

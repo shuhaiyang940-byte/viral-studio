@@ -41,6 +41,7 @@ import { useSession } from "@/lib/auth";
 import { fetchQuota, type ClientQuota } from "@/lib/quota-client";
 import { put } from "@vercel/blob/client";
 import { selectAnalyzeEndpoint } from "@/lib/creation-input";
+import { fetchWithRetry } from "@/lib/fetch-retry";
 
 const PIPELINE = [
   { icon: Upload, label: "上传视频" },
@@ -127,7 +128,7 @@ export default function AnalyzePage() {
         mode === "upload" && file
           ? await (async () => {
               // 优先走服务器化直传（Vercel Blob）：先拿预签名票据
-              const ticket = await fetch("/api/analyze/upload-url", {
+              const ticket = await fetchWithRetry("/api/analyze/upload-url", {
                 method: "POST",
               })
                 .then((r) => r.json())
@@ -139,7 +140,7 @@ export default function AnalyzePage() {
                   contentType: file.type || "video/mp4",
                   multipart: file.size > 8 * 1024 * 1024,
                 });
-                return fetch("/api/analyze/url", {
+                return fetchWithRetry("/api/analyze/url", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
@@ -157,9 +158,9 @@ export default function AnalyzePage() {
               fd.append("refType", refType);
               fd.append("profile", profile ? JSON.stringify(profile) : "");
               fd.append("requestId", requestId);
-              return fetch("/api/analyze/upload", { method: "POST", body: fd });
+              return fetchWithRetry("/api/analyze/upload", { method: "POST", body: fd });
             })()
-          : await fetch(selectAnalyzeEndpoint(mode), {
+          : await fetchWithRetry(selectAnalyzeEndpoint(mode), {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
@@ -175,7 +176,14 @@ export default function AnalyzePage() {
         if (report?.code === "QUOTA_EXCEEDED") {
           setLoading(false);
           setStep(-1);
-          setQuota({ limit: report.quota?.limit ?? 1, used: 1, remaining: 0, isPro: false });
+          setQuota({
+            limit: report.quota?.limit ?? 1,
+            used: 1,
+            remaining: 0,
+            isPro: false,
+            generation: report.quota?.generation ?? [],
+            resetAt: report.quota?.resetAt ?? "",
+          });
           return;
         }
         throw new Error(report.error || "分析失败，请重试");

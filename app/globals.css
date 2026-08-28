@@ -139,3 +139,13 @@
   mask-composite: exclude;
   pointer-events: none;
 }
+
+/* Button 图标统一尺寸。
+   原本用 Tailwind 的「父选择器」任意变体（内含连接符）会生成含连接符的选择器，
+   被 Next 15.5 的 css-loader 误判为资源引用导致构建失败；
+   改成本 class 后视觉等价，且构建可过。 */
+.btn-svg svg {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+}

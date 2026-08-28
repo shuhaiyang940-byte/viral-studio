@@ -6,14 +6,14 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "为了您的体验，请先登录", code: "UN_AUTHED" }, { status: 401 });
   const card = await getPersonaCard(user.id);
   return NextResponse.json({ card });
 }
 
 export async function POST(req: NextRequest) {
   const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: "请先登录" }, { status: 401 });
+  if (!user) return NextResponse.json({ error: "为了您的体验，请先登录", code: "UN_AUTHED" }, { status: 401 });
   const body = await req.json().catch(() => ({}));
   const card = await savePersonaCard(user.id, {
     personaTags: Array.isArray(body.personaTags) ? body.personaTags.map((x: any) => String(x)).slice(0, 8) : [],
