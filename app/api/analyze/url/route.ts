@@ -17,11 +17,16 @@ export const dynamic = "force-dynamic";
 export async function POST(req: NextRequest) {
   const g = await guardAiRequest(req, "analyze");
   if (!g.ok) return g.res;
-  const quota = await checkAnalyzeQuota(req);
+  // 诊断模式：读取 diag 标记，走独立的诊断配额（不占用普通"每日1次"）
+  const bodyPrelim = await req.json().catch(() => ({}));
+  const isDiag = bodyPrelim.diag === true;
+  const quota = await checkAnalyzeQuota(req, { mode: isDiag ? "diag" : "normal" });
   if (!quota.ok) {
     return NextResponse.json(
       {
-        error: "今日免费额度已用完，请明日再试。",
+        error: isDiag
+          ? "今日账号诊断额度已用完，请明日再试。"
+          : "今日免费额度已用完，请明日再试。",
         code: "QUOTA_EXCEEDED",
         quota: { limit: quota.limit, remaining: quota.remaining },
       },
@@ -29,7 +34,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const body = await req.json().catch(() => ({}));
+  const body = bodyPrelim;
   const videoUrl = String(body.videoUrl ?? "").trim();
   if (!/^https?:\/\//i.test(videoUrl)) {
     return NextResponse.json({ error: "缺少有效的视频 URL" }, { status: 400 });

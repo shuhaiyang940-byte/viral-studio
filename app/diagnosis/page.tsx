@@ -24,6 +24,8 @@ interface VideoItem {
   stage: "uploading" | "analyzing" | "done" | "error";
   /** 上传进度 0-100 */
   progress: number;
+  /** 分析阶段文案（AI 在做什么），用于进度感 */
+  phase?: string;
   report?: any;
   error?: string;
 }
@@ -106,19 +108,28 @@ export default function DiagnosisPage() {
       return data;
     }
     // ② 分析：明确切到"分析中"阶段（真正耗时在这，Qwen-VL 看视频）
-    setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "analyzing", progress: 100 } : it)));
+    setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "analyzing", progress: 100, phase: "① 读取视频画面…（约30~90秒）" } : it)));
     diagLog({ step: "analyze_start", fileName: file.name, fileSize: file.size });
+    // 分析阶段推进：Qwen-VL 看画面 → 转写语音 → LLM 生成报告。按耗时推进，给用户"AI 正在做什么"的进度感。
+    const phases = ["① 读取视频画面…", "② 转写语音…", "③ 生成结构化分析…"];
+    let pi = 0;
+    const phaseTimer = setInterval(() => {
+      pi = Math.min(pi + 1, phases.length - 1);
+      setVideos((v) => v.map((it) => (it.id === id ? { ...it, phase: phases[pi] } : it)));
+    }, 20000);
     try {
       const res = await fetchWithRetry("/api/analyze/url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ videoUrl: url, title: file.name, refType: "auto" }),
+        body: JSON.stringify({ videoUrl: url, title: file.name, refType: "auto", diag: true }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "视频分析失败");
+      clearInterval(phaseTimer);
       diagLog({ step: "analyze_done", fileName: file.name, fileSize: file.size, ok: true });
       return data;
     } catch (e: any) {
+      clearInterval(phaseTimer);
       diagLog({ step: "analyze_error", fileName: file.name, fileSize: file.size, ok: false, detail: e?.message || "分析异常" });
       throw e;
     }
@@ -322,7 +333,9 @@ export default function DiagnosisPage() {
                     />
                   )}
                   {v.stage === "analyzing" && (
-                    <p className="mt-1 text-[11px] text-muted-foreground">正在让 AI 看视频（约 30~90 秒），请稍候…</p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {v.phase || "正在让 AI 分析视频（约 30~90 秒）…"}
+                    </p>
                   )}
                   {v.error && <span className="text-xs text-destructive">{v.error}</span>}
                 </li>

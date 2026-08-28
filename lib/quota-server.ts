@@ -167,16 +167,36 @@ export type QuotaCheck =
   | { ok: true; remaining: number | null; limit: number | null }
   | { ok: false; remaining: number; limit: number };
 
-/** 分析前调用：消耗一次配额，超限返回失败（会员/开发模式不消耗） */
-export async function checkAnalyzeQuota(req: NextRequest): Promise<QuotaCheck> {
+/**
+ * 分析前调用：消耗一次配额，超限返回失败（会员/开发模式不消耗）。
+ * mode="diag"：账号诊断专用配额，不占用普通"每日分析"（免费仅 1 次/天），
+ * 因为一次诊断往往要分析多个视频，普通配额根本撑不住。
+ *  - 登录用户：DIAG_DAILY_ANALYZE（默认 10 次/天）
+ *  - 匿名用户：ANON_DIAG_DAILY_ANALYZE（默认 5 次/天，防刷）
+ */
+export async function checkAnalyzeQuota(
+  req: NextRequest,
+  opts?: { mode?: "normal" | "diag" }
+): Promise<QuotaCheck> {
   const { userKey, ipKey, limit, isPro } = await getQuotaForReq(req);
   void isPro; // 档位差异已由 limit 体现（免费 1 / 创作者 5 / 进阶+ 不限）
-  if (limit === null) return { ok: true, remaining: null, limit: null };
-  if (!hasDatabase()) return { ok: true, remaining: limit, limit };
-  const key = userKey ?? ipKey;
+  const isDiag = opts?.mode === "diag";
+  const diagLimit = isDiag
+    ? userKey
+      ? intEnv("DIAG_DAILY_ANALYZE", 10)
+      : intEnv("ANON_DIAG_DAILY_ANALYZE", 5)
+    : null;
+  const effLimit = isDiag ? diagLimit : limit;
+  if (effLimit === null) return { ok: true, remaining: null, limit: null };
+  if (!hasDatabase()) return { ok: true, remaining: effLimit, limit: effLimit };
+  const key = isDiag
+    ? userKey
+      ? `analyze:diag:user:${userKey.split(":")[2]}:`
+      : `analyze:diag:ip:${ipKey.split(":")[2]}:`
+    : userKey ?? ipKey;
   const count = await increment(key);
-  if (count <= limit) return { ok: true, remaining: limit - count, limit };
-  return { ok: false, remaining: 0, limit };
+  if (count <= effLimit) return { ok: true, remaining: effLimit - count, limit: effLimit };
+  return { ok: false, remaining: 0, limit: effLimit };
 }
 
 /**
