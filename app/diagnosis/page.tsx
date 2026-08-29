@@ -468,6 +468,11 @@ function DiagnosisResult({ r }: { r: any }) {
             {d.suggestion && (<div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2.5"><p className="text-xs font-medium text-emerald-600 dark:text-emerald-300">建议</p><p className="text-sm">{d.suggestion}</p></div>)}
           </CardContent></Card>))}</div>
         </div>
+        {rep.platform && (<Card className="mt-3"><CardContent className="space-y-1.5 p-4">
+          <div className="flex items-center gap-2"><Badge variant="secondary">更适合的平台</Badge><p className="text-sm font-semibold">{rep.platform.best}</p></div>
+          <p className="text-sm text-muted-foreground">{rep.platform.reason}</p>
+          {rep.platform.adaptSuggestions?.length > 0 && (<ul className="mt-1 space-y-1 text-sm">{rep.platform.adaptSuggestions.map((s: string, j: number) => <li key={j} className="flex gap-1.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{s}</li>)}</ul>)}
+        </CardContent></Card>)}
         {rep.warnings?.length > 0 && (<div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-[11px] text-muted-foreground"><p className="font-medium">暂无法确认</p>{rep.warnings.map((w: string, j: number) => <p key={j}>· {w}</p>)}</div>)}
       </div>
     );

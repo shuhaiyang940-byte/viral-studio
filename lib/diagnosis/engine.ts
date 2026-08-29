@@ -88,6 +88,7 @@ interface VisualDiagnosis {
 interface ReportDiagnosis {
   verdict: { kind: "production" | "expression" | "performance"; summary: string; production: string; expression: string; performance: string };
   topIssues: { title: string; severity: number; layer: string; problem: string; evidence: { timestamp: string; observation: string }[]; suggestion: string }[];
+  platform?: { best: string; reason: string; adaptSuggestions: string[] };
   warnings: string[];
 }
 
@@ -98,23 +99,24 @@ async function generateReportDiagnosis(
 ): Promise<ReportDiagnosis | null> {
   const visuals = evidences.filter((e) => e.visualSummary).map((e) => `视频《${e.title || "未命名"}》画面：${e.visualSummary}`);
   const transcripts = evidences.filter((e) => e.transcript).map((e) => `视频《${e.title || "未命名"}》转写：${e.transcript}`).slice(0, 2);
-  if (!visuals.length && !transcripts.length) return null;
+  const titles = evidences.map((e) => e.title).filter(Boolean).slice(0, 3);
+  if (!evidences.length) return null;
   const lines = [
-    "你是资深短视频内容诊断专家。这是用户视频的真实【画面描述】和【语音转写】。请做'报告式诊断'，严禁套模板，必须具体到该视频。",
+    "你是资深短视频运营专家，给用户做'报告式诊断'：要具体、有理有据、有说服力、能落地。",
     "",
-    `画面描述：\n${visuals.join("\n") || "(暂无)"}`,
-    "",
-    `语音转写：\n${transcripts.join("\n") || "(暂无)"}`,
-    "",
+    "【视频信息】",
+    `标题：${titles.join(" / ") || "(未知)"}`,
+    `画面理解：${visuals.join("\n") || "(暂无，未提供封面/截图)"}`,
+    `语音转写：${transcripts.join("\n") || "(暂无)"}`,
     `互动数据：互动率${manual.engagementRate ?? "未知"}%，平均点赞${manual.avgLikes ?? "未知"}，平均评论${manual.avgComments ?? "未知"}。`,
     "",
-    "输出 JSON，遵守：",
-    "- **反 AI 胡说**：每条结论必须能指回'时间戳或具体语句/画面'作证据。无法可靠测量的（如感染力）不写。镜头/声音/曝光这些没有时间轴检测数据的，放 warnings，不硬编进 topIssues。",
-    "- 先判断 内容类型/表达形式/目的（从画面+转写推断），再下结论；同一个'镜头久'在不同视频里结论不同。",
-    "- **不要平均打分**：只给'最值得改的 3~5 个问题'。",
-    "- 综合判断要区分：制作质量 vs 表达 vs 表现潜力。",
+    "输出 JSON，必须遵守：",
+    "- **反 AI 胡说**：每条结论要有证据（指回具体语句/画面/时间）。无法可靠测量的不写；镜头/声音/曝光这类没检测数据的放 warnings。",
+    "- **每条建议要有说服力**：说明'为什么值得改'——用行业通用规律/爆款逻辑（如：前 3 秒是留存关键窗口，多数爆款都在 3 秒内给结果或冲突；开头给承诺却迟迟不兑现会显著掉留存）。**严禁编造具体报告名或精确百分比**（如'据XX报告提升37%'）；要用数字就标'行业通用参考，非特定报告'。",
+    "- **判断更适合哪个平台**：结合内容类型/形式/时长/受众，给 best(抖音/小红书/B站/视频号) + 理由 + 平台适配建议。",
+    "- **不要平均打分**：只给最值得改的 3~5 个问题。",
     "",
-    '{"verdict":{"kind":"production|expression|performance","summary":"一句话综合判断(如:不是拍得不好,主要问题在开头价值兑现慢)","production":"良好/中等/偏弱","expression":"中等/偏弱","performance":"中等/偏弱"},"topIssues":[{"title":"开头价值兑现慢","severity":5,"layer":"expression","problem":"前13秒没提供明确新信息","evidence":[{"timestamp":"00:00-00:13","observation":"开头承诺了三个方法,但13秒才出现第一个具体方法"}],"suggestion":"把00:13的核心观点提前到00:02"}],"warnings":["镜头/声音/曝光分析暂缺(需时间轴检测,当前未提供)"]}',
+    '{"verdict":{"kind":"production|expression|performance","summary":"一句话综合判断","production":"良好/中等/偏弱","expression":"中等/偏弱","performance":"中等/偏弱"},"topIssues":[{"title":"开头价值兑现慢","severity":5,"layer":"expression","problem":"前13秒没提供明确新信息","evidence":[{"timestamp":"00:00-00:13","observation":"开头承诺了三个方法,13秒才出现第一个"}],"suggestion":"把核心观点提前到00:02；因为前3秒是留存关键窗口,早给结果能显著减少流失(行业通用参考,非特定报告)"}],"platform":{"best":"小红书","reason":"情绪/实用类内容与小红书更契合,篇幅适配","adaptSuggestions":["封面加情绪关键词","开头3秒直接给结论"]},"warnings":["镜头/声音/曝光分析暂缺(需时间轴检测,当前未提供)"]}',
   ].join("\n");
   try {
     const text = await chat("deepseek", [{ role: "user", content: lines }], {
