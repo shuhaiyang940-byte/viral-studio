@@ -107,43 +107,39 @@ export default function DiagnosisPage() {
   function extractFrames(url: string, count = 3): Promise<string[]> {
     return new Promise((resolve) => {
       const out: string[] = [];
-      let video: HTMLVideoElement | null = null;
       let done = false;
       const finish = () => { if (!done) { done = true; resolve(out); } };
-      try {
-        video = document.createElement("video");
-        video.crossOrigin = "anonymous";
-        video.muted = true;
-        video.playsInline = true;
-        video.preload = "auto";
-        video.src = url;
-        video.onerror = finish;
-        video.onloadedmetadata = () => {
-          const total = video?.duration || 0;
-          if (!total || !Number.isFinite(total)) { finish(); return; }
-          try { video!.play()?.catch(() => {}); } catch { /* 自动播放受限，seek 仍可加载帧 */ }
-          const pts = [0.02, 0.5, 0.9].map((p) => Math.max(0.1, Math.min(total - 0.1, total * p))).slice(0, count);
-          let i = 0;
-          const grab = () => {
-            try {
-              const canvas = document.createElement("canvas");
-              canvas.width = video!.videoWidth || 320;
-              canvas.height = video!.videoHeight || 640;
-              const ctx = canvas.getContext("2d");
-              if (ctx) { ctx.drawImage(video!, 0, 0, canvas.width, canvas.height); out.push(canvas.toDataURL("image/jpeg", 0.7)); }
-            } catch { /* 跨域/安全 → 该帧失败 */ }
+      // 先 fetch 下载成本地 Blob（同源），用 <video> 播 Blob，canvas 截帧不会跨域 taint。
+      fetch(url, { signal: AbortSignal.timeout(60000) })
+        .then((res) => res.blob())
+        .then((blob) => {
+          const video = document.createElement("video");
+          video.muted = true;
+          video.playsInline = true;
+          video.preload = "auto";
+          video.src = URL.createObjectURL(blob);
+          video.onerror = finish;
+          video.onloadeddata = () => {
+            const total = video.duration || 0;
+            if (!total || !Number.isFinite(total)) { finish(); return; }
+            const pts = [0.03, 0.5, 0.9].map((p) => Math.max(0.1, Math.min(total - 0.1, total * p))).slice(0, count);
+            let i = 0;
+            const grab = () => {
+              try {
+                const canvas = document.createElement("canvas");
+                canvas.width = video.videoWidth || 320;
+                canvas.height = video.videoHeight || 640;
+                const ctx = canvas.getContext("2d");
+                if (ctx) { ctx.drawImage(video, 0, 0, canvas.width, canvas.height); out.push(canvas.toDataURL("image/jpeg", 0.7)); }
+              } catch { /* 该帧失败 */ }
+            };
+            const next = () => { if (i >= pts.length) { finish(); return; } video.currentTime = pts[i]; };
+            video.onseeked = () => { grab(); i += 1; next(); };
+            next();
           };
-          const next = () => {
-            if (i >= pts.length) { finish(); return; }
-            video!.currentTime = pts[i];
-          };
-          video!.onseeked = () => { grab(); i += 1; next(); };
-          next();
-        };
-        setTimeout(finish, 20000);
-      } catch {
-        finish();
-      }
+          setTimeout(finish, 30000);
+        })
+        .catch(() => finish());
     });
   }
 
