@@ -33,6 +33,7 @@ export default function DiagnosisPage() {
   const router = useRouter();
   const [videos, setVideos] = React.useState<VideoItem[]>([]);
   const [screenshots, setScreenshots] = React.useState<{ url: string }[]>([]);
+  const [coverFrames, setCoverFrames] = React.useState<string[]>([]);
   const [manual, setManual] = React.useState({ followers: "", engagementRate: "", avgPlays: "", avgLikes: "", avgComments: "", avgShares: "" });
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -68,7 +69,8 @@ export default function DiagnosisPage() {
     const publicUrl = `${sig.host}/${sig.key}`;
     diagLog({ step: "oss_upload_done", fileName: file.name, fileSize: file.size, ok: true, detail: publicUrl });
     diagLog({ step: "frames_extract", fileName: file.name, fileSize: file.size });
-    const frames = await extractFrames(publicUrl);
+    // 优先用用户上传的视频封面/首帧图（图片→千问，跨域稳定）；否则自动截帧(部分浏览器可能失败)
+    const frames = coverFrames.length ? coverFrames : await extractFrames(publicUrl);
     diagLog({ step: "frames_result", fileName: file.name, fileSize: file.size, ok: frames.length > 0, detail: `${frames.length} 帧` });
     return doAnalyze({ videoUrl: publicUrl, title: file.name, refType: "auto", diag: true, frames }, id, file);
   }
@@ -100,6 +102,17 @@ export default function DiagnosisPage() {
       xhr.onabort = () => reject(new Error("上传已取消"));
       xhr.ontimeout = () => reject(new Error("上传超时"));
       xhr.send(fd);
+    });
+  }
+
+  /** 读取用户上传的视频封面/首帧图为 base64（给千问看图，跨域稳定），最多 3 张 */
+  function readCovers(files: FileList | null) {
+    if (!files) return;
+    const list = Array.from(files).filter((f) => f.type.startsWith("image/")).slice(0, 3);
+    list.forEach((f) => {
+      const r = new FileReader();
+      r.onload = () => setCoverFrames((prev) => (prev.length >= 3 ? prev : [...prev, String(r.result)]));
+      r.readAsDataURL(f);
     });
   }
 
@@ -326,6 +339,21 @@ export default function DiagnosisPage() {
               <Upload className="h-4 w-4" /> 上传视频
               <input type="file" accept="video/*" multiple className="hidden" onChange={(e) => { onFiles(e.target.files); e.target.value = ""; }} />
             </label>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-dashed border-border px-3 py-1.5 text-xs text-muted-foreground hover:border-foreground/30">
+                <Camera className="h-3.5 w-3.5" /> 或上传视频封面/首帧图（可选，画面分析更准）
+                <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => { readCovers(e.target.files); e.target.value = ""; }} />
+              </label>
+              {coverFrames.length > 0 && (
+                <div className="flex gap-1.5">
+                  {coverFrames.map((img, i) => (
+                    <div key={i} className="relative h-10 w-16 overflow-hidden rounded border border-border">
+                      <img src={img} className="h-full w-full object-cover" alt={`封面${i + 1}`} />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           {videos.length > 0 && (
             <ul className="space-y-2">
