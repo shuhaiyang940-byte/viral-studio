@@ -14,6 +14,17 @@ export default function CreationPage() {
   const [err, setErr] = React.useState<string | null>(null);
   const [res, setRes] = React.useState<any>(null);
 
+  // 从 URL query 预填（从首页"生成我的原创策略脚本"跳转进来）
+  React.useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const upd: any = {};
+    if (sp.get("domain")) upd.domain = sp.get("domain");
+    if (sp.get("product")) upd.product = sp.get("product");
+    if (sp.get("style")) upd.style = sp.get("style");
+    if (sp.get("requirement")) upd.requirement = sp.get("requirement");
+    if (Object.keys(upd).length) setF((p) => ({ ...p, ...upd }));
+  }, []);
+
   async function go() {
     if (!f.domain.trim() || !f.product.trim()) { setErr("请至少填「赛道」和「产品」"); return; }
     setLoading(true); setErr(null);

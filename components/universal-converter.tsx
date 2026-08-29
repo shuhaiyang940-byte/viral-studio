@@ -27,31 +27,18 @@ export function UniversalConverter() {
 
   function go() {
     const ta = text.trim();
-    // 1) 什么都没填：不硬跳，明确提示（避免"点了没反应/跳到无关页"）
-    if (!ta && !product.trim()) {
-      setHint("请先粘贴一个视频链接，或填一个主题 / 创作方向，再点生成");
+    // 统一进入「创作工坊」：生成产品级原创脚本 + 分镜（不做分流，避免跳到"文案拆解"等）
+    if (!ta && !product.trim() && !niche.trim()) {
+      setHint("请至少填一个赛道或产品，再点生成");
       return;
     }
     const params = new URLSearchParams();
-    if (ta) params.set("text", ta);
+    if (niche.trim()) params.set("domain", niche.trim());
     if (product.trim()) params.set("product", product.trim());
-    if (persona.trim()) params.set("persona", persona.trim());
-    if (platform.trim()) params.set("platform", platform.trim());
-    if (niche) params.set("niche", niche);
-    const isLink = /douyin|iesdouyin|tiktok|xiaohongshu|xhslink|bilibili|b23|weixin|channels|http|https|www\./i.test(ta);
+    if (persona.trim()) params.set("style", persona.trim());
+    if (ta) params.set("requirement", ta);
     const to = (p: string) => router.push(session ? p : `/login?redirect=${encodeURIComponent(p)}`);
-    // 2) 视频链接 → 去"拆解/分析"这个视频
-    if (isLink) {
-      to(`/analyze?url=${encodeURIComponent(ta)}`);
-      return;
-    }
-    // 3) 文案 / 主题 → 去"用它创作/复刻"
-    if (ta) {
-      to(`/reengineer?${params}`);
-      return;
-    }
-    // 4) 只填了产品/赛道（没填文案）→ 走三栏画布
-    to(`/studio?${params}`);
+    to(`/creation?${params.toString()}`);
   }
 
   return (
@@ -86,18 +73,15 @@ export function UniversalConverter() {
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-[11px] text-muted-foreground">我的赛道</label>
-            <input
-              list="niche-options"
+            <select
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
-              placeholder="赛道 / 内容类型，如：日常记录 VLOG、知识口播、美妆种草…（可自由输入）"
               className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm"
-            />
-            <datalist id="niche-options">
+            >
               {NICHES.map((n) => (
-                <option key={n} value={n} />
+                <option key={n} value={n}>{n}</option>
               ))}
-            </datalist>
+            </select>
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-muted-foreground">我的主题 / 创作方向（不卖东西就填主题）</label>
