@@ -156,6 +156,18 @@ export async function understandVideoUrl(
     };
   }
 
+  // 无画面来源（封面帧）且不是 base64 data URL：当前环境（Vercel 跨境）无法可靠调千问看视频，
+  // 直接降级为"无画面"，避免长挂（240s 超时）；有封面图/截帧时走图片（稳定）。
+  if (!frames?.length && !videoUrl.startsWith("data:")) {
+    return {
+      summary: "",
+      mode: "none",
+      frameCount: 0,
+      note: "未提供封面/首帧图，且当前环境无法稳定调用视频画面理解；建议上传视频封面/首帧图以获得画面分析",
+      transcript: undefined,
+    };
+  }
+
   try {
     const prompt = `你是短视频画面分析专家。下面是一段短视频的公网文件：${videoUrl}
 视频标题：${title || "未知"}，参考类型：${refType || "未知"}。

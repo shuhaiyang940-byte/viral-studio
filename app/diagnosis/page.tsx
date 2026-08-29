@@ -285,7 +285,8 @@ export default function DiagnosisPage() {
       // 对"已上传未分析"的视频，用用户封面图（或自动截帧）做画面分析，再合并所有报告
       const reports: any[] = [...doneReports];
       for (const v of pending) {
-        const frames = coverFrames.length ? coverFrames : await extractFrames(v.url!);
+        // 只用用户上传的封面图（图片→千问 稳定）；没封面图就直接降级，不去"看视频"（Vercel 跨境会挂很久）
+        const frames = coverFrames;
         diagLog({ step: "frames_result", fileName: v.name, fileSize: v.fileSize, ok: frames.length > 0, detail: `${frames.length} 帧（封面/截帧）` });
         const report = await doAnalyze({ videoUrl: v.url, title: v.name, refType: "auto", diag: true, frames }, v.id, v.name, v.fileSize);
         setVideos((prev) => prev.map((it) => (it.id === v.id ? { ...it, stage: "done", report } : it)));
