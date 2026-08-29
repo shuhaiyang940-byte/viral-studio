@@ -31,7 +31,9 @@ export interface AnalyzeInput {
  * 全链路国内，规避 Gemini 国外信号不稳 + 价格贵的问题。
  */
 export async function analyzeVideo(input: AnalyzeInput): Promise<AnalysisReport> {
-  const provider = (process.env.AI_PROVIDER || "mock").toLowerCase();
+  // 分析生成统一用 DeepSeek（文本生成相对稳定，且不依赖会被 Vercel 标 sensitive 的 AI_PROVIDER 注入）；
+  // 画面理解仍由 understandVideoUrl 用千问看图处理（独立）。
+  const provider: string = "deepseek";
 
   if (provider === "mock") {
     if (isProd() && !allowMockFallback()) {
