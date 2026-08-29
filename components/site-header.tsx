@@ -45,9 +45,7 @@ export function SiteHeader() {
             { label: "爆款拆解", href: "/studio" },
             { label: "爆款策略顾问", href: "/strategy" },
             { label: "找对标黑马", href: "/find-peer" },
-            { label: "账号诊断所", href: "/clinic" },
-            { label: "证据诊断", href: "/diagnosis" },
-            { label: "复盘", href: "/review" },
+            { label: "账号诊断", href: "/diagnosis" },
             { label: "创意选题", href: "/ideas" },
             { label: "我的创作", href: "/history" },
           ].map((n) => (
