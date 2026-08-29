@@ -444,6 +444,33 @@ export default function DiagnosisPage() {
 }
 
 function DiagnosisResult({ r }: { r: any }) {
+  if (r.report) {
+    const rep = r.report;
+    return (
+      <div className="mt-6 space-y-5">
+        <Card className="border-primary/30"><CardContent className="space-y-3 p-6">
+          <div className="flex items-center gap-2"><Badge variant="secondary">视频诊断</Badge><span className="text-xs text-muted-foreground">基于你上传的视频 + {r.availableCount} 个参考</span></div>
+          <p className="text-sm font-semibold">综合判断</p>
+          <p className="text-sm">{rep.verdict?.summary}</p>
+          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+            <span>制作质量：{rep.verdict?.production || "—"}</span>
+            <span>内容表达：{rep.verdict?.expression || "—"}</span>
+            <span>表现潜力：{rep.verdict?.performance || "—"}</span>
+          </div>
+        </CardContent></Card>
+        <div>
+          <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold"><Target className="h-5 w-5 text-primary" /> 最值得修改的 {rep.topIssues?.length || 0} 处</h2>
+          <div className="space-y-3">{(rep.topIssues || []).map((d: any, i: number) => (<Card key={i}><CardContent className="space-y-2 p-4">
+            <div className="flex items-center gap-2"><Badge variant="warning">{"★".repeat(Math.max(1, Math.min(5, d.severity || 1)))}</Badge><p className="text-sm font-semibold">{d.title}</p></div>
+            <p className="text-sm text-muted-foreground">{d.problem}</p>
+            {d.evidence?.length > 0 && (<div className="rounded-md border border-border/70 bg-muted/20 p-2.5 text-[11px] text-muted-foreground"><p className="font-medium">证据：</p>{d.evidence.map((e: any, j: number) => <p key={j}>· {e.timestamp}：{e.observation}</p>)}</div>)}
+            {d.suggestion && (<div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2.5"><p className="text-xs font-medium text-emerald-600 dark:text-emerald-300">建议</p><p className="text-sm">{d.suggestion}</p></div>)}
+          </CardContent></Card>))}</div>
+        </div>
+        {rep.warnings?.length > 0 && (<div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-[11px] text-muted-foreground"><p className="font-medium">暂无法确认</p>{rep.warnings.map((w: string, j: number) => <p key={j}>· {w}</p>)}</div>)}
+      </div>
+    );
+  }
   return (
     <div className="mt-6 space-y-5">
       <Card className="border-primary/30">

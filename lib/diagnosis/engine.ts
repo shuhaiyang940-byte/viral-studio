@@ -52,6 +52,8 @@ export interface DiagnosisResult {
   evidenceSufficient: boolean;
   availableCount: number;
   totalVideos: number;
+  /** 报告式诊断（综合判断 + 最值得改的 3-5 处 + 证据 + 反 AI 胡说） */
+  report?: ReportDiagnosis;
 }
 
 function clamp(n: number, lo = 0, hi = 100): number {
@@ -81,6 +83,52 @@ interface VisualDiagnosis {
   emotion?: string;
   pacing?: string;
   diagnoses?: { severity: "high" | "medium" | "low"; title: string; detail: string; howToImprove: string[] }[];
+}
+
+interface ReportDiagnosis {
+  verdict: { kind: "production" | "expression" | "performance"; summary: string; production: string; expression: string; performance: string };
+  topIssues: { title: string; severity: number; layer: string; problem: string; evidence: { timestamp: string; observation: string }[]; suggestion: string }[];
+  warnings: string[];
+}
+
+/** 报告式诊断：LLM 基于画面+转写+数据，给出综合判断 + 最值得改的 3-5 处 + 证据；反 AI 胡说（无证据不写）。 */
+async function generateReportDiagnosis(
+  evidences: ContentEvidence[],
+  manual: { engagementRate?: number; avgLikes?: number; avgComments?: number }
+): Promise<ReportDiagnosis | null> {
+  const visuals = evidences.filter((e) => e.visualSummary).map((e) => `视频《${e.title || "未命名"}》画面：${e.visualSummary}`);
+  const transcripts = evidences.filter((e) => e.transcript).map((e) => `视频《${e.title || "未命名"}》转写：${e.transcript}`).slice(0, 2);
+  if (!visuals.length && !transcripts.length) return null;
+  const lines = [
+    "你是资深短视频内容诊断专家。这是用户视频的真实【画面描述】和【语音转写】。请做'报告式诊断'，严禁套模板，必须具体到该视频。",
+    "",
+    `画面描述：\n${visuals.join("\n") || "(暂无)"}`,
+    "",
+    `语音转写：\n${transcripts.join("\n") || "(暂无)"}`,
+    "",
+    `互动数据：互动率${manual.engagementRate ?? "未知"}%，平均点赞${manual.avgLikes ?? "未知"}，平均评论${manual.avgComments ?? "未知"}。`,
+    "",
+    "输出 JSON，遵守：",
+    "- **反 AI 胡说**：每条结论必须能指回'时间戳或具体语句/画面'作证据。无法可靠测量的（如感染力）不写。镜头/声音/曝光这些没有时间轴检测数据的，放 warnings，不硬编进 topIssues。",
+    "- 先判断 内容类型/表达形式/目的（从画面+转写推断），再下结论；同一个'镜头久'在不同视频里结论不同。",
+    "- **不要平均打分**：只给'最值得改的 3~5 个问题'。",
+    "- 综合判断要区分：制作质量 vs 表达 vs 表现潜力。",
+    "",
+    '{"verdict":{"kind":"production|expression|performance","summary":"一句话综合判断(如:不是拍得不好,主要问题在开头价值兑现慢)","production":"良好/中等/偏弱","expression":"中等/偏弱","performance":"中等/偏弱"},"topIssues":[{"title":"开头价值兑现慢","severity":5,"layer":"expression","problem":"前13秒没提供明确新信息","evidence":[{"timestamp":"00:00-00:13","observation":"开头承诺了三个方法,但13秒才出现第一个具体方法"}],"suggestion":"把00:13的核心观点提前到00:02"}],"warnings":["镜头/声音/曝光分析暂缺(需时间轴检测,当前未提供)"]}',
+  ].join("\n");
+  try {
+    const text = await chat("deepseek", [{ role: "user", content: lines }], {
+      json: true,
+      temperature: 0.5,
+      maxTokens: 2000,
+      timeoutMs: 150000,
+      task: "diagnosis:report",
+    });
+    return JSON.parse(text) as ReportDiagnosis;
+  } catch (e: any) {
+    console.warn("[diagnosis] 报告式诊断 LLM 失败：", e?.message || e);
+    return null;
+  }
 }
 
 /** 基于真实画面描述做「画面级」LLM 诊断：只依据视频内容，不套模板。失败回退 null。 */
@@ -296,11 +344,13 @@ export async function runDiagnosis(input: DiagnosisEngineInput): Promise<Diagnos
     ? `基于你上传的 ${agg.availableCount} 个视频 + 数据信息，你的内容${diagnoses.length ? "有" + diagnoses.length + "个可改进点" : "整体不错"}。`
     : "当前证据不足（未真实看视频），先按下方引导补充视频/数据，再得到针对性诊断。";
 
+  const report = await generateReportDiagnosis(input.evidences, manual);
   return {
     overallScore,
     metrics,
     diagnoses,
     summary,
+    report: report ?? undefined,
     evidenceSufficient,
     availableCount: agg.availableCount,
     totalVideos: agg.total,

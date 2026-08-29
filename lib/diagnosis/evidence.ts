@@ -12,6 +12,8 @@ export interface ContentEvidence {
   reason?: string;
   /** 视频画面描述（真实看过时，来自视觉模型对关键帧的分析） */
   visualSummary?: string;
+  /** 语音转写（若有） */
+  transcript?: string;
   /** 钩子类型（如 身份共鸣/反常识/悬念），来自 golden3s.hookType */
   hookType?: string;
   /** 前 3 秒是否能留人（score.hook 归一化） */
@@ -63,6 +65,7 @@ export function extractContentEvidence(report: AnalysisReport): ContentEvidence 
     available,
     reason: available ? undefined : report.visual?.note || "演示/未真实分析",
     visualSummary: available ? (report.visual as any)?.summary || undefined : undefined,
+    transcript: report.visual?.transcript || undefined,
     hookType: golden3s?.hookType,
     hookScore: hookRating != null ? hookRating / 100 : null,
     hookRating,
