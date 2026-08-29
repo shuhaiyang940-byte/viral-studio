@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSession } from "@/lib/auth";
 
-const NICHES = ["知识口播", "美妆种草", "数码带货", "情感共鸣", "美食", "商业"];
+const NICHES = ["日常记录 VLOG", "生活记录", "知识口播", "美妆种草", "数码带货", "情感共鸣", "美食", "搞笑日常", "探店打卡", "商业"];
 const PRESETS = [
   { label: "知识口播", product: "我是教人学英语的" },
   { label: "数码带货", product: "我卖桌面小风扇" },
@@ -86,15 +86,18 @@ export function UniversalConverter() {
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div>
             <label className="mb-1 block text-[11px] text-muted-foreground">我的赛道</label>
-            <select
+            <input
+              list="niche-options"
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
+              placeholder="赛道 / 内容类型，如：日常记录 VLOG、知识口播、美妆种草…（可自由输入）"
               className="w-full rounded-md border border-border bg-background/60 px-3 py-2 text-sm"
-            >
+            />
+            <datalist id="niche-options">
               {NICHES.map((n) => (
-                <option key={n} value={n}>{n}</option>
+                <option key={n} value={n} />
               ))}
-            </select>
+            </datalist>
           </div>
           <div>
             <label className="mb-1 block text-[11px] text-muted-foreground">我的主题 / 创作方向（不卖东西就填主题）</label>
