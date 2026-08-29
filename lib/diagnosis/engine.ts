@@ -4,6 +4,7 @@
 
 import type { ContentEvidence } from "./evidence";
 import { aggregateEvidence } from "./evidence";
+import { chat } from "@/lib/llm";
 
 export interface DiagnosisMetric {
   key: string;
@@ -71,8 +72,56 @@ function computeOverall(metrics: DiagnosisMetric[], diagnoses: DiagnosisItem[]):
   return Math.round(clamp(score - highPenalty - mediumPenalty));
 }
 
-export function runDiagnosis(input: DiagnosisEngineInput): DiagnosisResult {
+interface VisualDiagnosis {
+  contentQuality?: number;
+  hookStrength?: number;
+  atmosphere?: string;
+  visualIssues?: string[];
+  packaging?: string;
+  emotion?: string;
+  pacing?: string;
+  diagnoses?: { severity: "high" | "medium" | "low"; title: string; detail: string; howToImprove: string[] }[];
+}
+
+/** 基于真实画面描述做「画面级」LLM 诊断：只依据视频内容，不套模板。失败回退 null。 */
+async function tryVisualDiagnosis(evidences: ContentEvidence[]): Promise<VisualDiagnosis | null> {
+  const visuals = evidences
+    .filter((e) => e.available && e.visualSummary)
+    .map((e) => `视频《${e.title || "未命名"}》画面：${e.visualSummary}`);
+  if (!visuals.length) return null;
+  const prompt = [
+    "你是资深短视频内容诊断专家。用户上传视频的真实【画面描述】（来自视觉模型对关键帧的分析）。请只基于这些画面做精准诊断，不要套通用模板，要具体到该视频。",
+    "",
+    "画面描述：",
+    visuals.join("\n"),
+    "",
+    "请给出：",
+    "- 内容质量(0-100)：综合画面信息密度、拍摄/构图/画质、氛围感、叙事清晰度、感染力。若画面平庸、信息少、拍摄粗糙、氛围平淡，应给中低分(如 50-70)，不要虚高。",
+    "- 钩子(0-100)：开头画面是否制造悬念/冲突/吸睛/反常识。",
+    "- 氛围感、画面/构图/画质、包装(字幕/贴纸/模板)、情感表达、语速节奏、镜头语言、信息密度：各用一句话评价，指出真实存在的具体问题。",
+    "- 3-5 条针对该账号的具体改进建议，每条：问题→具体动作（如画面太静态→加运动镜头/特写；字幕太小→放大加粗字幕；情绪平→声调起伏/节奏加快；包装弱→统一封面字卡）。",
+    "",
+    "只输出 JSON(不要 markdown)：",
+    '{"contentQuality":数字,"hookStrength":数字,"atmosphere":"一句话","visualIssues":["具体问题1","问题2"],"packaging":"包装评价","emotion":"情感表达评价","pacing":"语速节奏评价","diagnoses":[{"severity":"high|medium|low","title":"一句话诊断(针对该视频)","detail":"为什么(结合画面)","howToImprove":["具体动作1","动作2"]}]}',
+  ].join("\n");
+  try {
+    const text = await chat("deepseek", [{ role: "user", content: prompt }], {
+      json: true,
+      temperature: 0.4,
+      maxTokens: 1800,
+      timeoutMs: 150000,
+      task: "diagnosis:visual",
+    });
+    return JSON.parse(text) as VisualDiagnosis;
+  } catch (e: any) {
+    console.warn("[diagnosis] 画面级诊断 LLM 失败，回退规则诊断：", e?.message || e);
+    return null;
+  }
+}
+
+export async function runDiagnosis(input: DiagnosisEngineInput): Promise<DiagnosisResult> {
   const agg = aggregateEvidence(input.evidences);
+  const visual = await tryVisualDiagnosis(input.evidences);
   const { manual } = input;
 
   // 互动率：用户截图/手填优先；否则用聚合证据里的互动评分估算
@@ -83,18 +132,18 @@ export function runDiagnosis(input: DiagnosisEngineInput): DiagnosisResult {
     {
       key: "content_quality",
       label: "内容质量",
-      value: agg.avgOverall ?? null,
+      value: visual?.contentQuality ?? agg.avgOverall ?? null,
       benchmark: null,
-      status: agg.avgOverall == null ? "unknown" : agg.avgOverall >= 70 ? "good" : agg.avgOverall >= 55 ? "warn" : "gap",
-      note: "基于你上传视频的综合评分（有真实看过的视频才计算）",
+      status: (visual?.contentQuality ?? agg.avgOverall) == null ? "unknown" : (visual?.contentQuality ?? agg.avgOverall)! >= 70 ? "good" : (visual?.contentQuality ?? agg.avgOverall)! >= 55 ? "warn" : "gap",
+      note: visual ? "基于视频真实画面的内容质量评分" : "基于你上传视频的综合评分（有真实看过的视频才计算）",
     },
     {
       key: "hook",
       label: "开头钩子",
-      value: agg.avgHook ?? null,
+      value: visual?.hookStrength ?? agg.avgHook ?? null,
       benchmark: null,
-      status: agg.avgHook == null ? "unknown" : agg.avgHook >= 70 ? "good" : agg.avgHook >= 55 ? "warn" : "gap",
-      note: "前 3 秒留人能力（golden3s.hookType）",
+      status: (visual?.hookStrength ?? agg.avgHook) == null ? "unknown" : (visual?.hookStrength ?? agg.avgHook)! >= 70 ? "good" : (visual?.hookStrength ?? agg.avgHook)! >= 55 ? "warn" : "gap",
+      note: visual ? "基于视频开头画面的钩子强度" : "前 3 秒留人能力（golden3s.hookType）",
     },
     {
       key: "interaction",
@@ -123,6 +172,22 @@ export function runDiagnosis(input: DiagnosisEngineInput): DiagnosisResult {
   ];
 
   const diagnoses: DiagnosisItem[] = [];
+
+  // 画面级诊断（真实看过视频）优先：LLM 基于真实画面给出的具体问题与改进，不套模板
+  if (visual?.diagnoses && visual.diagnoses.length) {
+    visual.diagnoses.forEach((d, i) => {
+      diagnoses.push({
+        id: `visual_${i}`,
+        title: d.title,
+        severity: d.severity,
+        metricKey: "content_quality",
+        detail: d.detail,
+        howToImprove: d.howToImprove || [],
+        evidence: [{ type: "画面分析", detail: "来自真实视频画面（关键帧理解）" }],
+        confidence: 0.92,
+      });
+    });
+  }
 
   // 针对性诊断：基于证据命中率生成，每条都带如何增强/加钩子
   if (agg.total > 0 && agg.ctaHitRate < 0.5) {

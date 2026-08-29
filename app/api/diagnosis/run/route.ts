@@ -5,7 +5,9 @@ import { extractContentEvidence, type ContentEvidence } from "@/lib/diagnosis/ev
 import { runDiagnosis } from "@/lib/diagnosis/engine";
 import type { AnalysisReport } from "@/lib/types";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 
 /**
  * PHASE1 账号证据诊断：
@@ -29,7 +31,7 @@ export async function POST(req: NextRequest) {
   const reports: AnalysisReport[] = Array.isArray(body.reports) ? body.reports : [];
   const evidences: ContentEvidence[] = reports.map(extractContentEvidence);
 
-  const result = runDiagnosis({
+  const result = await runDiagnosis({
     evidences,
     manual: {
       followers: num(body.followers),
