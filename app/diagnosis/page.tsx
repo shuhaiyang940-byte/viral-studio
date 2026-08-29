@@ -20,9 +20,13 @@ interface VideoItem {
   id: string;
   name: string;
   /** 当前阶段 */
-  stage: "uploading" | "analyzing" | "done" | "error";
+  stage: "uploading" | "uploaded" | "analyzing" | "done" | "error";
   /** 上传进度 0-100 */
   progress: number;
+  /** 上传后的 OSS 公网 URL */
+  url?: string;
+  /** 文件大小（字节） */
+  fileSize?: number;
   /** 分析阶段文案（AI 在做什么），用于进度感 */
   phase?: string;
   report?: any;
@@ -50,7 +54,7 @@ export default function DiagnosisPage() {
     }).catch(() => {});
   }, []);
 
-  async function analyzeOne(file: File, id: string, onUploadProgress?: (p: number) => void): Promise<VideoItem["report"]> {
+  async function analyzeOne(file: File, id: string, onUploadProgress?: (p: number) => void): Promise<string> {
     if (file.size > MAX_FILE_MB * 1024 * 1024) {
       throw new Error(`视频超过 ${MAX_FILE_MB}MB 限制`);
     }
@@ -68,11 +72,8 @@ export default function DiagnosisPage() {
     });
     const publicUrl = `${sig.host}/${sig.key}`;
     diagLog({ step: "oss_upload_done", fileName: file.name, fileSize: file.size, ok: true, detail: publicUrl });
-    diagLog({ step: "frames_extract", fileName: file.name, fileSize: file.size });
-    // 优先用用户上传的视频封面/首帧图（图片→千问，跨域稳定）；否则自动截帧(部分浏览器可能失败)
-    const frames = coverFrames.length ? coverFrames : await extractFrames(publicUrl);
-    diagLog({ step: "frames_result", fileName: file.name, fileSize: file.size, ok: frames.length > 0, detail: `${frames.length} 帧` });
-    return doAnalyze({ videoUrl: publicUrl, title: file.name, refType: "auto", diag: true, frames }, id, file);
+    setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "uploaded", progress: 100, url: publicUrl, fileSize: file.size } : it)));
+    return publicUrl;
   }
 
   /** 用 XHR 把文件 POST 表单直传到 OSS（能拿真实上传进度） */
@@ -158,9 +159,9 @@ export default function DiagnosisPage() {
   }
 
   /** 调用 /api/analyze/url 分析一个视频（小文件走 videoData/data URL，大文件走 videoUrl/blob URL），并推进阶段文案 */
-  async function doAnalyze(body: any, id: string, file: File): Promise<VideoItem["report"]> {
+  async function doAnalyze(body: any, id: string, fileName: string, fileSize?: number): Promise<VideoItem["report"]> {
     setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "analyzing", progress: 100, phase: "① 读取视频画面…（约30~120秒）" } : it)));
-    diagLog({ step: "analyze_start", fileName: file.name, fileSize: file.size });
+    diagLog({ step: "analyze_start", fileName, fileSize });
     const phases = ["① 读取视频画面…", "② 转写语音…", "③ 生成结构化分析…"];
     let pi = 0;
     const phaseTimer = setInterval(() => {
@@ -176,11 +177,11 @@ export default function DiagnosisPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "视频分析失败");
       clearInterval(phaseTimer);
-      diagLog({ step: "analyze_done", fileName: file.name, fileSize: file.size, ok: true });
+      diagLog({ step: "analyze_done", fileName, fileSize, ok: true });
       return data;
     } catch (e: any) {
       clearInterval(phaseTimer);
-      diagLog({ step: "analyze_error", fileName: file.name, fileSize: file.size, ok: false, detail: e?.message || "分析异常" });
+      diagLog({ step: "analyze_error", fileName, fileSize, ok: false, detail: e?.message || "分析异常" });
       throw e;
     }
   }
@@ -211,10 +212,9 @@ export default function DiagnosisPage() {
   /** 处理单个视频：上传（带进度）→ 分析（限并发）→ 更新状态 */
   async function processOne(file: File, id: string) {
     try {
-      const report = await analyzeOne(file, id, (p) => {
+      await analyzeOne(file, id, (p) => {
         setVideos((v) => v.map((it) => (it.id === id ? { ...it, progress: p } : it)));
       });
-      setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "done", progress: 100, report } : it)));
     } catch (e: any) {
       setVideos((v) => v.map((it) => (it.id === id ? { ...it, stage: "error", error: e?.message || "失败" } : it)));
       diagLog({ step: "process_error", fileName: file.name, fileSize: file.size, ok: false, detail: e?.message || "失败" });
@@ -273,14 +273,29 @@ export default function DiagnosisPage() {
   }
 
   async function runDiagnosis() {
-    const reports = videos.filter((v) => v.stage === "done" && v.report).map((v) => v.report);
-    if (reports.length === 0) {
+    const doneReports = videos.filter((v) => v.stage === "done" && v.report).map((v) => v.report);
+    const pending = videos.filter((v) => v.stage === "uploaded" && v.url);
+    if (doneReports.length === 0 && pending.length === 0) {
       setError("请先上传至少 1 个视频");
       return;
     }
     setBusy(true);
     setError(null);
     try {
+      // 对"已上传未分析"的视频，用用户封面图（或自动截帧）做画面分析，再合并所有报告
+      const reports: any[] = [...doneReports];
+      for (const v of pending) {
+        const frames = coverFrames.length ? coverFrames : await extractFrames(v.url!);
+        diagLog({ step: "frames_result", fileName: v.name, fileSize: v.fileSize, ok: frames.length > 0, detail: `${frames.length} 帧（封面/截帧）` });
+        const report = await doAnalyze({ videoUrl: v.url, title: v.name, refType: "auto", diag: true, frames }, v.id, v.name, v.fileSize);
+        setVideos((prev) => prev.map((it) => (it.id === v.id ? { ...it, stage: "done", report } : it)));
+        reports.push(report);
+      }
+      if (reports.length === 0) {
+        setError("视频分析未完成，请重试");
+        setBusy(false);
+        return;
+      }
       const res = await fetchWithRetry("/api/diagnosis/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -363,7 +378,7 @@ export default function DiagnosisPage() {
                     {v.stage === "done" ? <Check className="h-4 w-4 shrink-0 text-success" /> : v.stage === "error" ? <AlertTriangle className="h-4 w-4 shrink-0 text-destructive" /> : <Loader2 className="h-4 w-4 shrink-0 animate-spin text-primary" />}
                     <span className="flex-1 truncate">{v.name}</span>
                     <Badge variant={v.stage === "done" ? "success" : v.stage === "error" ? "warning" : "secondary"}>
-                      {v.stage === "uploading" ? `上传中 ${v.progress}%` : v.stage === "analyzing" ? "AI 分析中…" : v.stage === "done" ? (v.report?.visual?.mode === "real" ? "已真实分析" : "分析完成(演示)") : "失败"}
+                      {v.stage === "uploading" ? `上传中 ${v.progress}%` : v.stage === "uploaded" ? "已上传，待诊断" : v.stage === "analyzing" ? "AI 分析中…" : v.stage === "done" ? (v.report?.visual?.mode === "real" ? "已真实分析" : "分析完成(演示)") : "失败"}
                     </Badge>
                   </div>
                   {(v.stage === "uploading" || v.stage === "analyzing") && (
