@@ -444,6 +444,25 @@ export default function DiagnosisPage() {
   );
 }
 
+function RadarChart({ items, size = 300 }: { items: { label: string; value: number }[]; size?: number }) {
+  const cx = size / 2, cy = size / 2, r = size / 2 - 40;
+  const n = items.length;
+  if (!n) return null;
+  const ang = (i: number) => (Math.PI * 2 * i) / n - Math.PI / 2;
+  const pt = (i: number, rr: number) => [cx + Math.cos(ang(i)) * rr, cy + Math.sin(ang(i)) * rr];
+  const rings = [0.25, 0.5, 0.75, 1].map((t) => items.map((_, i) => pt(i, t * r).join(",")).join(" "));
+  const poly = items.map((it, i) => pt(i, (it.value / 100) * r).join(",")).join(" ");
+  return (
+    <svg viewBox={`0 0 ${size} ${size}`} className="mx-auto w-full max-w-[380px]">
+      {rings.map((d, i) => <polygon key={i} points={d} fill="none" stroke="currentColor" strokeOpacity={0.12} />)}
+      {items.map((_, i) => { const [x, y] = pt(i, r); return <line key={i} x1={cx} y1={cy} x2={x} y2={y} stroke="currentColor" strokeOpacity={0.12} />; })}
+      <polygon points={poly} fill="rgba(99,102,241,0.22)" stroke="#6366f1" strokeWidth={2} />
+      {items.map((it, i) => { const [x, y] = pt(i, (it.value / 100) * r); return <circle key={i} cx={x} cy={y} r={3} fill="#6366f1" />; })}
+      {items.map((it, i) => { const [x, y] = pt(i, r + 14); return <text key={i} x={x} y={y} textAnchor="middle" dominantBaseline="central" className="fill-current text-[10px]">{it.label} <tspan className="opacity-60">{Math.round(it.value)}</tspan></text>; })}
+    </svg>
+  );
+}
+
 function DiagnosisResult({ r }: { r: any }) {
   if (r.report) {
     const rep = r.report;
@@ -485,13 +504,25 @@ function DiagnosisResult({ r }: { r: any }) {
           {rep.review.points?.length > 0 && (<ul className="space-y-1 text-sm text-muted-foreground">{rep.review.points.map((p: string, j: number) => <li key={j}>· {p}</li>)}</ul>)}
           <p className="text-sm text-emerald-600 dark:text-emerald-300">下一步：{rep.review.nextStep}</p>
         </CardContent></Card>)}
-        {rep.full?.length > 0 && (<Card className="mt-3"><CardContent className="space-y-2 p-4">
-          <div className="flex items-center gap-2"><Badge variant="secondary">全维度</Badge><span className="text-[11px] text-muted-foreground">配音 / 配乐 / 花字 / 节奏 / 画面</span></div>
-          <div className="grid gap-2 sm:grid-cols-2">{rep.full.map((fd: any, i: number) => (<div key={i} className="rounded-md border border-border/70 p-2.5">
-            <p className="text-xs font-medium">{fd.dim}</p>
-            <p className="text-sm">{fd.verdict}</p>
-            <p className="text-[11px] text-muted-foreground">{fd.note}</p>
-          </div>))}</div>
+        {rep.full?.length > 0 && (<Card className="mt-3"><CardContent className="space-y-3 p-4">
+          <div className="flex items-center gap-2"><Badge variant="secondary">全维度雷达</Badge><span className="text-[11px] text-muted-foreground">自媒体能力图 · 从视频各角度直观展示</span></div>
+          {(() => {
+            const confirmed = rep.full.filter((f: any) => f.confirmed && typeof f.score === "number");
+            if (confirmed.length) return <RadarChart items={confirmed.map((f: any) => ({ label: f.dim, value: f.score }))} />;
+            return <p className="rounded-md border border-dashed border-border/70 bg-muted/10 p-3 text-xs text-muted-foreground">上传视频封面/首帧图后，这里会画出能力雷达图（目前画面/内容类维度可进入）。</p>;
+          })()}
+          {rep.full.filter((f: any) => !f.confirmed).length > 0 && (
+            <div className="grid gap-2 sm:grid-cols-2">
+              {rep.full.filter((f: any) => !f.confirmed).map((fd: any, i: number) => (<div key={i} className="rounded-md border border-border/70 p-2.5 opacity-70">
+                <p className="text-xs font-medium">{fd.dim}</p>
+                <p className="text-sm">{fd.verdict}</p>
+                <p className="text-[11px] text-muted-foreground">{fd.note}</p>
+              </div>))}
+            </div>
+          )}
+          <p className="rounded-md border border-border/70 bg-muted/20 p-2.5 text-[11px] leading-relaxed text-muted-foreground">
+            <span className="font-medium">为什么这些需要上传封面/视频？</span> 配音、配乐、花字、画面这些能力，必须"看到/听到"视频内容才能可靠判断；只凭标题无法打分，所以会标"暂无法确认"。上传视频封面/首帧图后，"画面、内容类"维度能进雷达图；完整判断配音/配乐/花字需要视频音频（国内平台可自动分析）。
+          </p>
         </CardContent></Card>)}
         {rep.warnings?.length > 0 && (<div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-[11px] text-muted-foreground"><p className="font-medium">暂无法确认</p>{rep.warnings.map((w: string, j: number) => <p key={j}>· {w}</p>)}</div>)}
       </div>
