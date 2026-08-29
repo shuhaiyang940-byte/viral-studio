@@ -473,6 +473,26 @@ function DiagnosisResult({ r }: { r: any }) {
           <p className="text-sm text-muted-foreground">{rep.platform.reason}</p>
           {rep.platform.adaptSuggestions?.length > 0 && (<ul className="mt-1 space-y-1 text-sm">{rep.platform.adaptSuggestions.map((s: string, j: number) => <li key={j} className="flex gap-1.5"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{s}</li>)}</ul>)}
         </CardContent></Card>)}
+        {rep.account && (<Card className="mt-3"><CardContent className="space-y-2 p-4">
+          <div className="flex items-center gap-2"><Badge variant="secondary">账号定位</Badge></div>
+          <p className="text-sm font-semibold">{rep.account.positioning}</p>
+          <p className="text-xs text-muted-foreground">赛道：{rep.account.vertical} ｜ 目标：{rep.account.goal}</p>
+          <p className="text-sm text-muted-foreground">这条视频怎么服务账号：{rep.account.fitVideo}</p>
+        </CardContent></Card>)}
+        {rep.review && (<Card className="mt-3"><CardContent className="space-y-1.5 p-4">
+          <div className="flex items-center gap-2"><Badge variant="secondary">复盘</Badge></div>
+          <p className="text-sm">{rep.review.summary}</p>
+          {rep.review.points?.length > 0 && (<ul className="space-y-1 text-sm text-muted-foreground">{rep.review.points.map((p: string, j: number) => <li key={j}>· {p}</li>)}</ul>)}
+          <p className="text-sm text-emerald-600 dark:text-emerald-300">下一步：{rep.review.nextStep}</p>
+        </CardContent></Card>)}
+        {rep.full?.length > 0 && (<Card className="mt-3"><CardContent className="space-y-2 p-4">
+          <div className="flex items-center gap-2"><Badge variant="secondary">全维度</Badge><span className="text-[11px] text-muted-foreground">配音 / 配乐 / 花字 / 节奏 / 画面</span></div>
+          <div className="grid gap-2 sm:grid-cols-2">{rep.full.map((fd: any, i: number) => (<div key={i} className="rounded-md border border-border/70 p-2.5">
+            <p className="text-xs font-medium">{fd.dim}</p>
+            <p className="text-sm">{fd.verdict}</p>
+            <p className="text-[11px] text-muted-foreground">{fd.note}</p>
+          </div>))}</div>
+        </CardContent></Card>)}
         {rep.warnings?.length > 0 && (<div className="rounded-md border border-warning/30 bg-warning/5 p-3 text-[11px] text-muted-foreground"><p className="font-medium">暂无法确认</p>{rep.warnings.map((w: string, j: number) => <p key={j}>· {w}</p>)}</div>)}
       </div>
     );

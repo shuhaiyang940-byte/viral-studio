@@ -89,6 +89,9 @@ interface ReportDiagnosis {
   verdict: { kind: "production" | "expression" | "performance"; summary: string; production: string; expression: string; performance: string };
   topIssues: { title: string; severity: number; layer: string; problem: string; evidence: { timestamp: string; observation: string }[]; suggestion: string }[];
   platform?: { best: string; reason: string; adaptSuggestions: string[] };
+  account?: { positioning: string; vertical: string; goal: string; fitVideo: string };
+  review?: { summary: string; points: string[]; nextStep: string };
+  full?: { dim: string; verdict: string; note: string; evidence?: { timestamp: string; observation: string }[] }[];
   warnings: string[];
 }
 
@@ -115,8 +118,10 @@ async function generateReportDiagnosis(
     "- **每条建议要有说服力**：说明'为什么值得改'——用行业通用规律/爆款逻辑（如：前 3 秒是留存关键窗口，多数爆款都在 3 秒内给结果或冲突；开头给承诺却迟迟不兑现会显著掉留存）。**严禁编造具体报告名或精确百分比**（如'据XX报告提升37%'）；要用数字就标'行业通用参考，非特定报告'。",
     "- **判断更适合哪个平台**：结合内容类型/形式/时长/受众，给 best(抖音/小红书/B站/视频号) + 理由 + 平台适配建议。",
     "- **不要平均打分**：只给最值得改的 3~5 个问题。",
+    "- **语言要像资深运营朋友**：口语化、自然，别堆术语、别像 AI 模板。",
+    "- **再输出三个部分**：① account（账号定位一句话/赛道/账号目标/这条视频怎么服务账号目标）；② review（本次复盘：1 句总结 + 2-4 条亮点与问题 + 下一步动作，结合账号目标）；③ full（全维度数组：配音/配乐/花字/节奏/画面，每项给 verdict+note+可选 evidence；**没有可靠依据的维度 note 写「暂无法确认（需上传视频/封面/转写）」**，不要硬编）。",
     "",
-    '{"verdict":{"kind":"production|expression|performance","summary":"一句话综合判断","production":"良好/中等/偏弱","expression":"中等/偏弱","performance":"中等/偏弱"},"topIssues":[{"title":"开头价值兑现慢","severity":5,"layer":"expression","problem":"前13秒没提供明确新信息","evidence":[{"timestamp":"00:00-00:13","observation":"开头承诺了三个方法,13秒才出现第一个"}],"suggestion":"把核心观点提前到00:02；因为前3秒是留存关键窗口,早给结果能显著减少流失(行业通用参考,非特定报告)"}],"platform":{"best":"小红书","reason":"情绪/实用类内容与小红书更契合,篇幅适配","adaptSuggestions":["封面加情绪关键词","开头3秒直接给结论"]},"warnings":["镜头/声音/曝光分析暂缺(需时间轴检测,当前未提供)"]}',
+    '{"verdict":{"kind":"production|expression|performance","summary":"一句话综合判断","production":"良好/中等/偏弱","expression":"中等/偏弱","performance":"中等/偏弱"},"topIssues":[{"title":"开头价值兑现慢","severity":5,"layer":"expression","problem":"前13秒没提供明确新信息","evidence":[{"timestamp":"00:00-00:13","observation":"开头承诺了三个方法,13秒才出现第一个"}],"suggestion":"把核心观点提前到00:02；因为前3秒是留存关键窗口,早给结果能显著减少流失(行业通用参考,非特定报告)"}],"platform":{"best":"小红书","reason":"情绪/实用类内容与小红书更契合,篇幅适配","adaptSuggestions":["封面加情绪关键词","开头3秒直接给结论"]},"account":{"positioning":"治愈系情绪口播,给内耗人群松绑","vertical":"情绪/心理","goal":"涨粉+建立信任","fitVideo":"用「我又快乐了」共鸣焦虑人群,利于涨粉"},"review":{"summary":"情绪点明确,但开头/信息密度和结尾承接偏弱,未把共鸣转化成关注","points":["共鸣主题清晰","开头兑现慢","结尾缺引导","节奏偏慢"],"nextStep":"下一条把核心情绪结论前置到3秒内,结尾加「关注我,带你走出焦虑」"},"full":[{"dim":"配音","verdict":"暂无法确认","note":"暂无法确认（需上传视频/转写）"},{"dim":"配乐","verdict":"暂无法确认","note":"暂无法确认（需上传视频/转写）"},{"dim":"花字","verdict":"暂无法确认","note":「暂无法确认（需上传视频/封面/转写）」},{"dim":"节奏","verdict":"偏慢","note":"依据标题与常见口播节奏判断,建议缩短铺垫"},{"dim":"画面","verdict":"暂无法确认","note":"暂无法确认（需上传封面/截图）"}],"warnings":["镜头/声音/花字/曝光分析暂缺(需时间轴检测,当前未提供)"]}',
   ].join("\n");
   try {
     const text = await chat("deepseek", [{ role: "user", content: lines }], {
