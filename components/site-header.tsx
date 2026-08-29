@@ -42,8 +42,7 @@ export function SiteHeader() {
         <Logo />
         <nav className="hidden items-center gap-8 md:flex">
           {[
-            { label: "爆款拆解", href: "/studio" },
-            { label: "爆款策略顾问", href: "/strategy" },
+            { label: "创作工坊", href: "/creation" },
             { label: "找对标黑马", href: "/find-peer" },
             { label: "账号诊断", href: "/diagnosis" },
             { label: "创意选题", href: "/ideas" },
