@@ -122,27 +122,35 @@ async function callOpenAICompat(
   model: string,
   prompt: string
 ): Promise<RawReport> {
-  const res = await fetch(`${baseURL}/chat/completions`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: "你是短视频爆款分析专家，只返回 JSON，不要任何解释。" },
-        { role: "user", content: prompt },
-      ],
-      response_format: { type: "json_object" },
-      temperature: 0.7,
-    }),
-  });
-  if (!res.ok) {
-    throw new Error(`AI API ${res.status}: ${await res.text()}`);
+  let lastErr: unknown = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      const res = await fetch(`${baseURL}/chat/completions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: "你是短视频爆款分析专家，只返回 JSON，不要任何解释。" },
+            { role: "user", content: prompt },
+          ],
+          response_format: { type: "json_object" },
+          temperature: 0.7,
+        }),
+        signal: AbortSignal.timeout(150000),
+      });
+      if (!res.ok) throw new Error(`AI API ${res.status}: ${await res.text()}`);
+      const data = await res.json();
+      return JSON.parse(data.choices[0].message.content);
+    } catch (e) {
+      lastErr = e;
+      if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+    }
   }
-  const data = await res.json();
-  return JSON.parse(data.choices[0].message.content);
+  throw lastErr;
 }
 
 /** Anthropic Claude 接口（使用 Messages API）。 */

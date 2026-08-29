@@ -122,6 +122,7 @@ export default function DiagnosisPage() {
           video.onloadeddata = () => {
             const total = video.duration || 0;
             if (!total || !Number.isFinite(total)) { finish(); return; }
+            try { video.play()?.catch(() => {}); } catch { /* 自动播放受限，seek 仍可截帧 */ }
             const pts = [0.03, 0.5, 0.9].map((p) => Math.max(0.1, Math.min(total - 0.1, total * p))).slice(0, count);
             let i = 0;
             const grab = () => {
